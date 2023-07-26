@@ -1,0 +1,21 @@
+
+body {
+
+  background-color: #333333;
+  color: #ffffff;
+}
+  .login-page {
+    padding: 20px;
+    background-color: #333333;
+    color: #ffffff;
+    height:100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .login-container{
+    max-width: 400px;
+  }
+  .btn-primary{
+     margin-top: 10px;
+  }
