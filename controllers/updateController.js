@@ -23,7 +23,7 @@ const updateUser = async (req, res) => {
     await user.save();
 
     // Find the profile by User ID
-    const profile = await Profile.findOne({ user: userId });
+    const profile = await Profile.findOne({ user: userId});
     if (!profile) {
       return res.status(404).json({ message: 'Profile not found' });
     }
@@ -43,6 +43,20 @@ const updateUser = async (req, res) => {
   }
 };
 
+const deleteUser = async (req,res) => {
+    try {
+      const userId = req.params.id; 
+      await User.findByIdAndDelete(userId);
+      await Profile.findOneAndDelete({ user: userId });
+  
+      res.json({ message: 'User and profile deleted successfully' });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: 'Internal Server Error' });
+    }
+};
+
 module.exports = {
   updateUser,
+  deleteUser,
 };

@@ -17,7 +17,7 @@ const Expense = require('../models/expenses.js');
 const Payment = require('../models/payment.js');
 const Consumption = require('../models/consumption.js');
 const { TopologyDescription } = require('mongodb');
-const User = require('../models/userModel');
+const User = require('../models/userModel.js');
 //Middleware
 app.use(express.json());
 //use the cors middleware
@@ -61,8 +61,11 @@ app.put('/api/profile',extractUserId, async(req,res) => {
 });
 */
 
-app.put('/api/users/:id' , updateController.updateUser);
 
+//Update existing user Info route 
+app.put('/api/users/:id' , updateController.updateUser);
+//Delete existing user Info route 
+app.delete('/api/users/:id',updateController.deleteUser);
 //Retrieve the list of Users route
 app.get('/api/users',async(req,res)=>{
     try {
@@ -137,7 +140,7 @@ app.get('/api/buildings' , async (req,res) => {
 app.get('/api/administrators' , async (req,res) => {
     try{
         //Find users with the role "admin" in the database 
-        const administrators = await Profile.find({role:'Administrator'});
+        const administrators = await Profile.find({role:'Administrator'}).populate("user","name");
         //Return the list of administrators as a response 
         res.status(200).json({administrators});
     }catch (error) {
