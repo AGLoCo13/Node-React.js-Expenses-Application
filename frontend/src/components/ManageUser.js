@@ -10,7 +10,13 @@ function ManageUsers() {
   const [editUser, setEditUser] = useState({address:'',cellphone:'', role:''})
   const [selectedUser, setSelectedUser] = useState(null);
   const[showConfirmation, setShowConfirmation] = useState(false);
+  const[showEditForm , setShowEditForm] = useState(false);
 
+
+  //function to show the edit form
+  const showEditUserForm = () => {
+    setShowEditForm(true);
+  }
   useEffect(() => {
     fetchUsers();
   }, []);
@@ -139,7 +145,7 @@ function ManageUsers() {
         {users.map((user) => (
           <li key={user._id} className="list-group-item d-flex justify-content-between align-items-center">
             {user.name} - {user.email}
-            <button className="btn btn-primary mr-2" onClick={() => selectUser(user)}>Edit</button>
+            <button className="btn btn-primary mr-2" onClick={() => {selectUser(user); showEditUserForm();}}>Edit</button>
             <button className="btn btn-danger" onClick={() => deleteUser(user)}>Delete</button>
           </li>
         ))}
@@ -151,7 +157,7 @@ function ManageUsers() {
               <button className='btn btn-secondary' onClick={() => handleDeleteConfirmation(false)}>No</button>
               </div>
           )}
-      {selectedUser && !showConfirmation &&(
+      {showEditForm && selectedUser &&(
         <div className="edit-user-container mt-4">
           <h3 className="text-center">Edit User</h3>
           <form onSubmit={updateUser}>

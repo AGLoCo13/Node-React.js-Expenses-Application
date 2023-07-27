@@ -125,7 +125,12 @@ app.delete('/api/apartments/:id', propertyController.deleteApartment);
 
 app.get('/api/buildings' , async (req,res) => {
     try{
-        const buildings = await Building.find();
+        const buildings = await Building.find().populate({path:"profile",
+        populate:{
+            path:"user",
+            select:"name",
+        },
+    });
         res.status(200).json(buildings);
     }catch (error) {
         console.error("Error retrieving buildings:" , error);

@@ -3,6 +3,7 @@ import React, { useState,useEffect } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/manageBuildings.css'
+import { ToastContainer , toast} from 'react-toastify';
 
 function ManageBuildings() {
   const [buildings , setBuildings] = useState([]);
@@ -11,6 +12,21 @@ function ManageBuildings() {
   const [editBuilding, setEditBuilding] = useState({profile:'',address:'',floors:'',apartments:'',reserve:''});
   const [showConfirmation,setShowConfirmation] = useState(false);
   const [administrators,setAdministrators] = useState(null);
+  const [showEditForm , setShowEditForm] = useState(false);
+
+//Function to show the edit Form
+  const showEditBuildingForm = () => {
+    setShowEditForm(true);
+  };
+
+//Function to hide the edit Form
+const hideEditBuildingForm = () => {
+  setSelectedBuilding(null);
+  setEditBuilding({ profile: '', address: '', floors: '', apartments: '', reserve: '' });
+  setShowEditForm(false);
+};
+
+
 
 
   useEffect(() => {
@@ -36,12 +52,11 @@ function ManageBuildings() {
   const fetchBuildings = async () => {
     try{
     const response = await axios.get('http://localhost:5000/api/buildings');
-    const {buildings} = response.data;
-    setBuildings(buildings);
+    setBuildings(response.data);
   }catch (error) {
       console.error("Error fetching Buildings:", error);
   }
-  }
+  };
 
 
   const handleInputChange = (e) => {
@@ -68,8 +83,10 @@ function ManageBuildings() {
       await axios.post('http://localhost:5000/api/buildings' , newBuilding);
       setNewBuilding({profile:'',address:'',floors:'',apartments:'',reserve:''});
       fetchBuildings();
+      toast.success("Building Created Successfully!")
     }catch(error){
       console.error('Error creating building:', error.response.data);
+      toast.error("Error creating Building!")
     }
   };
 
@@ -81,8 +98,8 @@ function ManageBuildings() {
       floors: building.floors,
       apartments: building.apartments,
       reserve : building.reserve
-    })
-  }
+    });
+  };
 
   const UpdateBuilding = async (e) => {
     e.preventDefault();
@@ -93,9 +110,11 @@ function ManageBuildings() {
       setSelectedBuilding(null);
       setEditBuilding({profile:'', address:'' , floors:'', apartments:'', reserve:''});
       fetchBuildings();
+      toast.success('Building updated Successfully!')
       
     } catch (error) {
       console.error('Error updating building:', error);
+      toast.error('Error updating Building!')
     }
   };
 
@@ -108,10 +127,12 @@ function ManageBuildings() {
     setShowConfirmation(false);
     if (confirmed && selectedBuilding) {
       try{
-        await axios.delete(`http://localhost:5000/api/buildings/${selectBuilding._id}`);
+        await axios.delete(`http://localhost:5000/api/buildings/${selectedBuilding._id}`);
         fetchBuildings();
+        toast.success('Building deleted successfully!')
       }catch (error) {
         console.error('Error deleting building:' , error);
+        toast.error("Error deleting Building!")
       }
     }
   }
@@ -194,6 +215,111 @@ function ManageBuildings() {
       </div>
       <button type="submit" className="btn btn-primary">Create</button>
     </form>
+    {buildings && buildings.length > 0 ? (
+      <>
+    <h3 className="text-center">Buildings List:</h3>
+    <ul className="list-group">
+      {buildings.map((building) => (
+        <li key={building._id} className="list-group-item d-flex justify-content-between align-items-center">
+          Building Address : {building.address} - Administrator: {building.profile.user.name}
+          <button className='btn btn-primary mr-2' onClick={() => {selectBuilding(building); showEditBuildingForm();}}>Edit</button>
+          <button className='btn btn-danger' onClick={() => DeleteBuilding(building)}>Delete</button>
+        </li>
+      ))}
+    </ul>
+    {showConfirmation && (
+      <div className='confirmation-popup'>
+        <p>Are you sure you want to delete this building?</p>
+        <button className="btn btn-danger" onClick={()=>handleDeleteConfirmation(true)}>Yes</button>
+        <button className='btn btn-secondary' onClick={() => handleDeleteConfirmation(false)}>No</button>
+      </div>
+    )}
+    </>
+    ): (
+      <p> No buildings found</p>
+    )}
+    {showEditForm && selectedBuilding &&(
+      <div className="edit-building-container mt-4">
+      <h3 className="text-center">Edit Building</h3>
+      <form onSubmit={UpdateBuilding}>
+        <div className="form-group">
+        <label htmlFor="profile">Profile:</label>
+        <select
+          id="profile"
+          name="profile"
+          className="form-control"
+          value={editBuilding.profile}
+          onChange={handleInputChange}
+          required
+          style = {{backgroundColor: 'white', color:'black'}}
+          >
+       <option value="">Select a profile</option>
+        {administrators ? (
+              administrators.map((administrator) => (
+                <option key={administrator._id} value={administrator._id}>
+                  {administrator.user.name}
+          </option>
+        ))
+        ): (
+          <option>Loading...</option>
+        )}
+  </select>
+  <div className="form-group">
+        <label htmlFor="address">Address:</label>
+        <input
+          type="text"
+          className="form-control"
+          id="address"
+          name="address"
+          value={editBuilding.address}
+          onChange={handleInputChange}
+          required
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="floors">Floors:</label>
+        <input
+          type="number"
+          className="form-control"
+          id="floors"
+          name="floors"
+          value={editBuilding.floors}
+          onChange={handleInputChange}
+          required
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="apartments">Apartments:</label>
+        <input
+          type="number"
+          className="form-control"
+          id="apartments"
+          name="apartments"
+          value={editBuilding.apartments}
+          onChange={handleInputChange}
+          required
+        />
+      </div>
+      <div className="form-group">
+        <label htmlFor="reserve">Reserve:</label>
+        <input
+          type="text"
+          className="form-control"
+          id="reserve"
+          name="reserve"
+          value={editBuilding.reserve}
+          onChange={handleInputChange}
+          required
+        />
+      </div>
+        </div>
+        <button type="submit" className="btn btn-primary">Update Building</button>
+        <button className="btn btn-secondary ml-2" onClick={() => setSelectedBuilding(null)}>Cancel</button>
+      </form>
+    </div>
+        
+    )}
+    <ToastContainer />
   </div>
   );
 }
