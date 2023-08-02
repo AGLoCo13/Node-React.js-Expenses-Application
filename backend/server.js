@@ -7,6 +7,7 @@ const {handleProfileUpdate}  = require('../controllers/accountManagement');
 const updateController = require('../controllers/updateController.js');
 const propertyController = require('../controllers/propertyController.js');
 const { extractUserId, authenticateUser, authorizeAdmin } = require('../middleware/authMiddleware');
+const accountManagement = require('../controllers/accountManagement.js');
 const app = express();
 
 //Models import
@@ -23,9 +24,37 @@ app.use(express.json());
 //use the cors middleware
 app.use(cors());
 //API routes
-app.get("/api", (req, res ) => {
-    res.json({"users": ["userOne", "userTwo", "userThree"]});
-})
+
+//Route to get the logged-in user's profile
+
+app.get("/api/profile" ,authenticateUser ,  async(req, res ) => {
+   try {
+    // Retrieve the User ID from the req.user object (set by the authenticateUser middleware)
+    const userId = req.user.userId;
+
+    // Find the user's profile based on the User ID
+    const user = await User.findOne({_id: userId});
+    const profile = await Profile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    const userData = {
+        name: user.name,
+        email: user.email,
+        address: profile.address,
+        cellphone: profile.cellphone,
+        role: profile.role,
+    }
+
+    // Return the user's profile as a response
+    res.status(200).json(userData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to retrieve user profile' });
+  }
+   }
+);
 
 
 
@@ -49,17 +78,7 @@ app.post('/api/login', async(req,res) => {
     }
 });
 
-//account Management route
-/*
-app.put('/api/profile',extractUserId, async(req,res) => {
-    try{
-        await handleProfileUpdate(req, res);
-    }catch (error){
-        res.status(500).json({error: 'Failed to update profile'});
-    }
-    
-});
-*/
+app.put('/api/admin/profile', authenticateUser , accountManagement.handleEditAdmin);
 
 
 //Update existing user Info route 
@@ -151,6 +170,20 @@ app.get('/api/administrators' , async (req,res) => {
     }catch (error) {
         console.error(error);
         res.status(500).json({error:"Failed to retrieve administrators"});
+    }
+    
+});
+
+//Retrieve the list of Tenants
+app.get('/api/tenants' , async (req,res) => {
+    try{
+        //Find users with the role "Tenant" in the database 
+        const tenants = await Profile.find({role:'Tenant'}).populate("user","name");
+        //Return the list of tenants as a response
+        res.status(200).json({tenants});
+    }catch(error) {
+        console.error(error);
+        res.status(500).json({error:"Failed to retrieve tenants"})
     }
     
 });

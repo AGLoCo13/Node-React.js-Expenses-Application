@@ -159,7 +159,7 @@ function ManageUsers() {
           )}
       {showEditForm && selectedUser &&(
         <div className="edit-user-container mt-4">
-          <h3 className="text-center">Edit User</h3>
+          <h3 className="text-center">Edit User: {selectedUser.name}</h3>
           <form onSubmit={updateUser}>
             <div className="form-group">
               <label htmlFor="address">Address:</label>

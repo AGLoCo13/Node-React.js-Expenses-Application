@@ -5,6 +5,8 @@ import AdminDashboard from './components/AdminDashboard.js';
 import LoginPage from './components/LoginPage.js';
 import ManageUsers from './components/ManageUser.js';
 import ManageBuildings from './components/ManageBuildings.js';
+import ManageApartments from './components/ManageApartments.js';
+import ViewAdminProfile from './components/ViewAdminProfile.js';
 import {ToastContainer} from 'react-toastify';
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -26,6 +28,8 @@ function App() {
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin-dashboard/manage-users" element={<ManageUsers />} />
         <Route path="/admin-dashboard/manage-buildings" element={<ManageBuildings />} />
+        <Route path="/admin-dashboard/manage-apartments" element={<ManageApartments />} />
+        <Route path="/admin-dashboard/profile" element={<ViewAdminProfile/>} />
       </Routes>
       <ToastContainer />
     </Router>

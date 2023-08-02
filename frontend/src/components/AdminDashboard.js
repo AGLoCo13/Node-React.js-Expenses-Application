@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useMatch ,Switch} from 'react-router-dom';
+import { Link, useMatch} from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/adminDashboard.css';
 import ManageUsers from './ManageUser.js';
@@ -7,6 +8,14 @@ import ManageUsers from './ManageUser.js';
 
 function AdminDashboard() {
   const [showManageUsers, setShowManageUsers] = useState(false);
+  const navigate = useNavigate(); //Import useHistory hook
+   // Function to handle logout
+   const handleLogout = () => {
+    // Clear the token from local storage (assuming you store it as 'token')
+    window.localStorage.removeItem('token');
+    // Redirect the user to the login page
+    navigate('http://localhost:3000'); // Adjust the path based on your setup
+  };
 
   const handleManageUsersClick = () => {
     setShowManageUsers(true);
@@ -49,19 +58,19 @@ function AdminDashboard() {
                 </Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/admin/manage-apartments">
+                <Link className="nav-link" to="/admin-dashboard/manage-apartments">
                   Manage Apartments
                 </Link>
               </li>
             </ul>
             <ul className="navbar-nav ml-auto">
               <li className="nav-item">
-                <Link className="nav-link" to="/admin/profile">
+                <Link className="nav-link" to="/admin-dashboard/profile">
                   Profile
                 </Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="/admin/logout">
+                <Link className="nav-link" to="http://localhost:3000" onClick={handleLogout}>
                   Logout
                 </Link>
               </li>

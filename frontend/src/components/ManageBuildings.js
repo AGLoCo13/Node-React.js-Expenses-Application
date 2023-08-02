@@ -19,16 +19,6 @@ function ManageBuildings() {
     setShowEditForm(true);
   };
 
-//Function to hide the edit Form
-const hideEditBuildingForm = () => {
-  setSelectedBuilding(null);
-  setEditBuilding({ profile: '', address: '', floors: '', apartments: '', reserve: '' });
-  setShowEditForm(false);
-};
-
-
-
-
   useEffect(() => {
     //Fetch the list of administrators when component mounts
     fetchAdministrators();
@@ -240,7 +230,7 @@ const hideEditBuildingForm = () => {
     )}
     {showEditForm && selectedBuilding &&(
       <div className="edit-building-container mt-4">
-      <h3 className="text-center">Edit Building</h3>
+      <h3 className="text-center">Edit Building : {selectedBuilding.address} </h3>
       <form onSubmit={UpdateBuilding}>
         <div className="form-group">
         <label htmlFor="profile">Profile:</label>

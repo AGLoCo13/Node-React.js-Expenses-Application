@@ -4,7 +4,7 @@ const extractUserId = (req, res, next) => {
   const token = req.headers.authorization;
 
   try {
-    const decodedToken = jwt.verify(token, 'yourSecretKey');
+    const decodedToken = jwt.verify(token, 'your-secret-key');
     const userId = decodedToken.userId;
 
     req.user = { id: userId };
@@ -22,8 +22,11 @@ const authenticateUser = (req, res, next) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decodedToken = jwt.verify(token, 'yourSecretKey');
-    req.user = decodedToken;
+    const decodedToken = jwt.verify(token, 'your-secret-key');
+    req.user = {
+    userId: decodedToken.userId,
+    isAdmin: decodedToken.isAdmin,
+  };
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid or expired token' });

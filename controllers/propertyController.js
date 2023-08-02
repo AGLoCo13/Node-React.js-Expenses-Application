@@ -94,8 +94,15 @@ const createApartment = async (req, res) => {
   // Get all apartments
   const getAllApartments = async (req, res) => {
     try {
-      const apartments = await Apartment.find();
-  
+      const apartments = await Apartment.find()
+      .populate('building','address')
+      .populate({
+        path:'tenant',
+        populate:{
+          path:'user',
+          select: 'name',
+        },
+      });
       res.status(200).json({ apartments });
     } catch (error) {
       console.error(error);

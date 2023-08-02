@@ -10,7 +10,7 @@ const buildingSchema = new mongoose.Schema({
       type: String,
       required: true,
     },
-    floors: {
+    floors:  {
       type: Number,
       required: true,
     },

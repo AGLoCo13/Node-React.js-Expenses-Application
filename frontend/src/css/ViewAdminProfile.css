@@ -1,0 +1,27 @@
+/* ViewAdminProfile.css */
+
+.profile-section {
+    border: 1px solid #5a5252;
+    padding: 20px;
+    background-color: #374344;
+    border-radius: 8px;
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .profile-details {
+    margin-bottom: 15px;
+  }
+  
+  .profile-details p {
+    margin-bottom: 5px;
+  }
+  
+  .btn-primary {
+    margin-top: 10px;
+  }
+  
+  
+  
+  
+  
+  
