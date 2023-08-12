@@ -11,6 +11,10 @@ const apartmentSchema = new mongoose.Schema({
       ref: 'Profile',
       required: true,
     },
+    name: {
+      type: String,
+      required : true,
+    },
     floor: {
       type: Number,
       required: true,

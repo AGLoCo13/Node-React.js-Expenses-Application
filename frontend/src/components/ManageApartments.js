@@ -6,10 +6,10 @@ import { ToastContainer , toast } from 'react-toastify';
 function ManageApartments() {
   const [buildings , setBuildings] = useState([]);
   const [apartments , setApartments] = useState([]);
-  const [newApartment , setNewApartment] = useState({building:'',tenant:'',floor:''
+  const [newApartment , setNewApartment] = useState({building:'',tenant:'',floor:'',name:''
   ,square_meters:'',owner:'',fi:'',heating:'',elevator:'',general_expenses:''})
   const [selectedApartment , setSelectedApartment] = useState(null);
-  const [editApartment , setEditApartment] = useState({building:'',tenant:'',floor:''
+  const [editApartment , setEditApartment] = useState({building:'',tenant:'',floor:'',name:''
   ,square_meters:'',owner:'',fi:'',heating:'',elevator:'',general_expenses:''});
   const [showConfirmation, setShowConfirmation] = useState(null);
   const [showEditForm , setShowEditForm] = useState(false);
@@ -91,7 +91,7 @@ function ManageApartments() {
 
     try{
       await axios.post("http://localhost:5000/api/apartments", newApartment);
-      setNewApartment({building:'',tenant:'',floor:''
+      setNewApartment({building:'',tenant:'',name:'',floor:''
       ,square_meters:'',owner:'',fi:'',heating:'',elevator:'',general_expenses:''});
       fetchApartments();
       toast.success('Apartment Created Succesfully!')
@@ -106,6 +106,7 @@ function ManageApartments() {
     setEditApartment({
       building : apartment.building,
       tenant : apartment.tenant,
+      name : apartment.name,
       floor: apartment.floor,
       square_meters: apartment.square_meters,
       owner: apartment.owner,
@@ -120,13 +121,13 @@ function ManageApartments() {
   const UpdateApartment = async (e) => {
     e.preventDefault();
     try{
-      const {building, tenant, floor , square_meters , owner,
+      const {building, tenant, name ,  floor , square_meters , owner,
       fi, heating , elevator , general_expenses} = editApartment;
-      const updatedField = {building , tenant , floor , square_meters , owner,
+      const updatedField = {building , tenant , name, floor , square_meters , owner,
       fi , heating , elevator , general_expenses};
       await axios.put(`http://localhost:5000/api/apartments/${selectedApartment._id}`, updatedField);
       setSelectedApartment(null);
-      setEditApartment({building:'', tenant:'', floor:'' , square_meters:'' , owner:'',
+      setEditApartment({building:'', tenant:'', name:'' , floor:'' , square_meters:'' , owner:'',
         fi:'', heating:'' , elevator:'' , general_expenses:''});
         fetchApartments();
         toast.success('Apartment Created successfully!')
@@ -158,6 +159,7 @@ function ManageApartments() {
   //Input Handler of Creation and Deletion of apartment
   const handleInputChange = (e) => {
     const {name , value} = e.target;
+    //MUST CHECK AGAIN CAUSE OWNER FIELD CANNOT BE WRITTEN AS TRUE IN THE DATABASE!
     // Convert the 'owner' field to a boolean value
   const newValue = name === 'owner' ? value === true : value;
     if(selectedApartment) {
@@ -221,6 +223,18 @@ function ManageApartments() {
                     <option> Loading...</option>
                   )}
                   </select>
+                  <div className='form-group'>
+                    <label htmlFor='name'>Name:</label>
+                    <input 
+                      type="text"
+                      className='form-control'
+                      id='name'
+                      name='name'
+                      value={newApartment.name}
+                      onChange={handleInputChange}
+                      required
+                      />
+                  </div>
                   <div className="form-group">
                     <label htmlFor='floor'>Floor:</label>
                     <input 
@@ -272,7 +286,7 @@ function ManageApartments() {
                       />
                   </div>
                   <div className='heating'>
-                    <label htmlFor='heating'>Heating:</label>
+                    <label htmlFor='heating'>Heating (millimetres):</label>
                     <input 
                       type='number'
                       className='form-control'
@@ -283,7 +297,7 @@ function ManageApartments() {
                       required
                       />
                       <div className='elevator'>
-                        <label htmlFor='elevator'>Elevator:</label>
+                        <label htmlFor='elevator'>Elevator (millimetres):</label>
                         <input
                            type='number'
                            className='form-control'
@@ -294,7 +308,7 @@ function ManageApartments() {
                            required
                            />
                               <div className='general_expenses'>
-                                <label htmlFor='general_expenses'>General Expenses</label>
+                                <label htmlFor='general_expenses'>General Expenses (millimetres):</label>
                                 <input 
                                   type='number'
                                   className='form-control'
@@ -317,7 +331,7 @@ function ManageApartments() {
       <ul className='list-group'>
         {apartments.map((apartment) => (
             <li key={apartment._id} className='list-group-item d-flex justify-content-between align-items-center'>
-              Apartment Address: {apartment.building.address} / Floor: {apartment.floor} / Tenant: {apartment.tenant.user.name || apartment.building.address}
+               Name: {apartment.name} / Address: {apartment.building.address} / Floor: {apartment.floor} / Tenant: {apartment.tenant.user.name || apartment.building.address}
               <button className='btn btn-primary mr-2' onClick={() => {selectApartment(apartment); showEditApartmentForm();}}>Edit</button>
               <button className='btn btn-danger' onClick={() => deleteApartment(apartment)}>Delete</button>
             </li>
@@ -388,7 +402,7 @@ function ManageApartments() {
           />
       </div>
       <div className='form-group'>
-        <label htmlFor="heating"> Load Factor:</label>
+        <label htmlFor="heating"> Heating (millimetres):</label>
         <input
           type="number"
           className='form-control'
@@ -400,7 +414,7 @@ function ManageApartments() {
           />
       </div>
       <div className='form-group'>
-        <label htmlFor="elevator"> Load Factor:</label>
+        <label htmlFor="elevator"> Elevator (millimeters):</label>
         <input
           type="number"
           className='form-control'
@@ -412,7 +426,7 @@ function ManageApartments() {
           />
       </div>
       <div className='form-group'>
-        <label htmlFor="general_expenses"> Load Factor:</label>
+        <label htmlFor="general_expenses"> General Expenses (millimeters):</label>
         <input
           type="number"
           className='form-control'
@@ -423,7 +437,7 @@ function ManageApartments() {
           required
           />
       </div>
-      <button type="submit" className="btn btn-primary">Update Building</button>
+      <button type="submit" className="btn btn-primary">Update Apartment</button>
       <button className="btn btn-secondary ml-2" onClick={() => setSelectedApartment(null)}>Cancel</button>
     </form>
     </div>

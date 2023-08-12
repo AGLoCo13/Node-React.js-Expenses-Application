@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/loginPage.css';
+import jwtDecode from 'jwt-decode';
+
 
 function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,21 +21,27 @@ function LoginPage() {
     e.preventDefault();
 
     try {
-      // Call the login controller with the email and password
-      const response = await axios.post('http://localhost:5000/api/login', { email, password });
+      const response = await axios.post('http://localhost:5000/api/login', {email, password});
+        // Clear the form fields
+        setEmail('');
+        setPassword('');
+      const {token} = response.data;
 
-      // Clear the form fields
-      setEmail('');
-      setPassword('');
-      // Handle the response, e.g., set authentication state, redirect, etc.
-      const { token } = response.data;
-
-      // Store the token in local storage
-
-      // Redirect to the admin dashboard or update the state to render the dashboard component
-      // Example: setLoggedIn(true);
-      window.localStorage.setItem('token', token);
-      window.location.href = './admin-dashboard';
+      //Decode the token to get the payload
+      const decodedToken = jwtDecode(token);
+      console.log(decodedToken);
+      //Get the user's role from the decoded token 
+      const userRole = decodedToken.role;
+      //Store the token in local storage
+      window.localStorage.setItem('token' , token);
+      //Redirect based on the user's role
+      if (userRole === 'Site-admin') {
+        window.location.href = '/admin-dashboard';
+      }else if(userRole === 'Administrator') {
+        window.location.href = '/building-administrator';
+      }else if (userRole === 'Tenant') {
+        window.location.href = '/tenant-dashboard';
+      }
     } catch (error) {
       // Handle any error that occurs during login
       console.error(error);

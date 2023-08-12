@@ -25,7 +25,7 @@ const authenticateUser = (req, res, next) => {
     const decodedToken = jwt.verify(token, 'your-secret-key');
     req.user = {
     userId: decodedToken.userId,
-    isAdmin: decodedToken.isAdmin,
+    role: decodedToken.role
   };
     next();
   } catch (error) {

@@ -66,12 +66,13 @@ const updateApartmentBuilding = async (req, res) => {
 // Create a new apartment
 const createApartment = async (req, res) => {
     try {
-      const { building, tenant, floor, square_meters, owner, fi, heating, elevator, general_expenses } = req.body;
+      const { building, tenant, name, floor, square_meters, owner, fi, heating, elevator, general_expenses } = req.body;
   
       // Create a new apartment instance
       const newApartment = new Apartment({
         building,
         tenant,
+        name,
         floor,
         square_meters,
         owner,
@@ -131,13 +132,14 @@ const createApartment = async (req, res) => {
   const updateApartment = async (req, res) => {
     try {
       const apartmentId = req.params.id;
-      const { building, tenant, floor, square_meters, owner, fi, heating, elevator, general_expenses } = req.body;
+      const { building, tenant,name, floor, square_meters, owner, fi, heating, elevator, general_expenses } = req.body;
   
       const updatedApartment = await Apartment.findByIdAndUpdate(
         apartmentId,
         {
           building,
           tenant,
+          name,
           floor,
           square_meters,
           owner,

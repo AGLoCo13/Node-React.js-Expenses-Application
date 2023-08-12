@@ -7,7 +7,11 @@ import ManageUsers from './components/ManageUser.js';
 import ManageBuildings from './components/ManageBuildings.js';
 import ManageApartments from './components/ManageApartments.js';
 import ViewAdminProfile from './components/ViewAdminProfile.js';
+import ViewBuilding from './components/ViewBuilding.js';
+import FuelCharge from './components/FuelCharge.js';
+import ConsumptionHistory from './components/ConsumptionHistory.js';
 import {ToastContainer} from 'react-toastify';
+import BuildingAdministratorDashboard from './components/BuildingAdministratorDashboard.js';
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -26,6 +30,10 @@ function App() {
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
+        <Route path="/building-administrator" element={<BuildingAdministratorDashboard />} />
+        <Route path="/building-administrator/view-building" element={<ViewBuilding />} />
+        <Route path="/building-administrator/fuel-charge" element={<FuelCharge />} />
+        <Route path="/building-administrator/consumption-history" element={<ConsumptionHistory />} />
         <Route path="/admin-dashboard/manage-users" element={<ManageUsers />} />
         <Route path="/admin-dashboard/manage-buildings" element={<ManageBuildings />} />
         <Route path="/admin-dashboard/manage-apartments" element={<ManageApartments />} />

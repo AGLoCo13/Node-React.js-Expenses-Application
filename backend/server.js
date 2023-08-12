@@ -3,27 +3,29 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const {handleNewUser} = require('../controllers/registerController');
 const {handleUserLogin} = require('../controllers/loginController');
-const {handleProfileUpdate}  = require('../controllers/accountManagement');
 const updateController = require('../controllers/updateController.js');
 const propertyController = require('../controllers/propertyController.js');
-const { extractUserId, authenticateUser, authorizeAdmin } = require('../middleware/authMiddleware');
+const { authenticateUser, authorizeAdmin } = require('../middleware/authMiddleware');
 const accountManagement = require('../controllers/accountManagement.js');
 const app = express();
 
-//Models import
+//**************Models import
+const User = require('../models/userModel.js');
 const Profile = require('../models/profile.js');
 const Building = require('../models/building.js');
-const Apartment = require('../models/consumption.js');
+const Consumption = require('../models/consumption.js');
 const Expense = require('../models/expenses.js');
 const Payment = require('../models/payment.js');
-const Consumption = require('../models/consumption.js');
 const { TopologyDescription } = require('mongodb');
-const User = require('../models/userModel.js');
-//Middleware
+const Apartment = require('../models/apartment.js');
+
+//**************Middleware
 app.use(express.json());
 //use the cors middleware
 app.use(cors());
-//API routes
+
+
+//***************API routes
 
 //Route to get the logged-in user's profile
 
@@ -42,6 +44,7 @@ app.get("/api/profile" ,authenticateUser ,  async(req, res ) => {
     const userData = {
         name: user.name,
         email: user.email,
+        profileId : profile._id,
         address: profile.address,
         cellphone: profile.cellphone,
         role: profile.role,
@@ -77,6 +80,14 @@ app.post('/api/login', async(req,res) => {
         res.status(500).json({error: 'Failed to log in'});
     }
 });
+// Define a route for administrator login
+app.post('/api/admin/login', async (req, res) => {
+    try {
+       await handleUserLogin(req , res);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to log in as administrator' });
+    }
+  });
 
 app.put('/api/admin/profile', authenticateUser , accountManagement.handleEditAdmin);
 
@@ -142,6 +153,39 @@ app.put('/api/apartments/:id', propertyController.updateApartment);
 // Delete an apartment
 app.delete('/api/apartments/:id', propertyController.deleteApartment);
 
+//Get specific Apartment by the building they're tied to 
+app.get('/aps/Apartments/:buildId' , async (req, res) => {
+    try {
+        const buildingId = req.params.buildId;
+        const apartments = await Apartment.find({ building : buildingId});
+        if (!apartments || apartments.length === 0) {
+            return res.status(404).json({message: 'apartment not found'});
+        }
+        res.status(200).json(apartments);
+    }catch(error){
+        console.error('Error retrieving apartments:' , error);
+        res.status(500).json({error: 'Failed to retrieve Apartment'});
+    }
+    }
+);
+
+//Get specific building by logged in user's profile id
+app.get('/api/buildings/:profId', async (req,res) => {
+    try {
+        const profileId = req.params.profId;
+        const building = await Building.findOne({ profile: profileId});
+        if (!building) {
+            return res.status(404).json({ message : 'Building not found'});
+        }
+        res.status(200).json(building);
+    }catch(error){
+        console.error('Error retrieving building:' , error);
+        res.status(500).json({error: 'Failed to retrieve building'});
+    }
+    
+});
+
+
 app.get('/api/buildings' , async (req,res) => {
     try{
         const buildings = await Building.find().populate({path:"profile",
@@ -160,7 +204,7 @@ app.get('/api/buildings' , async (req,res) => {
     );
 
 
-//Retrieve the list of administrators
+//Retrieve the list of Building administrators
 app.get('/api/administrators' , async (req,res) => {
     try{
         //Find users with the role "admin" in the database 
@@ -187,7 +231,37 @@ app.get('/api/tenants' , async (req,res) => {
     }
     
 });
-//connect to MongoDB
+
+//Endpoint to handle the input from the building administrator
+app.post('/api/consumption', async (req,res) => {
+    try {
+        const {apartment , month , year , consumption } = req.body;
+        //Check if the consumption data for the given apartment , month and year already exists
+         const existingConsumption = await Consumption.findOne({apartment , month , year});
+
+         if (existingConsumption){
+            return res.status(409).json({message: "Consumption data already exists for this apartment and month"});
+         }
+        //Create da new consumption entry 
+        const newConsumption = new Consumption ({ apartment , month , year , consumption});
+        await newConsumption.save();
+        res.status(201).json({message: 'Consumption data saved succesfully!'});
+    }catch(error){
+        console.error(error);
+        res.status(500).json({message: 'An error occured while saving consumption data '});
+    }
+});
+app.get('/api/consumptions' , async (req, res) => {
+    try {
+        const consumptions = await Consumption.find().populate("apartment","name");
+        res.status(200).json({consumptions});
+    }catch (error) {
+        console.error(error);
+        res.status(500).json({error: 'Failed to retrieve consumptions'});
+    }
+});
+
+//***************connection to MongoDB
 mongoose.connect('mongodb://127.0.0.1:27017/commons-db', {
     useNewUrlParser: true,
     useUnifiedTopology:true,

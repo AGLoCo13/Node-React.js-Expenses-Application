@@ -1,4 +1,5 @@
 const User = require('../models/userModel.js');
+const Profile = require('../models/profile.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 
@@ -22,10 +23,13 @@ const handleUserLogin = async (req,res) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    //Find the user's profile to access the role
+    const userProfile = await Profile.findOne({ user : user._id});
+
     // Generate a JWT token with the userId and isAdmin flag
     const tokenPayload = {
       userId: user._id,
-      isAdmin: user.isAdmin,
+      role: userProfile.role, //Include user's role in the token
     };
     const token = jwt.sign(tokenPayload, 'your-secret-key', { expiresIn: '1h' });
 

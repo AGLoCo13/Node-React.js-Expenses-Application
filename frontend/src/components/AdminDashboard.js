@@ -8,7 +8,7 @@ import ManageUsers from './ManageUser.js';
 
 function AdminDashboard() {
   const [showManageUsers, setShowManageUsers] = useState(false);
-  const navigate = useNavigate(); //Import useHistory hook
+  const navigate = useNavigate(); //Import useNavigate hook
    // Function to handle logout
    const handleLogout = () => {
     // Clear the token from local storage (assuming you store it as 'token')
