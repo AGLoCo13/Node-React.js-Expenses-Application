@@ -13,11 +13,7 @@ function FuelCharge() {
       consumption: '',
     });
     const [apartments , setApartments] = useState([]);
-    const [building , setBuilding] = useState(null);
-    const [errorMessage , setErrorMessage] = useState('');
-    const [successMessage , setSuccessMessage] = useState('');
-    const [consumptions , setConsumptions] = useState([]);
-    const [loading , setLoading] = useState(false);
+    const [building , setBuilding ] = useState(null);
 
     const months = [
       {value: 1, label: 'January'},
@@ -78,13 +74,9 @@ function FuelCharge() {
     const handleSubmit = async (event) => {
       event.preventDefault();
       try{
-        const response = await axios.post('http://localhost:5000/api/consumption', formData);
-        setSuccessMessage(response.data.message);
-        setErrorMessage('');
+        await axios.post('http://localhost:5000/api/consumption', formData);
         toast.success('Fuel Charge for apartment passed successfully!')
       }catch(error) {
-        setErrorMessage(error.response?.data?.message || 'An error occured while saving consumption data.');
-        setSuccessMessage('');
         toast.error('Error passing fuel charge')
       }
       

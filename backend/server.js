@@ -5,6 +5,7 @@ const {handleNewUser} = require('../controllers/registerController');
 const {handleUserLogin} = require('../controllers/loginController');
 const updateController = require('../controllers/updateController.js');
 const propertyController = require('../controllers/propertyController.js');
+const expensesController = require('../controllers/expensesController');
 const { authenticateUser, authorizeAdmin } = require('../middleware/authMiddleware');
 const accountManagement = require('../controllers/accountManagement.js');
 const app = express();
@@ -88,10 +89,10 @@ app.post('/api/admin/login', async (req, res) => {
       res.status(500).json({ error: 'Failed to log in as administrator' });
     }
   });
-
+//Update admin information route
 app.put('/api/admin/profile', authenticateUser , accountManagement.handleEditAdmin);
-
-
+//Update tenant information route
+app.put('/api/tenant/profile' , authenticateUser , accountManagement.handleEditAdmin);
 //Update existing user Info route 
 app.put('/api/users/:id' , updateController.updateUser);
 //Delete existing user Info route 
@@ -128,6 +129,9 @@ app.get('/api/dashboard', authorizeAdmin , async(req, res) => {
         res.status(500).json({ error: 'Failed to retrieve user dashboard' });
       });
   });
+                        
+                        {/*BUILDING APIS */}
+
 
 // Create an apartment building
 app.post('/api/buildings', propertyController.createApartmentBuilding);
@@ -137,6 +141,9 @@ app.put('/api/buildings/:id', propertyController.updateApartmentBuilding);
 
 // Delete an apartment building
 app.delete('/api/buildings/:id', propertyController.deleteApartmentBuilding);
+
+                        {/*APARTMENT APIS */}
+
 
 // Create a new apartment
 app.post('/api/apartments', propertyController.createApartment);
@@ -152,6 +159,19 @@ app.put('/api/apartments/:id', propertyController.updateApartment);
 
 // Delete an apartment
 app.delete('/api/apartments/:id', propertyController.deleteApartment);
+
+                        {/*EXPENSES APIS */}
+
+//Create a new expense 
+app.post('/api/expenses', expensesController.createExpense);
+//Retrieve all expenses 
+app.get('/api/expenses' , expensesController.getAllExpenses);
+//Update an expense 
+app.put('/api/expenses/:id' , expensesController.updateExpense);
+//Delete an expense
+app.delete('/api/expenses/:id' , expensesController.deleteExpense);
+
+            {/* ________________________________________ */}
 
 //Get specific Apartment by the building they're tied to 
 app.get('/aps/Apartments/:buildId' , async (req, res) => {
@@ -173,7 +193,14 @@ app.get('/aps/Apartments/:buildId' , async (req, res) => {
 app.get('/api/buildings/:profId', async (req,res) => {
     try {
         const profileId = req.params.profId;
-        const building = await Building.findOne({ profile: profileId});
+        const building = await Building.findOne({ profile: profileId})
+        .populate({
+            path:"profile",
+            populate:{
+                path:"user",
+                select:"name",
+            },
+        });
         if (!building) {
             return res.status(404).json({ message : 'Building not found'});
         }
@@ -260,6 +287,7 @@ app.get('/api/consumptions' , async (req, res) => {
         res.status(500).json({error: 'Failed to retrieve consumptions'});
     }
 });
+
 
 //***************connection to MongoDB
 mongoose.connect('mongodb://127.0.0.1:27017/commons-db', {

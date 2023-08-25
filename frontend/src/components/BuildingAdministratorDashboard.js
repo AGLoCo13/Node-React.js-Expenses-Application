@@ -18,7 +18,7 @@ function BuildingAdministratorDashboard() {
   return (
     <div>
         <header>
-            <nav className='navbar navbar-expand-lg bavbar-light bg-light'>
+            <nav className='navbar navbar-expand-lg navbar-light bg-light'>
                 <Link className="navbar-brand" to="/building-administrator/dashboard">
                     Building Administrator Dashboard
                 </Link>
@@ -37,7 +37,7 @@ function BuildingAdministratorDashboard() {
                         <ul className= "navbar-nav">
                             <li className='nav-item'>
                                 <Link
-                                className="nav-Link"
+                                className="nav-link"
                                 to="/building-administrator/view-building"
                                 onClick={handleComponentClick}
                                 >
@@ -83,7 +83,7 @@ function BuildingAdministratorDashboard() {
                                       </Link>
                             </li>
                             <li className='nav-item'>
-                                <Link className="nav-link" to="http://localhost:5000" onClick={handleLogout}>
+                                <Link className="nav-link" to="/" onClick={handleLogout}>
                                     Logout
                                 </Link>
                             </li>

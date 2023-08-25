@@ -42,20 +42,24 @@ function ViewBuilding() {
 
   return (
     <div className="container my-4">
-      {building ? (
-        <div className="building-section">
+      <div className='row'>
+        <div className='col-lg-6'>
+          {building ? (
+          <div className="card mb-4">
+          <div className='card-header'>
           <h2>Your Building</h2>
-          <div className="building-details">
-            <p className="building-detail">
+          </div>
+          <div className="card-body">
+            <p className="card-text">
               <span className="detail-label">Building Address:</span> {building.address}
             </p>
-            <p className="building-detail">
+            <p className="card-text">
               <span className="detail-label">Floors:</span> {building.floors}
             </p>
-            <p className="building-detail">
+            <p className="card-text">
               <span className="detail-label">Apartments:</span> {building.apartments}
             </p>
-            <p className="building-detail">
+            <p className="card-text">
               <span className="detail-label">Reserve:</span> {building.reserve}
             </p>
           </div>
@@ -63,20 +67,36 @@ function ViewBuilding() {
       ) : (
         <p className="no-building">No building Assigned...</p>
       )}
+      </div>
+      <div className='col-lg-6'>
       {apartments.length > 0 ? (
-        <div className="apartments-section">
+        <div className="card">
+          <div className='card-header'>
           <h2>Apartments in the Building</h2>
-          <ul className="apartment-list">
+          </div>
+          <div className="card-body">
+          <ul className="list-group list-group-flush">
             {apartments.map((apartment) => (
-              <li key={apartment._id}>
-                <p>{`Name: ${apartment.name} , Floor: ${apartment.floor}, Square Meters: ${apartment.square_meters}`}</p>
+              <li key={apartment._id} className="list-group-item">
+                <p className='card-text'>
+                <strong>Name:</strong> {apartment.name} 
+                </p>
+                <p className='card-text'>
+                  <strong>Floor:</strong> {apartment.floor}
+                </p>
+                <p className='card-text'>
+                  <strong>Square Meters:</strong> {apartment.square_meters}
+                </p>
               </li>
             ))}
           </ul>
         </div>
+        </div>
       ) : (
         <p className="no-apartments">No apartments tied to this building...</p>
       )}
+    </div>
+    </div>
     </div>
   );
 }
