@@ -46,6 +46,7 @@ app.get("/api/profile" ,authenticateUser ,  async(req, res ) => {
         name: user.name,
         email: user.email,
         profileId : profile._id,
+        userId : profile.user,
         address: profile.address,
         cellphone: profile.cellphone,
         role: profile.role,
@@ -171,6 +172,23 @@ app.put('/api/expenses/:id' , expensesController.updateExpense);
 //Delete an expense
 app.delete('/api/expenses/:id' , expensesController.deleteExpense);
 
+
+//Retrieve expenses based on building-administrator's profile id
+app.get('/api/expenses/:profId', async (req ,res ) => {
+    try {
+        const profileId = req.params.profId;
+        const expenses = await Expense.find({profile: profileId});
+
+        if(!expenses) {
+            return res.status(404).json({message : 'Expenses not found'})
+        }
+        res.status(200).json(expenses);
+    }catch(error){
+        console.error('Error retrieving expenses' , error);
+        res.status(500).json({error: 'Failed to retrieve expenses'});
+    }
+    
+});
             {/* ________________________________________ */}
 
 //Get specific Apartment by the building they're tied to 
@@ -258,7 +276,7 @@ app.get('/api/tenants' , async (req,res) => {
     }
     
 });
-
+                          {/*CONSUMPTIONS APIS */}
 //Endpoint to handle the input from the building administrator
 app.post('/api/consumption', async (req,res) => {
     try {
@@ -278,6 +296,7 @@ app.post('/api/consumption', async (req,res) => {
         res.status(500).json({message: 'An error occured while saving consumption data '});
     }
 });
+//get all consumptions
 app.get('/api/consumptions' , async (req, res) => {
     try {
         const consumptions = await Consumption.find().populate("apartment","name");
@@ -287,6 +306,21 @@ app.get('/api/consumptions' , async (req, res) => {
         res.status(500).json({error: 'Failed to retrieve consumptions'});
     }
 });
+//get consumptions based on apartment's Id
+app.get('/api/consumptions/:apartmentId' , async (req, res) => {
+    try {
+        const apartmentId = req.params.apartmentId;
+        const consumptions = await Consumption.find({apartment : apartmentId}).populate("apartment", "name");
+
+        if (!consumptions){
+            return res.status(404).json({message : 'Consumptions not found'});
+        }
+        res.status(200).json(consumptions);
+    }catch(error){
+        console.error('Error retrieving consumptions:' , error);
+        res.status(500).json({error: 'Failed to retrieve consumptions'});
+    }
+})
 
 
 //***************connection to MongoDB

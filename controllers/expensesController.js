@@ -30,7 +30,7 @@ const createExpense = async (req, res) => {
 // Retrieve all expenses
 const getAllExpenses = async (req, res) => {
   try {
-    const expenses = await Expense.find().populate('profile');
+    const expenses = await Expense.find();
     res.json(expenses);
   } catch (error) {
     console.error(error);

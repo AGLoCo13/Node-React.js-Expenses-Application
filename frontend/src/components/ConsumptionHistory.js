@@ -3,15 +3,29 @@ import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/consumptionHistory.css'
 
-function ConsumptionHistory({apartmentId}) {
+function ConsumptionHistory({apartmentId , refresh}) {
   const [consumptions , setConsumptions] = useState([]);
   const [loading , setLoading] = useState(true);
-
+  const months = [
+    {value: 1, label: 'January'},
+    {value:2 , label: 'February'},
+    {value:3 , label: 'March'},
+    {value:4 , label: 'April'},
+    {value:5 , label: 'May'},
+    {value:6 , label: 'June'},
+    {value:7 , label: 'July'},
+    {value:8 , label: 'August'},
+    {value:9 , label: 'September'},
+    {value:10, label: 'October'},
+    {value:11, label: 'November'},
+    {value:12, label: 'December'}
+  ];
   useEffect(() => {
     const fetchConsumptions = async() => {
         try {
-            const response = await axios.get('http://localhost:5000/api/consumptions');
-            setConsumptions(response.data.consumptions);
+            const response = await axios.get(`http://localhost:5000/api/consumptions/${apartmentId}`);
+            setConsumptions(response.data);
+            console.log(response.data);
             setLoading(false);
 
         }catch(error) {
@@ -20,7 +34,7 @@ function ConsumptionHistory({apartmentId}) {
         }
         };
         fetchConsumptions();
-    }, [apartmentId]);
+    }, [apartmentId , refresh]);
     
     if(loading) {
         return <p>Loading...</p>;
@@ -46,7 +60,7 @@ function ConsumptionHistory({apartmentId}) {
             {consumptions.map((consumption) => (
                 <tr key={consumption._id}>
                     <td>{consumption.apartment.name}</td>
-                    <td>{consumption.month}</td>
+                    <td>{months.find(month => month.value === consumption.month)?.label || 'N/A'}</td>
                     <td>{consumption.year}</td>
                     <td>{consumption.consumption}</td>
                 </tr>

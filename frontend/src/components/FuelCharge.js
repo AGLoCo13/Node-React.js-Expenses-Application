@@ -14,6 +14,7 @@ function FuelCharge() {
     });
     const [apartments , setApartments] = useState([]);
     const [building , setBuilding ] = useState(null);
+    const [refreshHistory , setRefreshHistory] = useState(false);
 
     const months = [
       {value: 1, label: 'January'},
@@ -75,7 +76,10 @@ function FuelCharge() {
       event.preventDefault();
       try{
         await axios.post('http://localhost:5000/api/consumption', formData);
-        toast.success('Fuel Charge for apartment passed successfully!')
+        toast.success('Fuel Charge for apartment passed successfully!');
+
+        //Force a refresh on the ConsumptionHistory component
+        setRefreshHistory(prev => !prev);
       }catch(error) {
         toast.error('Error passing fuel charge')
       }
@@ -146,7 +150,7 @@ function FuelCharge() {
               <button type="submit" className="btn btn-primary">Save Consumption</button>
       </form>
       {formData.apartment && (
-        <ConsumptionHistory apartmentId={formData.apartment} />
+        <ConsumptionHistory apartmentId={formData.apartment} refresh={refreshHistory}/>
       )}
     </div>
   )
