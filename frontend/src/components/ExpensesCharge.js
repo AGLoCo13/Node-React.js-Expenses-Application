@@ -93,7 +93,13 @@ function ExpensesCharge() {
         if (selectedFile) {
           formDataToSend.append('document' , selectedFile);
         }
-        await axios.post('http://localhost:5000/api/expenses' , newFormData);
+        //Debug log 
+        console.log("Sending form data:" , formDataToSend);
+        //Make the POST request
+        const token = window.localStorage.getItem('token');
+        await axios.post('http://localhost:5000/api/expenses' , formDataToSend , {
+          headers: {Authorization: token},
+        });
         toast.success('Expense for apartment passed succesfully');
       } catch(error) {
         toast.error('Error passing expense')
@@ -142,7 +148,6 @@ function ExpensesCharge() {
             type='file'
             id='document'
             name='document'
-            value= {formData.document}
             accept='image/*, .pdf' //Specify the allowed file types
             onChange={handleFileInputChange}
             />

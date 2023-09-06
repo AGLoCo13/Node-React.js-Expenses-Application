@@ -189,6 +189,3 @@ const createApartment = async (req, res) => {
     updateApartment,
     deleteApartment
  };
-
-
- //MAY INPLEMENT MORE FUNCTIONS SUCH AS getAllBuildings etc... 

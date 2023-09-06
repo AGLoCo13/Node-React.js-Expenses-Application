@@ -4,7 +4,10 @@ const Expense = require('../models/expenses.js');
 const createExpense = async (req, res) => {
   try {
     // Retrieve the necessary data from the request body
-    const { profile, total, date_created, document, month, year, type_expenses } = req.body;
+    const { profile, total, date_created, month, year, type_expenses } = req.body;
+
+    //The document information from multer middleware
+    const document = req.file ? req.file.path : null;
 
     // Create a new expense instance
     const expense = new Expense({
@@ -85,5 +88,3 @@ module.exports = {
   updateExpense,
   deleteExpense
 };
-
-//NEED TO IMPLEMENT AN INTELLIGENCE FOR THE CALCULATION OF EXPENSES

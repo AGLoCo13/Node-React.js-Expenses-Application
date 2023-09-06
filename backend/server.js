@@ -8,7 +8,21 @@ const propertyController = require('../controllers/propertyController.js');
 const expensesController = require('../controllers/expensesController');
 const { authenticateUser, authorizeAdmin } = require('../middleware/authMiddleware');
 const accountManagement = require('../controllers/accountManagement.js');
+const paymentController = require('../controllers/paymentController');
 const app = express();
+
+//Use of multer library for the app to be able to upload receipts
+const multer = require('multer');
+
+const storage = multer.diskStorage({
+    destination: function(req , file , cb){
+        cb(null , 'receipts/'); //save file to receipts folder
+    },
+    filename: function(req , file , cb){
+        cb(null , `${Date.now()} - ${file.originalname}`)
+    }
+});
+const upload = multer({storage:storage});
 
 //**************Models import
 const User = require('../models/userModel.js');
@@ -164,7 +178,7 @@ app.delete('/api/apartments/:id', propertyController.deleteApartment);
                         {/*EXPENSES APIS */}
 
 //Create a new expense 
-app.post('/api/expenses', expensesController.createExpense);
+app.post('/api/expenses', upload.single('document') , expensesController.createExpense);
 //Retrieve all expenses 
 app.get('/api/expenses' , expensesController.getAllExpenses);
 //Update an expense 
@@ -189,7 +203,15 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
     }
     
 });
+                        {/* Payments API */}
+    //Create new Payment
+    app.post('/api/payments' , paymentController.createPayment);
+    //Delete Payment
+    app.delete('/api/payments' , paymentController.deletePayment);
+
+
             {/* ________________________________________ */}
+
 
 //Get specific Apartment by the building they're tied to 
 app.get('/aps/Apartments/:buildId' , async (req, res) => {
