@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/adminDashboard.css';
 function TenantDashboard() {
-
+  //This Dashboard is made for the tenant
     const [showComponent , setShowComponent] = useState(false);
     const navigate = useNavigate(); //Import useNavigate hook
     const handleLogout = () => {

@@ -64,10 +64,7 @@ function ManageApartments() {
     }
   };
 
-  {/*MUST IMPLEMENT SOMEWHERE SOME FUNCTION THAT GETS THE AVAILABLE
-  APARTMENTS FOR EACH BUILDING ON EACH FLOOR IN ORDER TO MODIFY 
-  Each Apartment ACCORDINGLY */} 
-
+  //UseEffect Hook to Fetch Apartments
   useEffect(() => {
     fetchApartments();
   }, []);
@@ -294,7 +291,7 @@ function ManageApartments() {
                       name='heating'
                       value={newApartment.heating}
                       onChange={handleInputChange}
-                      required
+                      
                       />
                       <div className='elevator'>
                         <label htmlFor='elevator'>Elevator (millimetres):</label>
@@ -305,7 +302,7 @@ function ManageApartments() {
                            name='elevator'
                            value={newApartment.elevator}
                            onChange={handleInputChange}
-                           required
+                           
                            />
                               <div className='general_expenses'>
                                 <label htmlFor='general_expenses'>General Expenses (millimetres):</label>
@@ -316,7 +313,7 @@ function ManageApartments() {
                                   name='general_expenses'
                                   value={newApartment.general_expenses}
                                   onChange={handleInputChange}
-                                  required
+                                  
                                   />
                            </div>
                       </div>

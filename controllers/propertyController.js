@@ -66,8 +66,34 @@ const updateApartmentBuilding = async (req, res) => {
 // Create a new apartment
 const createApartment = async (req, res) => {
     try {
-      const { building, tenant, name, floor, square_meters, owner, fi, heating, elevator, general_expenses } = req.body;
-  
+      const { building, tenant, name , owner, fi} = req.body;
+       let {floor , square_meters} = req.body;
+      //Conversion to numbers
+      floor = parseFloat(floor);
+      square_meters = parseFloat(square_meters);
+
+      //Fetch all apartments for the given building
+      const allApartments = await Apartment.find({ building });
+
+      //calculate total square meters and total floors for all apartments
+      let totalSquareMeters = square_meters;
+      let totalFloors = floor;
+      console.log("Total square meters before:" , totalSquareMeters)
+      for ( let apt of allApartments){
+        totalSquareMeters += parseFloat(apt.square_meters);
+        totalFloors += apt.floor;
+
+      }
+      console.log("Total Square Meters After:", totalSquareMeters);
+      console.log("New Apartment Square Meters:", square_meters);
+      //Calculate heating , elevator and general_expenses for the new apartment
+      {/* χιλιοστά επιβάρυνσης των κοινοχρήστων  δηλαδή όλων των εξόδων πλήν του ανελκυστήρα υπολογίζονται 
+      ως το κλάσμα των τετραγωνικών μέτρων κάθε διαμερίσματος προς το άθροισμα των τετραγωνικών μέτρων όλων των διαμερισμάτων*/}
+      {/* Τα χιλιοστά επιβάρυνσης ανελκυστήρα υπολογίζονται ως το άθροισμα του ορόφου κάθε διαμερίσματος προς το άθροισμα των 
+        ορόφων όλων των διαμερισμάτων*/ }
+      const heating = square_meters / totalSquareMeters;
+      const elevator = floor/ totalFloors;
+      const general_expenses = square_meters / totalSquareMeters;
       // Create a new apartment instance
       const newApartment = new Apartment({
         building,
@@ -81,10 +107,19 @@ const createApartment = async (req, res) => {
         elevator,
         general_expenses,
       });
-  
       // Save the new apartment to the database
       await newApartment.save();
   
+      //update all other apartments' elevator and general_expenses values
+      //based on the new totals.
+      for (let apt of allApartments) {
+        apt.heating = apt.square_meters /totalSquareMeters;
+        apt.elevator = apt.floor / totalFloors;
+        apt.general_expenses = apt.square_meters / totalSquareMeters;
+        await apt.save();
+      }
+  
+      
       res.status(201).json({ message: 'Apartment created successfully', apartment: newApartment });
     } catch (error) {
       console.error(error);

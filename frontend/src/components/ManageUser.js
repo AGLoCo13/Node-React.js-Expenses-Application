@@ -31,7 +31,7 @@ function ManageUsers() {
     }
   };
   
-
+  //Handling of the input change
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     if (selectedUser){
@@ -46,7 +46,7 @@ function ManageUsers() {
     }));
   }
   };
-
+  //Function to create user . Responsible for the API calls
   const createUser = async (e) => {
     e.preventDefault();
 
@@ -60,7 +60,7 @@ function ManageUsers() {
       toast.error('Error creating user');
     }
   };
-
+//Function to select user
   const selectUser = (user) => {
     setSelectedUser(user);
     setEditUser({
@@ -69,7 +69,7 @@ function ManageUsers() {
       role: user.role,
     });
   };
-
+//function to update a user . Responsible for the API Calls
   const updateUser = async (e) => {
     e.preventDefault();
     try {
@@ -90,7 +90,7 @@ function ManageUsers() {
     setSelectedUser(user);
     setShowConfirmation(true);
   };
-
+  //Function to delete a user. Handles API calls.
   const handleDeleteConfirmation = async(confirmed) => {
     setShowConfirmation(false);
     if (confirmed && selectedUser){

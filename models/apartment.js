@@ -33,15 +33,15 @@ const apartmentSchema = new mongoose.Schema({
     },
     heating: {
       type: Number,
-      required: true,
+      required: false,
     },
     elevator: {
       type: Number,
-      required: true,
+      required: false,
     },
     general_expenses: {
       type: Number,
-      required: true,
+      required: false,
     },
   });
 

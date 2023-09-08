@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-
+import 'bootstrap/dist/css/bootstrap.min.css';
 function CalculateExpenses() {
+  //Defining the Data set
   const [data, setData] = useState({
     apartments: [],
     consumptions: [],
@@ -15,167 +16,101 @@ function CalculateExpenses() {
   });
   const [apartmentExpenses, setApartmentExpenses] = useState({});
   useEffect(() => {
+    //Fetching the Required data from the database
     const fetchData = async () => {
       const token = window.localStorage.getItem('token');
+      //Get the administrator's profile and authorize him if he has valid token
       const profileResponse = await axios.get('http://localhost:5000/api/profile', {
         headers: { Authorization: token },
       });
+
       if (profileResponse.data.profileId || profileResponse.data.userId) {
         const buildingId = profileResponse.data.profileId;
         const userId = profileResponse.data.userId;
-
+        //Building response , expensesResponse
         const [buildingResponse, expensesResponse] = await Promise.all([
           axios.get(`http://localhost:5000/api/buildings/${buildingId}`),
           axios.get(`http://localhost:5000/api/expenses/${userId}`),
         ]);
         const fetchedBuilding = buildingResponse.data;
-
+        //Apartments that are tied to the building Response
         const apartmentsResponse = await axios.get(`http://localhost:5000/aps/Apartments/${fetchedBuilding._id}`);
-        const allConsumptions = await Promise.all(
+        const allConsumptionsResponses = await Promise.all(
           apartmentsResponse.data.map((apartment) =>
             axios.get(`http://localhost:5000/api/consumptions/${apartment._id}`)
           )
         );
-
-        let localTotalHeating = 0;
-        let localTotalElevator = 0;
-        let localTotalGeneral = 0;
-
-        expensesResponse.data.forEach(expense => {
-          switch (expense.type_expenses) {
-            case 'Heating':
-              localTotalHeating += expense.total;
-              break;
-            case 'Elevator':
-              localTotalElevator += expense.total;
-              break;
-            default:
-              localTotalGeneral += expense.total;
-          }
-        });
+        //Consumptions Response
+        const allConsumptions = allConsumptionsResponses.flatMap(response => response.data);
 
         const newState = {
           apartments: apartmentsResponse.data,
           building: buildingResponse.data,
           expenses: expensesResponse.data,
-          consumptions: allConsumptions.flat(),
-          total: {
-            heating: localTotalHeating,
-            elevator: localTotalElevator,
-            general: localTotalGeneral,
-          },
+          consumptions: allConsumptions,
         };
+        //Finally set the data with the New State of fetched objects
         setData(newState);
       }
+      
     };
     fetchData();
   }, []);
-
+  //using the useMemo hook to memoize expensive computations so that they are not recalculated on every render
   useMemo(() => {
-     // Initialize the variables and objects
-  let total_heating = 0;
-  let total_elevator = 0;
-  let total_general = 0;
-  let total_product = 0;
-  let product_static = 0;
-  let static_val = 0;
-  const apartment_heating = {};
-  const apartment_elevator = {};
-  const apartment_general = {};
-  const product = {};
-  const division = {};
-  const apartment_cons = {};
+    //Calculation of the totals of every Expense with the use of reduce function
+    const totalHeating = data.expenses.filter(e => e.type_expenses === 'Heating').reduce((acc, curr) => acc + curr.total, 0);
+    const totalElevator = data.expenses.filter(e => e.type_expenses === 'Elevator').reduce((acc, curr) => acc + curr.total, 0);
+    const totalGeneral = data.expenses.reduce((acc, curr) => acc + (curr.type_expenses !== 'Heating' && curr.type_expenses !== 'Elevator' ? curr.total : 0), 0);
+    
+    const apartmentProducts = {};
+    const totalProduct = data.apartments.reduce((acc, apartment) => {
+      //Get the consumption for every apartment
+      const apartmentConsumption = data.consumptions.find(c => c.apartment._id === apartment._id)?.consumption || 0;
+      //Multiply the heating millimetre with the hours of every apartment
+      const product = apartment.heating * apartmentConsumption;
+      apartmentProducts[apartment._id] = product;
+      return acc + product;
+    }, 0);
 
-  // Calculate the total of every type of expense
-  data.expenses.forEach((expense) => {
-    switch(expense.type_expenses) {
-      case 'Heating':
-        total_heating += expense.total;
-        break;
-      case 'Elevator':
-        total_elevator += expense.total;
-        break;
-      default:
-        total_general += expense.total;
-    }
-  });
-  console.log("Total Heating:" , total_heating);
-  console.log("Total Elevator:" , total_elevator);
-  console.log("Total General:" , total_general);
+    const calculatedApartmentExpenses = {};
+       
+    data.apartments.forEach(apartment => {
+      //Divide each apartment product with the total product
+      const division = apartmentProducts[apartment._id] / totalProduct;
+      //Total heating is equal to the division of apartmentProducts with the total product
+      calculatedApartmentExpenses[apartment._id] = {
+        heating: division * totalHeating,
+        elevator: apartment.elevator * totalElevator ,
+        general: apartment.general_expenses * totalGeneral,
+      };
+    });
 
-  // Create a lookup object for consumptions based on apartmentId
-  const consumptionLookup = {};
-  data.consumptions.forEach(consumption => {
-    if (consumption?.apartment?.$oid && typeof consumption.consumption === "number") {
-      consumptionLookup[consumption.apartment.$oid] = consumption.consumption;
-    }
-  });
-  console.log("Consumption Lookup:" , consumptionLookup);
-
-  // Calculate product and total_product
-  data.apartments.forEach((apartment) => {
-    product[apartment._id] = apartment.heating * consumptionLookup[apartment._id];
-    total_product += product[apartment._id];
-  });
-  console.log("Product:" , product);
-  console.log("Total Product:" , total_product);
-
-  // Calculate division
-  data.apartments.forEach((apartment) => {
-    division[apartment._id] = product[apartment._id] / total_product;
-  });
-  console.log("Division:" , division);
-
-  // Calculate product_static and static_val
-  data.apartments.forEach((apartment) => {
-    product_static += apartment.heating * apartment.fi;
-  });
-  static_val = 1 - product_static;
-
-  console.log("Product Static:" , product_static);
-  console.log("Static val:" , static_val);
-
-  // Calculate apartment_cons
-  data.apartments.forEach((apartment) => {
-    apartment_cons[apartment._id] = (division[apartment._id] * static_val) + (apartment.heating * apartment.fi);
-  });
-  console.log("Apartment Cons:" , apartment_cons);
-
-  // Calculate the expenses for each apartment
-  data.apartments.forEach((apartment) => {
-    apartment_heating[apartment._id] = total_heating * apartment_cons[apartment._id];
-    apartment_elevator[apartment._id] = total_elevator * apartment.elevator;
-    apartment_general[apartment._id] = total_general * apartment.general_expenses;
-  });
-  console.log("Apartment Heating:" , apartment_heating);
-  console.log("Apartment Elevator:" , apartment_elevator);
-  console.log("Apartment General:" , apartment_general);
-
-  const calculatedApartmentExpenses = {};
-  data.apartments.forEach((apartment) => {
-    calculatedApartmentExpenses[apartment._id] = {
-      heating: apartment_heating[apartment._id] || 0,
-      elevator: apartment_elevator[apartment._id] || 0,
-      general: apartment_general[apartment._id] || 0,
-    };
-  });
-  console.log("Calculated Apartment Expenses:" , calculatedApartmentExpenses);
-
-  setApartmentExpenses(calculatedApartmentExpenses);
+    setApartmentExpenses(calculatedApartmentExpenses);
   }, [data]);
 
   return (
-    <div>
-      <h1>Apartment Expenses</h1>
-      {Object.keys(apartmentExpenses).map((apartmentId) => (
-        <div key={apartmentId}>
-          <h3>Apartment ID: {apartmentId}</h3>
-          <p>Heating: {apartmentExpenses[apartmentId].heating.toFixed(2)}</p>
-          <p>Elevator: {apartmentExpenses[apartmentId].elevator.toFixed(2)}</p>
-          <p>General: {apartmentExpenses[apartmentId].general.toFixed(2)}</p>
-        </div>
+    <div className='container mt-5'>
+      <h1 className='mb-5'>Apartment Expenses</h1>
+      {data.apartments.map((apartment) =>  (
+      <div key={apartment._id} className='card mb-3' style= {{ maxWidth: "18rem"}}>
+        <div className='card-header bg-primary text-white'>
+            {apartment.name} - Floor: {apartment.floor}
+            </div>
+          <div className='card-body'>
+            <p className='card-text'>
+                <strong>Heating:</strong> {apartmentExpenses[apartment._id]?.heating.toFixed(2)}
+              </p>
+              <p className='card-text'>
+                <strong>Elevator:</strong> {apartmentExpenses[apartment._id]?.elevator.toFixed(2)}
+              </p>
+              <p className='card-text'>
+              <strong>General:</strong> {apartmentExpenses[apartment._id]?.general.toFixed(2)}
+              </p>
+            </div>
+      </div>
       ))}
-    </div>
+      </div>
   );
 }
 

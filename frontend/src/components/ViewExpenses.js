@@ -3,6 +3,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import axios from 'axios';
 function ViewExpenses() {
     const [expenses , setExpenses] = useState([]);
+
+  {/*Created an array of months to be able to see the months in actual words in the JSX
+   rather than just numbers*/}
     const months = [
         {value: 1, label: 'January'},
       {value:2 , label: 'February'},

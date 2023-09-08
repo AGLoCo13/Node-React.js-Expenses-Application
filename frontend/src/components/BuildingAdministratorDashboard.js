@@ -9,7 +9,7 @@ function BuildingAdministratorDashboard() {
         //Clear the token from local storage (assuming we store it as 'token')
         window.localStorage.removeItem('token')
         //Redirect the user to the login page 
-        navigate('http://localhost:3000'); //Adjust the path based on your setup
+        navigate('http://localhost:3000'); //Adjust the path 
     };
     const handleComponentClick = () => {
         setShowComponent(true);
