@@ -8,6 +8,7 @@ function TenantView() {
     const [userData , setUserData] = useState(null);
 const [editMode , setEditMode] = useState(false);
 const [editedData , setEditedData] = useState([]);
+const [apartmentData , setApartmentData] = useState(null);
 
 useEffect(() => {
     fetchUserData();
@@ -25,11 +26,21 @@ const fetchUserData = async () => {
             },
         });
         setUserData(response.data);
-        console.log(response);
+        console.log(response.data);
         setEditedData(response.data);
-    }catch (error){
+
+        //Fetch apartment based on the user's profile (tenant ID)
+        const apartmentResponse = await axios.get(`http://localhost:5000/api/apartment/${response.data.profileId}`,{
+            headers: {
+                Authorization : `${token}`,
+            },
+            
+        });
+        setApartmentData(apartmentResponse.data);
+    }catch(error) {
         console.error('Error fetching user data:' , error);
     }
+
 };
 
 
@@ -78,9 +89,25 @@ const handleSaveChanges = async () => {
                     <p><strong>Address: </strong> {userData.address}</p>
                     <p><strong>Cellphone: </strong> {userData.cellphone}</p>
                 </div>
-                    <button className='btn btn-primary' onClick={handleEditClick}> Edit </button>
+                {apartmentData && (
+                    <div className='apartment-section mt-4'>
+                        <h2>Apartment Details</h2>
+                        <div className='profile-details'>
+                            <p><strong>Name: </strong> {apartmentData.name}</p>
+                            <p><strong>Floor: </strong> {apartmentData.floor}</p>
+                            <p><strong>Square meters: </strong>{apartmentData.square_meters}</p>
+                            <p><strong>Owner: </strong>{apartmentData.owner ? 'Yes' : 'No'}</p>
+                            <p><strong> Load Factor (Fi): </strong>{apartmentData.fi}</p>
+                            <p><strong>Heating Factor: </strong>{apartmentData.heating}</p>
+                            <p><strong>Elevator Factor: </strong>{apartmentData.elevator}</p>
+                            <p><strong>General Expenses Factor: </strong>{apartmentData.general_expenses}</p>
+                        </div>
+                        </div>
+                    )}
+                    <button className='btn btn-primary' onClick={handleEditClick}> Edit User Profile </button>
                 </div>
                 </>
+               
             ):(
 
             <> 
@@ -136,10 +163,10 @@ const handleSaveChanges = async () => {
             </>
             )}
             </>
+            
         ):(
             <p> Loading User data...</p>
         )}
-      
     </div>
   );
 }

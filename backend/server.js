@@ -175,6 +175,23 @@ app.put('/api/apartments/:id', propertyController.updateApartment);
 // Delete an apartment
 app.delete('/api/apartments/:id', propertyController.deleteApartment);
 
+//Fetch apartment details based on the Tenant's id :
+app.get('/api/apartment/:tenantId' , async (req , res) => {
+    try {
+        const tenantId = req.params.tenantId;
+        const apartment = await Apartment.findOne({ tenant : tenantId});
+
+        if ( !apartment) {
+            return res.status(404).json({message: "Apartment not found."})
+        }
+        res.status(200).json(apartment);
+    }catch(error) {
+        console.error("Error fetching apartment data:" , error);
+        res.status(500).json({error: "Failed to retrieve apartment data."})
+    }    
+
+})
+
                         {/*EXPENSES APIS */}
 
 //Create a new expense 
@@ -208,6 +225,23 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
     app.post('/api/payments' , paymentController.createPayment);
     //Delete Payment
     app.delete('/api/payments' , paymentController.deletePayment);
+    //Get payments tied to specific apartment
+    app.get('/api/payments/:apartmentId' , async(req,res) => {
+        try {
+            const apartmentId = req.params.apartmentId;
+            const payments = await Payment.find ({apartment : apartmentId});
+            if (!payments || payments.length === 0) {
+                return res.status(404).json({message : apartmentId});
+            }
+            res.status(200).json(payments);
+        }catch(error){
+            console.error("Error retrieving payments:" , error);
+            res.status(500).json({error: "Failed to retrieve Payment"});
+        }
+        }
+    );
+    //Update payment as Completed 
+    app.put('/api/payments/:paymentId', paymentController.markPaymentAsCompleted);
 
 
             {/* ________________________________________ */}

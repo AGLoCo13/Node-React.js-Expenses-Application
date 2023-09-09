@@ -48,7 +48,7 @@ function TenantDashboard() {
                         </li>
                         <li className='nav-item'>
                             <Link className='nav-link'
-                                  to="/tenant/view-payments"
+                                  to="/tenant-dashboard/view-payments"
                                   onClick={handleComponentClick}
                                   >
                                     View Payments

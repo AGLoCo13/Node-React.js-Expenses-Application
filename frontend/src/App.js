@@ -17,6 +17,8 @@ import TenantDashboard from './components/TenantDashboard.js';
 import TenantView from './components/TenantView.js';
 import ViewExpenses from './components/ViewExpenses.js';
 import CalculateExpenses from './components/CalculateExpenses.js';
+import ViewPayments from './components/ViewPayment.js';
+import TenantPayments from './components/TenantPayments.js';
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
 
@@ -38,12 +40,14 @@ function App() {
         <Route path="/building-administrator" element={<BuildingAdministratorDashboard />} />
         <Route path="/tenant-dashboard" element={<TenantDashboard />} />
         <Route path="/tenant-dashboard/view-page"  element = {<TenantView />} />
+        <Route path="/tenant-dashboard/view-payments" element = {<TenantPayments />} />
         <Route path="/building-administrator/view-building" element={<ViewBuilding />} />
         <Route path="/building-administrator/fuel-charge" element={<FuelCharge />} />
         <Route path="/building-administrator/consumption-history" element={<ConsumptionHistory />} />
         <Route path="/building-administrator/expenses-charge" element={<ExpensesCharge />} />
         <Route path="/building-administrator/view-expenses" element={<ViewExpenses />} />
         <Route path="/building-administrator/calculate-expenses" element = {<CalculateExpenses />} />
+        <Route path="/building-administrator/view-payments" element = {<ViewPayments />} />
         <Route path="/admin-dashboard/manage-users" element={<ManageUsers />} />
         <Route path="/admin-dashboard/manage-buildings" element={<ManageBuildings />} />
         <Route path="/admin-dashboard/manage-apartments" element={<ManageApartments />} />

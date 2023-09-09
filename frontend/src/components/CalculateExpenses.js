@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer, toast } from 'react-toastify';
 function CalculateExpenses() {
   //Defining the Data set
   const [data, setData] = useState({
@@ -89,6 +91,32 @@ function CalculateExpenses() {
     setApartmentExpenses(calculatedApartmentExpenses);
   }, [data]);
 
+  const handleCreatePayment = async (apartment) => {
+    const token = window.localStorage.getItem('token');
+    try {
+      const paymentData = {
+        apartment: apartment._id,
+        month: new Date().getMonth() + 1, //JS months are 0-indexed.
+        year: new Date(). getFullYear(),
+        total_heating: apartmentExpenses[apartment._id]?.heating || 0,
+        total_elevator: apartmentExpenses[apartment._id]?.elevator|| 0,
+        total_general: apartmentExpenses[apartment._id]?.general || 0,
+        payment_made: false,
+      };
+      const response = await axios.post('http://localhost:5000/api/payments', paymentData, {
+        headers: {Authorization: token},
+      })
+      if (response.status === 200) {
+        toast.success("Payment Created succesfully");
+      }else{
+        toast.error("Failed to create payment")
+      }
+    }catch(error){
+      console.error('Error creating payment' , error);
+
+    }
+  }
+
   return (
     <div className='container mt-5'>
       <h1 className='mb-5'>Apartment Expenses</h1>
@@ -107,6 +135,7 @@ function CalculateExpenses() {
               <p className='card-text'>
               <strong>General:</strong> {apartmentExpenses[apartment._id]?.general.toFixed(2)}
               </p>
+              <button className= 'btn btn-success' onClick={() => handleCreatePayment(apartment)}> Create Payment</button>
             </div>
       </div>
       ))}
