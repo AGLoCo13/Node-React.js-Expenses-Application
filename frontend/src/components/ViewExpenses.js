@@ -27,14 +27,12 @@ function ViewExpenses() {
         const response = await axios.get('http://localhost:5000/api/profile', {
           headers: {Authorization: token},
         });
-        console.log(response.data.userId);
         if(response.data.userId) {
           //If true give me the expenses he's admin to 
           const expensesResponse = await axios.get(
             `http://localhost:5000/api/expenses/${response.data.userId}`
           );
           const fetchedExppenses = expensesResponse.data;
-          console.log(fetchedExppenses)
           setExpenses(fetchedExppenses|| []);
 
         }
@@ -45,9 +43,6 @@ function ViewExpenses() {
     };
     fetchExpenses();
   }, []);
-
-  //Log the length of expenses array just before rendering
-  console.log('Apartments Array length:' , expenses.length);
      
   return (
     <div>

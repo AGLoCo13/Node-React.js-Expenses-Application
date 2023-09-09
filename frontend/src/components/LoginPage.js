@@ -3,11 +3,13 @@ import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import '../css/loginPage.css';
 import jwtDecode from 'jwt-decode';
-
+import buildingImg from '../assets/buildingImage.png';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  //Error state
+  const [error , setError] = useState(''); 
 
   const handleEmailChange = (e) => {
     setEmail(e.target.value);
@@ -19,6 +21,7 @@ function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
 
     try {
       const response = await axios.post('http://localhost:5000/api/login', {email, password});
@@ -43,15 +46,24 @@ function LoginPage() {
         window.location.href = '/tenant-dashboard';
       }
     } catch (error) {
-      // Handle any error that occurs during login
-      console.error(error);
+      if(error.response && error.response.status === 401){
+         setError('Invalid email or password');
+      }else{
+      setError('An error occured. Please try again later')
     }
+    console.error(error);
+  }
   };
 
   return (
     <div className="login-page d-flex justify-content-center align-items-center">
+      <div className='row no-gutters'>
+        <div className='col-md-6'>
+          <img src={buildingImg} alt="Building image" clasName="img-fluid" />
+        </div>
+      </div>
       <div className="login-container">
-        <h1>Welcome!</h1>
+        <h2>Welcome to the RN-Expenses App!</h2>
         <p>Please login with the credentials given to you by the site admin.</p>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
@@ -74,6 +86,7 @@ function LoginPage() {
               onChange={handlePasswordChange}
             />
           </div>
+          {error && <div className="alert alert-danger">{error}</div>}
           <button type="submit" className="btn btn-primary">Login</button>
         </form>
       </div>

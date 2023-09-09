@@ -81,7 +81,7 @@ function AdminDashboard() {
 
       <div className="container">
         <h1>Welcome, Admin!</h1>
-        <p>Manage your site's content and settings here.</p>
+        <p>Manage users , buildings and apartments by clicking to the corresponding links above.</p>
 
         {/* Conditionally render the ManageUsers component */}
         {match && showManageUsers && <ManageUsers />}

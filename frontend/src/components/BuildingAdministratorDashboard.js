@@ -95,7 +95,7 @@ function BuildingAdministratorDashboard() {
         </header>   
            <div className='container'>
             <h1> Welcome Administrator!</h1>
-            <p> Manage your Building's settings here.</p>
+            <p> Manage your Building's settings by clicking one of the corresponding links above.</p>
             </div>  
     </div>
   )

@@ -16,7 +16,7 @@ useEffect(() => {
     fetchUserApartmentPaymentsData();
 }, []);
 
-
+//Function that fetches tenant's profile , the apartment he's tenant to and the payments that are created by the building administrator.
 const fetchUserApartmentPaymentsData = async () => {
     try{
         //Get the token from local storage 

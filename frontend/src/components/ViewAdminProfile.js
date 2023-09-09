@@ -50,15 +50,17 @@ function ViewAdminProfile() {
   };
 
   const handleSaveChanges = async () => {
+    console.log("Attempting to save changes...")
     try {
       // Send a PUT request to update the user's profile data on the Server
     const token = window.localStorage.getItem('token'); // Assuming you store the token in local storage
       // Send a PUT request to update the user's profile data on the Server
-      await axios.put('http://localhost:5000/api/admin/profile', editedData, {
+      const response = await axios.put('http://localhost:5000/api/admin/profile', editedData, {
         headers: {
           Authorization: `${token}`,
         },
       });
+      console.log("server Response:" , response);
     } catch (error) {
       console.error('Error updating user data:', error);
     }
@@ -130,7 +132,7 @@ function ViewAdminProfile() {
                   />
                 </div>
               </form>
-              <button className="btn btn-primary me-2"onClick={handleSaveChanges}>Save Changes</button>
+              <button type="button" className="btn btn-primary me-2"onClick={handleSaveChanges}>Save Changes</button>
               <button className="btn btn-secondary" onClick={handleCancelEdit}>Cancel</button>
             </>
           )}

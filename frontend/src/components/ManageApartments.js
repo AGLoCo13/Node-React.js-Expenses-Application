@@ -277,6 +277,7 @@ function ManageApartments() {
                       className='form-control'
                       id="fi"
                       name="fi"
+                      placeholder= "0.6 for ground floor , 0.65 mezzanine properties , 0.55 for others"
                       value={newApartment.fi}
                       onChange={handleInputChange}
                       required
@@ -289,6 +290,7 @@ function ManageApartments() {
                       className='form-control'
                       id='heating'
                       name='heating'
+                      placeholder = "Can be left empty as it can be calculated automatically"
                       value={newApartment.heating}
                       onChange={handleInputChange}
                       
@@ -300,6 +302,7 @@ function ManageApartments() {
                            className='form-control'
                            id='elevator'
                            name='elevator'
+                           placeholder = "Can be left empty as it can be calculated automatically"
                            value={newApartment.elevator}
                            onChange={handleInputChange}
                            
@@ -311,6 +314,7 @@ function ManageApartments() {
                                   className='form-control'
                                   id='general_expenses'
                                   name='general_expenses'
+                                  placeholder = "Can be left empty as it can be calculated automatically"
                                   value={newApartment.general_expenses}
                                   onChange={handleInputChange}
                                   
