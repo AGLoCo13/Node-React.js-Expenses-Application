@@ -211,7 +211,7 @@ function ManageBuildings() {
     <ul className="list-group">
       {buildings.map((building) => (
         <li key={building._id} className="list-group-item d-flex justify-content-between align-items-center">
-          Building Address : {building.address} - Administrator: {building.profile.user.name}
+          Building Address : {building.address} - Administrator: {building.profile?.user?.name}
           <button className='btn btn-primary mr-2' onClick={() => {selectBuilding(building); showEditBuildingForm();}}>Edit</button>
           <button className='btn btn-danger' onClick={() => DeleteBuilding(building)}>Delete</button>
         </li>
@@ -247,7 +247,7 @@ function ManageBuildings() {
         {administrators ? (
               administrators.map((administrator) => (
                 <option key={administrator._id} value={administrator._id}>
-                  {administrator.user.name}
+                  {administrator?.user?.name}
           </option>
         ))
         ): (

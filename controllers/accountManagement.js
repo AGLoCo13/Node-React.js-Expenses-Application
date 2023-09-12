@@ -11,12 +11,12 @@ const handleEditAdmin = async (req, res) => {
 
 
     //Validate and sanitize the input data
-    const {name , email , password , address , cellphone } = req.body;
+    const {name , email , address , cellphone } = req.body;
     
        //update the user and profile data with the new info
       const user = await User.findByIdAndUpdate(
         userId,
-        {name, email , password},
+        {name, email },
         {new: true}
       );
 

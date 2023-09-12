@@ -64,9 +64,9 @@ function ManageUsers() {
   const selectUser = (user) => {
     setSelectedUser(user);
     setEditUser({
-      address: user.address,
-      cellphone: user.cellphone,
-      role: user.role,
+      address: user.address || '',
+      cellphone: user.cellphone || '',
+      role: user.role || 'Tenant',
     });
   };
 //function to update a user . Responsible for the API Calls
@@ -173,7 +173,8 @@ function ManageUsers() {
               <label htmlFor="role">Role:</label>
               <select className="form-control" name="role" value={editUser.role} onChange={handleInputChange}>
                 <option value="Tenant">Tenant</option>
-                <option value="Administrator">Administrator</option>
+                <option value="Administrator">Building-Administrator</option>
+                <option value="Site-admin">Site-Administrator</option>
               </select>
             </div>
             <button type="submit" className="btn btn-primary">Update User</button>

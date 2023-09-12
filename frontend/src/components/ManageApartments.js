@@ -332,7 +332,7 @@ function ManageApartments() {
       <ul className='list-group'>
         {apartments.map((apartment) => (
             <li key={apartment._id} className='list-group-item d-flex justify-content-between align-items-center'>
-               Name: {apartment.name} / Address: {apartment.building && apartment.building.address ? `Address: ${apartment.building.address}` : 'No Building'} / Floor: {apartment.floor} / Tenant: {apartment.tenant.user.name || apartment.building.address}
+               Name: {apartment.name} / Address: {apartment.building && apartment.building.address ? `Address: ${apartment.building.address}` : 'No Building'} / Floor: {apartment.floor} / Tenant: {apartment.tenant?.user?.name || apartment.building.address}
               <button className='btn btn-primary mr-2' onClick={() => {selectApartment(apartment); showEditApartmentForm();}}>Edit</button>
               <button className='btn btn-danger' onClick={() => deleteApartment(apartment)}>Delete</button>
             </li>
