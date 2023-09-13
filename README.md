@@ -44,7 +44,7 @@ Navigate to the directory where the JSON Files are located:
       password: Admin!123
    Building-administrator credentials:
       email: tonyGeo@gmail.com
-      password: 1Z19v13h18
+      password: 1234567890123
     A tenant's credentials:
        email: thkam@example.com
        password: 1234567
