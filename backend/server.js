@@ -286,7 +286,7 @@ app.get('/api/buildings/:profId', async (req,res) => {
     
 });
 
-
+//Retrieve buildings that are stored
 app.get('/api/buildings' , async (req,res) => {
     try{
         const buildings = await Building.find().populate({path:"profile",
@@ -301,7 +301,6 @@ app.get('/api/buildings' , async (req,res) => {
         res.status(500).json({error: 'Failed to retrieve buildings'});
     }
     }
-        //find users with the rol
     );
 
 

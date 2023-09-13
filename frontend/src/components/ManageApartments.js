@@ -158,7 +158,7 @@ function ManageApartments() {
     const {name , value} = e.target;
     //MUST CHECK AGAIN CAUSE OWNER FIELD CANNOT BE WRITTEN AS TRUE IN THE DATABASE!
     // Convert the 'owner' field to a boolean value
-  const newValue = name === 'owner' ? value === true : value;
+  const newValue = name === 'owner' ? value === 'true' : value;
     if(selectedApartment) {
       setEditApartment((prevEditApartment) => ({
         ...prevEditApartment,
@@ -262,12 +262,12 @@ function ManageApartments() {
                       id='owner'
                       name='owner'
                       className='form-control'
-                      value={newApartment.owner} //Convert to string since owner is boolean
+                      value={newApartment.owner.toString()} //Convert to string since owner is boolean
                       onChange={handleInputChange}
                       required
                       >
-                        <option value={true}>Yes</option>
-                        <option value={false}>No</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
                       </select>
                   </div>
                   <div className='form-group'>
@@ -332,7 +332,7 @@ function ManageApartments() {
       <ul className='list-group'>
         {apartments.map((apartment) => (
             <li key={apartment._id} className='list-group-item d-flex justify-content-between align-items-center'>
-               Name: {apartment.name} / Address: {apartment.building && apartment.building.address ? `Address: ${apartment.building.address}` : 'No Building'} / Floor: {apartment.floor} / Tenant: {apartment.tenant?.user?.name || apartment.building.address}
+               Name: {apartment.name} / Address: {apartment.building && apartment.building?.address ? `Address: ${apartment.building?.address}` : 'No Building'} / Floor: {apartment.floor} / Tenant: {apartment.tenant?.user?.name || apartment.building?.address}
               <button className='btn btn-primary mr-2' onClick={() => {selectApartment(apartment); showEditApartmentForm();}}>Edit</button>
               <button className='btn btn-danger' onClick={() => deleteApartment(apartment)}>Delete</button>
             </li>
