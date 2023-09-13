@@ -34,9 +34,15 @@ Ensure that MongoDB is running locally. By Default the application tries to conn
 
 Navigate to the directory where the JSON Files are located:
    cd JSON DBCollections 
+
    #For each collection , run the following:
+
+   
    #example for users and their profiles:
+
+   
    mongoimport --db commons-db --collection users --file users.json
+
    mongoimport --db commons-db --collection profiles --file profiles.json
 
   [Site-Admin login credentials:
