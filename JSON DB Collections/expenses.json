@@ -1,0 +1,3 @@
+{"_id":{"$oid":"6501b7c92658a1bed0a428dd"},"profile":{"$oid":"6501b6712658a1bed0a42795"},"total":1500,"date_created":{"$date":"2023-09-13T13:23:21Z"},"document":null,"month":1,"year":2023,"type_expenses":"Heating","__v":0}
+{"_id":{"$oid":"6501b7ce2658a1bed0a428df"},"profile":{"$oid":"6501b6712658a1bed0a42795"},"total":1500,"date_created":{"$date":"2023-09-13T13:23:26Z"},"document":null,"month":1,"year":2023,"type_expenses":"Elevator","__v":0}
+{"_id":{"$oid":"6501b7d22658a1bed0a428e1"},"profile":{"$oid":"6501b6712658a1bed0a42795"},"total":1500,"date_created":{"$date":"2023-09-13T13:23:30Z"},"document":null,"month":1,"year":2023,"type_expenses":"General","__v":0}

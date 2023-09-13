@@ -1,0 +1,3 @@
+{"_id":{"$oid":"6501b79c2658a1bed0a42898"},"apartment":{"$oid":"65017b692658a1bed0a42579"},"month":1,"year":2023,"consumption":500,"__v":0}
+{"_id":{"$oid":"6501b7a82658a1bed0a428ab"},"apartment":{"$oid":"65017a7c2658a1bed0a42515"},"month":1,"year":2023,"consumption":600,"__v":0}
+{"_id":{"$oid":"6501b7b62658a1bed0a428cf"},"apartment":{"$oid":"65008d95cad3d32844044661"},"month":1,"year":2023,"consumption":700,"__v":0}
