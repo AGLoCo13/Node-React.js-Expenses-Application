@@ -6,6 +6,7 @@ You have to install :
 
 -MongoDB running locally
 
+
 2.Setup and installation 
 -Clone the repository:
 
@@ -30,6 +31,34 @@ npm install
 3.MongoDB configuration
 
 Ensure that MongoDB is running locally. By Default the application tries to connect to `mongodb://127.0.0.1:27017/commons-db`
+
+Navigate to the directory where the JSON Files are located:
+   cd JSON DBCollections 
+
+   #For each collection , run the following:
+
+   
+   #example for users and their profiles:
+
+   
+   mongoimport --db commons-db --collection users --file users.json
+
+   mongoimport --db commons-db --collection profiles --file profiles.json
+
+  [Site-Admin login credentials:
+      email: admin@example.com
+      password: Admin!123
+   Building-administrator credentials:
+      email: tonyGeo@gmail.com
+      password: 1234567890123
+    A tenant's credentials:
+       email: thkam@example.com
+       password: 1234567
+      ]
+
+  #You can also import the expenses , consumptions , and payments collections that are made to test the app.
+      
+      
 
 4.Running the application
 
