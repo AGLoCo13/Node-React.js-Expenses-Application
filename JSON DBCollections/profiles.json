@@ -1,5 +1,0 @@
-{"_id":{"$oid":"650081a1b0d1c88abe17b824"},"user":{"$oid":"650081a1b0d1c88abe17b821"},"address":"123 Main St","cellphone":"123-456-7890","role":"Site-admin","__v":0}
-{"_id":{"$oid":"650088adb0d1c88abe17b93f"},"user":{"$oid":"650088adb0d1c88abe17b93c"},"address":"Xarokopou 1","cellphone":"694565987","role":"Tenant","__v":0}
-{"_id":{"$oid":"650088feb0d1c88abe17b945"},"user":{"$oid":"650088feb0d1c88abe17b942"},"address":"papoulia 12","cellphone":"697854925","role":"Tenant","__v":0}
-{"_id":{"$oid":"65017b4b2658a1bed0a42555"},"user":{"$oid":"65017b4b2658a1bed0a42552"},"address":"Χαροκόπου 7","cellphone":"697845986","role":"Tenant","__v":0}
-{"_id":{"$oid":"6501b6712658a1bed0a42798"},"user":{"$oid":"6501b6712658a1bed0a42795"},"address":"Dervenakiwn 13","cellphone":"6972162150","role":"Administrator","__v":0}

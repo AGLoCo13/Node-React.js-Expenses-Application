@@ -1,3 +1,0 @@
-{"_id":{"$oid":"6501b7e22658a1bed0a42913"},"apartment":{"$oid":"65008d95cad3d32844044661"},"month":9,"year":2023,"total_heating":649.4845360824743,"total_elevator":750,"total_general":569.620253164557,"payment_made":false,"__v":0}
-{"_id":{"$oid":"6501b7e42658a1bed0a42915"},"apartment":{"$oid":"65017a7c2658a1bed0a42515"},"month":9,"year":2023,"total_heating":556.7010309278351,"total_elevator":500,"total_general":569.620253164557,"payment_made":false,"__v":0}
-{"_id":{"$oid":"6501b7e62658a1bed0a42917"},"apartment":{"$oid":"65017b692658a1bed0a42579"},"month":9,"year":2023,"total_heating":293.8144329896907,"total_elevator":250,"total_general":360.75949367088606,"payment_made":false,"__v":0}
