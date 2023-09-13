@@ -1,5 +1,0 @@
-{"_id":{"$oid":"650081a1b0d1c88abe17b821"},"name":"SiteAdmin","email":"admin@example.com","password":"$2b$10$n6h1QKxzOatjFUVoSbUP1.RjUGkIao/bzrkAjVkprK03RciO3PSYu","isAdmin":false,"__v":0}
-{"_id":{"$oid":"65008873b0d1c88abe17b936"},"name":"Αντώνης Γ.","email":"tonyGeo@gmail.com","password":"$2b$10$w/1QzhAaDPwTnCCs2gRxjezQm6MHR/Z8HHeyAdPfYhMZwzNcYmtRS","isAdmin":false,"__v":0}
-{"_id":{"$oid":"650088adb0d1c88abe17b93c"},"name":"Θωμάς Κ.","email":"thkam@example.com","password":"$2b$10$rne6TR6wajfB21IOvHdN1.5xkw1KZxJGmARhNh9vE5GdSTINNLMJe","isAdmin":false,"__v":0}
-{"_id":{"$oid":"650088feb0d1c88abe17b942"},"name":"Ανάργυρος Τσαδήμας","email":"anargyrosts@gmail.com","password":"$2b$10$OX0hmEsx3eVr6mvoChe/EukGBdLZ5GkNpxXA1gBvLJeqloOL0mMEy","isAdmin":false,"__v":0}
-{"_id":{"$oid":"65017b4b2658a1bed0a42552"},"name":"Χρήστος Μιχαλακέλης","email":"chmix@example.com","password":"$2b$10$rmlb0moOXfPLx1mT89GjhOatS9jYDMaMxYtNSeKP/gopEW4HL8k6u","isAdmin":false,"__v":0}
