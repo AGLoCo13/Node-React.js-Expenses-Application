@@ -18,7 +18,7 @@ You have to install :
 
   git clone https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
   
-  cd Expenses-Application
+  cd Node-React.js-Expenses-Application
 
 #install backend dependecies
 
