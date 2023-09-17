@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer, toast } from 'react-toastify';
+import { toast } from 'react-toastify';
 function CalculateExpenses() {
   //Defining the Data set
   const [data, setData] = useState({
@@ -96,8 +96,8 @@ function CalculateExpenses() {
     try {
       const paymentData = {
         apartment: apartment._id,
-        month: new Date().getMonth() + 1, //JS months are 0-indexed.
-        year: new Date(). getFullYear(),
+        month: apartmentExpenses.month, //JS months are 0-indexed.
+        year: apartmentExpenses.year,
         total_heating: apartmentExpenses[apartment._id]?.heating || 0,
         total_elevator: apartmentExpenses[apartment._id]?.elevator|| 0,
         total_general: apartmentExpenses[apartment._id]?.general || 0,
