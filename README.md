@@ -2,9 +2,11 @@
 1.Prerequisities:
 You have to install : 
 
--Node.js(preferably the latest LTS version)
+-Node.js(preferably the latest LTS version) https://nodejs.org/en/download/current
 
--MongoDB running locally
+-MongoDB running locally https://www.mongodb.com/try/download/community
+
+-MongoDB Database Tools https://www.mongodb.com/try/download/database-tools
 
 
 2.Setup and installation 
@@ -29,6 +31,8 @@ cd frontend
 npm install
 
 3.MongoDB configuration
+
+First of all ensure that 
 
 Ensure that MongoDB is running locally. By Default the application tries to connect to `mongodb://127.0.0.1:27017/commons-db`
 
