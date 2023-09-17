@@ -12,29 +12,7 @@ You have to install :
      2.Copy mongoimport.exe to C:\Program Files\MongoDB\Server\7.0\bin
      
 
-
-2.Setup and installation 
--Clone the repository:
-
-  git clone https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
-  
-  cd Expenses-Application
-
-#install backend dependecies
-
-cd backend
-
-npm install
-
-#move to frontend directory and install dependecies 
-(Assuming you are on the frontend directory)
-cd.. 
-
-cd frontend
-
-npm install
-
-3.MongoDB configuration
+2.MongoDB configuration
 
 On Windows Machine:
 
@@ -42,6 +20,7 @@ First of all ensure that C:\Program Files\MongoDB\Server\7.0\bin is added to PAT
 
 Ensure that MongoDB is running locally. By Default the application tries to connect to `mongodb://127.0.0.1:27017/commons-db`
 
+Open a CMD and : 
 Navigate to the directory where the JSON Files are located:
    cd JSON DBCollections 
 
@@ -67,6 +46,30 @@ Navigate to the directory where the JSON Files are located:
       ]
 
   #You can also import the expenses , consumptions , and payments collections that are made to test the app.
+
+  
+3.Setup and installation 
+-Clone the repository:
+
+  git clone https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
+  
+  cd Node-React.js-Expenses-Application
+
+#install backend dependecies
+
+cd backend
+
+npm install
+
+#move to frontend directory and install dependecies 
+(Assuming you are on the frontend directory)
+cd.. 
+
+cd frontend
+
+npm install
+
+
       
       
 
