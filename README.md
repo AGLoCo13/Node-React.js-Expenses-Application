@@ -8,6 +8,10 @@ You have to install :
 
 -MongoDB Database Tools https://www.mongodb.com/try/download/database-tools
 
+     1.Unzip MongoDB database tools 
+     2.Copy mongoimport.exe to C:\Program Files\MongoDB\Server\7.0\bin
+     
+
 
 2.Setup and installation 
 -Clone the repository:
