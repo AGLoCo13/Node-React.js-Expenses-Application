@@ -36,7 +36,9 @@ npm install
 
 3.MongoDB configuration
 
-First of all ensure that 
+On Windows Machine:
+
+First of all ensure that MongoDB is added to PATH variable
 
 Ensure that MongoDB is running locally. By Default the application tries to connect to `mongodb://127.0.0.1:27017/commons-db`
 
