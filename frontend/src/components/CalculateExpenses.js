@@ -93,7 +93,32 @@ function CalculateExpenses() {
 
   const handleCreatePayment = async (apartment) => {
     const token = window.localStorage.getItem('token');
+    const month = new Date().getMonth() + 1;
+    const year = new Date().getFullYear();
     try {
+      //Check if a specific paymnet exists for the current month and year
+      const existingPaymentsResponse = await axios.get(`http://localhost:5000/api/payments/${apartment._id}`,{
+        headers : {Authorization : token},
+      });
+
+      const existingPaymentForCurrentMonth = existingPaymentsResponse.data.find(payment => payment.month === month && payment.year === year );
+
+      if (existingPaymentForCurrentMonth) {
+        // If payment exists for the current month and year , delete it
+        await axios.delete(`http://localhost:5000/api/payments/${existingPaymentForCurrentMonth._id}`, {
+          headers : {Authorization : token },
+        });
+      }
+      } catch (error) {
+        if (error.response && error.response.status !== 404) {
+            // Log any other error and halt the function
+            console.error('Error checking for existing payments', error);
+            return;
+        }
+        // If the error is 404, it just means no payments exist for the apartment, and we'll continue to create a new one.
+      }
+    try {
+      //Create new Payment
       const paymentData = {
         apartment: apartment._id,
         month: new Date().getMonth() + 1 , //JS months are 0-indexed.
@@ -115,7 +140,8 @@ function CalculateExpenses() {
       console.error('Error creating payment' , error);
 
     }
-    }
+    
+  }
 
   
 

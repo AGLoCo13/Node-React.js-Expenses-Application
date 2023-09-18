@@ -226,20 +226,7 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
     //Delete Payment
     app.delete('/api/payments/:paymentId' , paymentController.deletePayment);
     //Get payments tied to specific apartment
-    app.get('/api/payments/:apartmentId' , async(req,res) => {
-        try {
-            const apartmentId = req.params.apartmentId;
-            const payments = await Payment.find ({apartment : apartmentId});
-            if (!payments || payments.length === 0) {
-                return res.status(404).json({message : apartmentId});
-            }
-            res.status(200).json(payments);
-        }catch(error){
-            console.error("Error retrieving payments:" , error);
-            res.status(500).json({error: "Failed to retrieve Payment"});
-        }
-        }
-    );
+    app.get('/api/payments/:apartmentId' , paymentController.getPaymentById);
     //Update payment as Completed 
     app.put('/api/payments/:paymentId', paymentController.markPaymentAsCompleted);
 

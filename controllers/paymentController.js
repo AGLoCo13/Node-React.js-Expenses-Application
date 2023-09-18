@@ -31,12 +31,12 @@ const createPayment = async (req , res ) => {
 //Delete a payment 
 const deletePayment = async (req , res ) => {
     try {
-        const { id } = req.params;
+        const paymentId = req.params.paymentId;
 
         //Find the payment by ID and remove it 
-        const payment = await Payment.findByIdAndDelete(id);
+        const deletedPayment = await Payment.findByIdAndDelete(paymentId);
 
-        if ( !payment ) {
+        if ( !deletedPayment ) {
             return res.status(404).json({message: 'Payment not found'});
 
         }
@@ -46,6 +46,21 @@ const deletePayment = async (req , res ) => {
         res.status(500).json({error: "Failed to delete Payment"});
     }
 }
+//Get specific payment tied to an apartment
+const getPaymentById = async (req , res) => {
+    try {
+        const apartmentId = req.params.apartmentId;
+        const payments = await Payment.find({apartment : apartmentId});
+        if (!payments || payments.length === 0) {
+            return res.status(404).json({message: apartmentId});
+        }
+        res.status(200).json(payments);
+    }catch(error) {
+        console.error("Error retrieving payments:" , error);
+        res.status(500).json({error: " Failed to retrieve payment"});
+}
+}
+
 //Handler to mark a payment as completed 
 const markPaymentAsCompleted = async (req , res) => {
     try {
@@ -70,6 +85,7 @@ const markPaymentAsCompleted = async (req , res) => {
 
 module.exports = {
     createPayment,
+    getPaymentById,
     deletePayment,
     markPaymentAsCompleted
 }
