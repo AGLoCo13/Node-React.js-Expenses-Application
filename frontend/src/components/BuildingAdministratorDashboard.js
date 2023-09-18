@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {Link} from 'react-router-dom';
 function BuildingAdministratorDashboard() {
-    const [showComponent , setShowComponent] = useState(false);
+    const [ setShowComponent] = useState(false);
     const navigate = useNavigate(); //Import useNavigate hook
     // Function to handle logout
     const handleLogout = () => {

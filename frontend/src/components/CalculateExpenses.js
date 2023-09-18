@@ -96,8 +96,8 @@ function CalculateExpenses() {
     try {
       const paymentData = {
         apartment: apartment._id,
-        month: apartmentExpenses.month, //JS months are 0-indexed.
-        year: apartmentExpenses.year,
+        month: new Date().getMonth() + 1 , //JS months are 0-indexed.
+        year: new Date().getFullYear(),
         total_heating: apartmentExpenses[apartment._id]?.heating || 0,
         total_elevator: apartmentExpenses[apartment._id]?.elevator|| 0,
         total_general: apartmentExpenses[apartment._id]?.general || 0,
@@ -115,7 +115,9 @@ function CalculateExpenses() {
       console.error('Error creating payment' , error);
 
     }
-  }
+    }
+
+  
 
   return (
     <div className='container mt-5'>

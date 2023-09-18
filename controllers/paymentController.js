@@ -36,7 +36,7 @@ const deletePayment = async (req , res ) => {
         //Find the payment by ID and remove it 
         const payment = await Payment.findByIdAndDelete(id);
 
-        if ( !building ) {
+        if ( !payment ) {
             return res.status(404).json({message: 'Payment not found'});
 
         }

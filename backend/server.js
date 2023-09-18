@@ -224,7 +224,7 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
     //Create new Payment
     app.post('/api/payments' , paymentController.createPayment);
     //Delete Payment
-    app.delete('/api/payments' , paymentController.deletePayment);
+    app.delete('/api/payments/:paymentId' , paymentController.deletePayment);
     //Get payments tied to specific apartment
     app.get('/api/payments/:apartmentId' , async(req,res) => {
         try {
