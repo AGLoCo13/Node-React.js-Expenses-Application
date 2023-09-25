@@ -53,6 +53,29 @@ function ViewPayment() {
         fetchData();
     }, []);
 
+    const deletePayment = async(paymentId) => {
+        const confirmDelete = window.confirm("Are you sure you want to delete this payment?");
+        if (!confirmDelete) {
+            return;
+        }
+    
+    try {
+        const token = window.localStorage.getItem("token");
+        const response = await axios.delete(`http://localhost:5000/api/payments/${paymentId}`, {
+            headers: {Aythorization: token},
+        });
+
+        if (response.status === 200) {
+            const updatedPayments = payments.filter(payment => payment._id  !== paymentId );
+            setPayments(updatedPayments);
+        } else {
+            console.error('Failed to delete payment');
+        }
+    } catch(error) {
+        console.error('Error deleting payment:' , error);
+    }
+}
+
     const markAsCompleted = async ( paymentId) => {
         const token = window.localStorage.getItem('token');
         try {
@@ -69,6 +92,7 @@ function ViewPayment() {
                     console.error("Failed to mark payment as Completed:" , error);
                 }
         };
+
 
     
   return (
@@ -101,11 +125,16 @@ function ViewPayment() {
                                 <td>{payment.total_general.toFixed(2)}</td>
                                 <td>{payment.payment_made ? 'Yes' : 'No'}</td>
                                 <td>
-                                    { !payment.payment_made && 
+                                    { payment.payment_made ? 
+                                         <button onClick={() => deletePayment(payment._id)} className='btn btn-danger'>
+                                            Delete
+                                         </button>
+                                         :
                                          <button onClick={() => markAsCompleted(payment._id)} className='btn btn-primary'>
                                             Tenant Payed
-                                         </button>
-                                    }
+                                            </button>
+                                            }
+                                    
                                 </td>
                             </tr>
                         );

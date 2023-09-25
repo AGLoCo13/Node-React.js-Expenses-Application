@@ -43,6 +43,32 @@ function ViewExpenses() {
     };
     fetchExpenses();
   }, []);
+
+ 
+
+  const handleDelete = async (expenseId) => {
+    const confirmDelete = window.confirm("Are you want to delete this expense? ");
+    if (!confirmDelete){
+      return;
+    }
+    try {
+      const token = window.localStorage.getItem('token');
+      const response = await axios.delete(`http://localhost:5000/api/expenses/${expenseId}` , {
+          headers : {Authorization : token},
+          
+    });
+
+    if (response.status == 200) {
+        //Remove deleted expense from state
+        const updatedExpenses = expenses.filter(expense => expense._id !== expenseId );
+        setExpenses(updatedExpenses);
+    }else{
+      console.error('Failed to delete expense');
+    }
+  }catch (error){
+    console.error('Error deleting expense:' , error)
+  }
+}
      
   return (
     <div>
@@ -56,6 +82,7 @@ function ViewExpenses() {
                     <th>Date Created</th>
                     <th>Month</th>
                     <th>Year</th>
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody>
@@ -68,6 +95,7 @@ function ViewExpenses() {
                     {/* Represent the months as words based on the key , value pair */}
                     <td>{months.find(month => month.value === expense.month)?.label}</td>
                     <td>{expense.year}</td>
+                    <td button onClick={() => handleDelete(expense._id)} className='btn btn-danger'>Delete</td>
                   </tr>
                 ))
               ) : (

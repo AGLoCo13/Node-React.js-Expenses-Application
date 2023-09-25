@@ -37,7 +37,9 @@ const Apartment = require('../models/apartment.js');
 //**************Middleware
 app.use(express.json());
 //use the cors middleware
-app.use(cors());
+app.use(cors({
+    origin: 'http://localhost:3000'
+}));
 
 
 //***************API routes

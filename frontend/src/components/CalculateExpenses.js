@@ -21,6 +21,10 @@ function CalculateExpenses() {
     //Fetching the Required data from the database
     const fetchData = async () => {
       const token = window.localStorage.getItem('token');
+
+      const currentDate = new Date();
+      const month = currentDate.getMonth() + 1;
+      const year = currentDate.getFullYear();
       //Get the administrator's profile and authorize him if he has valid token
       const profileResponse = await axios.get('http://localhost:5000/api/profile', {
         headers: { Authorization: token },
@@ -44,11 +48,14 @@ function CalculateExpenses() {
         );
         //Consumptions Response
         const allConsumptions = allConsumptionsResponses.flatMap(response => response.data);
-
+        //Filter the expenses for the current month and year
+        const thisMonthExpenses = expensesResponse.data.filter(expenses => {
+          return expenses.month === month && expenses.year === year;
+        })
         const newState = {
           apartments: apartmentsResponse.data,
           building: buildingResponse.data,
-          expenses: expensesResponse.data,
+          expenses: thisMonthExpenses,
           consumptions: allConsumptions,
         };
         //Finally set the data with the New State of fetched objects
