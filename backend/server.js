@@ -10,7 +10,7 @@ const { authenticateUser, authorizeAdmin } = require('../middleware/authMiddlewa
 const accountManagement = require('../controllers/accountManagement.js');
 const paymentController = require('../controllers/paymentController');
 const app = express();
-
+require('dotenv').config();
 //Use of multer library for the app to be able to upload receipts
 const multer = require('multer');
 
@@ -367,12 +367,20 @@ app.get('/api/consumptions/:apartmentId' , async (req, res) => {
 })
 
 
-//***************connection to MongoDB
-mongoose.connect('mongodb://127.0.0.1:27017/commons-db', {
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
-    useUnifiedTopology:true,
-})
-.then(() => console.log('Connected to MongoDB'))
+    useUnifiedTopology: true,
+}).then(() => console.log('Successfully connected to MongoDB.'))
 .catch((error) => console.error('Failed to connect to MongoDB:', error));
 
-app.listen(5000, () => {console.log("Server started on port 5000")});
+// Server listening
+const PORT = process.env.PORT || 5000; // Fallback to 5000 if PORT is not defined
+app.listen(PORT, () => {
+    console.log(`Server started on port ${PORT}`);
+});
+
+// CORS origin
+app.use(cors({
+    origin: process.env.CORS_ORIGIN
+}));
