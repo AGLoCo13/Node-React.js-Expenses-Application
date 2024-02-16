@@ -376,7 +376,3 @@ app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 });
 
-// CORS origin
-app.use(cors({
-    origin: process.env.CORS_ORIGIN
-}));
