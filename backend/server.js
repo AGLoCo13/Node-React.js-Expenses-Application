@@ -37,10 +37,11 @@ const Apartment = require('../models/apartment.js');
 //**************Middleware
 app.use(express.json());
 //use the cors middleware
-app.use(cors({
-    origin: 'http://40.113.37.29/'
-}));
 
+// CORS origin
+app.use(cors({
+    origin: process.env.CORS_ORIGIN
+}));
 
 //***************API routes
 
@@ -380,7 +381,4 @@ app.listen(PORT, () => {
     console.log(`Server started on port ${PORT}`);
 });
 
-// CORS origin
-app.use(cors({
-    origin: process.env.CORS_ORIGIN
-}));
+
