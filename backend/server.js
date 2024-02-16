@@ -1,6 +1,5 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const {handleNewUser} = require('../controllers/registerController');
 const {handleUserLogin} = require('../controllers/loginController');
 const updateController = require('../controllers/updateController.js');
@@ -37,9 +36,6 @@ const Apartment = require('../models/apartment.js');
 //**************Middleware
 app.use(express.json());
 //use the cors middleware
-app.use(cors({
-    origin: 'http://localhost:3000'
-}));
 
 
 //***************API routes
