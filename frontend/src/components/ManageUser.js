@@ -23,7 +23,7 @@ function ManageUsers() {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/users');
+      const response = await axios.get('/api/users');
       setUsers(response.data);
       
     } catch (error) {
@@ -51,7 +51,7 @@ function ManageUsers() {
     e.preventDefault();
 
     try {
-      await axios.post('http://localhost:5000/api/register', newUser);
+      await axios.post('/api/register', newUser);
       setNewUser({ name: '', email: '', password: '', address: '', cellphone: '', role: '' });
       fetchUsers();
       toast.success("User created succesfully");
@@ -75,7 +75,7 @@ function ManageUsers() {
     try {
       const { address, cellphone, role } = editUser;
       const updatedField = { address, cellphone, role };
-      await axios.put(`http://localhost:5000/api/users/${selectedUser._id}`, updatedField);
+      await axios.put(`/api/users/${selectedUser._id}`, updatedField);
       setSelectedUser(null);
       setEditUser({ address: '', cellphone: '', role: '' });
       fetchUsers();
@@ -95,7 +95,7 @@ function ManageUsers() {
     setShowConfirmation(false);
     if (confirmed && selectedUser){
       try{
-        await axios.delete(`http://localhost:5000/api/users/${selectedUser._id}`);
+        await axios.delete(`/api/users/${selectedUser._id}`);
       fetchUsers();
       toast.success('User deleted succesfully');
     } catch (error) {
