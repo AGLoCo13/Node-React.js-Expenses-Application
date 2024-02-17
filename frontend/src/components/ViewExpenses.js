@@ -53,7 +53,7 @@ function ViewExpenses() {
     }
     try {
       const token = window.localStorage.getItem('token');
-      const response = await axios.delete(`http://localhost:5000/api/expenses/${expenseId}` , {
+      const response = await axios.delete(`/api/expenses/${expenseId}` , {
           headers : {Authorization : token},
           
     });

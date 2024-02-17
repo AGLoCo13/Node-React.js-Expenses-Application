@@ -20,7 +20,7 @@ const fetchUserData = async () => {
         const token = window.localStorage.getItem('token');
         //Fetch the user's profile data from the server with the token in the headers
         //Fetch the user's profile data from the server 
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get('/api/profile', {
             headers: {
                 Authorization: `${token}`,
             },

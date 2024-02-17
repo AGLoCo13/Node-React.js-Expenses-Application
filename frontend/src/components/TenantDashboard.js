@@ -11,7 +11,7 @@ function TenantDashboard() {
         //Clear the token from local storage 
         window.localStorage.removeItem('token')
         //Redirect the user to the login page
-        navigate('http://localhost:3000') 
+        navigate('http://40.113.37.29') 
     };
     const handleComponentClick = () => {
         setShowComponent(true);
@@ -55,7 +55,7 @@ function TenantDashboard() {
                                   </Link>
                         </li>
                         <li className='nav-item'>
-                            <Link className='nav-link' to="http://localhost:3000" onClick={handleLogout}>
+                            <Link className='nav-link' to="http://40.113.37.29" onClick={handleLogout}>
                                 Logout
                             </Link>
                         </li>

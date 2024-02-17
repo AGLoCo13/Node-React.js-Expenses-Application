@@ -53,7 +53,7 @@ function FuelCharge() {
             setBuilding(fetchedBuilding);
 
             //Fetch apartments tied to the building 
-            const apartmentsResponse = await axios.get(`http://localhost:5000/aps/Apartments/${fetchedBuilding._id}`);
+            const apartmentsResponse = await axios.get(`/aps/Apartments/${fetchedBuilding._id}`);
             //Extract the "apartments" field
             setApartments(apartmentsResponse.data);
           }

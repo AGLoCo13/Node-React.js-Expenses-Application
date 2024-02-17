@@ -44,7 +44,7 @@ function ManageApartments() {
 
   const fetchAdministrators = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/administrators");
+      const response = await axios.get("/api/administrators");
       const { administrators } = response.data;
       setAdministrators(administrators);
     }catch (error) {
@@ -57,7 +57,7 @@ function ManageApartments() {
   }, []);
   const fetchBuildings = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/buildings");
+      const response = await axios.get("/api/buildings");
       setBuildings(response.data);
     }catch(error) {
       console.error("Error fetching Buildings:" , error);
@@ -71,7 +71,7 @@ function ManageApartments() {
 
   const fetchApartments = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/apartments');
+      const response = await axios.get('/api/apartments');
       const {apartments} = response.data;
       setApartments(apartments);
     }catch(error) {
@@ -87,7 +87,7 @@ function ManageApartments() {
     e.preventDefault();
 
     try{
-      await axios.post("http://localhost:5000/api/apartments", newApartment);
+      await axios.post("/api/apartments", newApartment);
       setNewApartment({building:'',tenant:'',name:'',floor:''
       ,square_meters:'',owner:'',fi:'',heating:'',elevator:'',general_expenses:''});
       fetchApartments();
@@ -122,7 +122,7 @@ function ManageApartments() {
       fi, heating , elevator , general_expenses} = editApartment;
       const updatedField = {building , tenant , name, floor , square_meters , owner,
       fi , heating , elevator , general_expenses};
-      await axios.put(`http://localhost:5000/api/apartments/${selectedApartment._id}`, updatedField);
+      await axios.put(`/api/apartments/${selectedApartment._id}`, updatedField);
       setSelectedApartment(null);
       setEditApartment({building:'', tenant:'', name:'' , floor:'' , square_meters:'' , owner:'',
         fi:'', heating:'' , elevator:'' , general_expenses:''});
@@ -143,7 +143,7 @@ function ManageApartments() {
       setShowConfirmation(false);
       if (confirmed && selectedApartment) {
         try{
-          await axios.delete(`http://localhost:5000/api/apartments/${selectedApartment._id}`);
+          await axios.delete(`/api/apartments/${selectedApartment._id}`);
           fetchApartments();
           toast.success('Apartment deleted successfully!');
         }catch(error) {
