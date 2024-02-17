@@ -14,25 +14,25 @@ function ViewPayment() {
             }
     
             try {
-                const profileResponse = await axios.get(`http://localhost:5000/api/profile`, {
+                const profileResponse = await axios.get(`/api/profile`, {
                     headers: { Authorization: token },
                 });
     
                 const buildingId = profileResponse.data.profileId;
     
-                const buildingResponse = await axios.get(`http://localhost:5000/api/buildings/${buildingId}`, {
+                const buildingResponse = await axios.get(`/api/buildings/${buildingId}`, {
                     headers: { Authorization: token },
                 });
                 const fetchedBuilding = buildingResponse.data;
                 setBuilding(fetchedBuilding);
     
-                const apartmentsResponse = await axios.get(`http://localhost:5000/aps/Apartments/${fetchedBuilding._id}`, {
+                const apartmentsResponse = await axios.get(`/aps/Apartments/${fetchedBuilding._id}`, {
                     headers: { Authorization: token },
                 });
                 setApartments(apartmentsResponse.data);
     
                 const allPaymentsPromises = apartmentsResponse.data.map((apartment) =>
-                    axios.get(`http://localhost:5000/api/payments/${apartment._id}`, {
+                    axios.get(`/api/payments/${apartment._id}`, {
                         headers: { Authorization: token },
                     }).catch(error => {
                         console.error(`Error fetching payments for apartment ${apartment._id}:`, error);
@@ -61,7 +61,7 @@ function ViewPayment() {
     
     try {
         const token = window.localStorage.getItem("token");
-        const response = await axios.delete(`http://localhost:5000/api/payments/${paymentId}`, {
+        const response = await axios.delete(`/api/payments/${paymentId}`, {
             headers: {Aythorization: token},
         });
 
@@ -79,7 +79,7 @@ function ViewPayment() {
     const markAsCompleted = async ( paymentId) => {
         const token = window.localStorage.getItem('token');
         try {
-            const response = await axios.put(`http://localhost:5000/api/payments/${paymentId}`,{} , {
+            const response = await axios.put(`/api/payments/${paymentId}`,{} , {
                 headers : {Authorization : token}
             })
             //Update local state so the UI reflects the change without having to refresh or re=fetch all data.

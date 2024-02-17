@@ -19,7 +19,7 @@ function ViewAdminProfile() {
 
     // Fetch the user's profile data from the server with the token in the headers
       // Fetch the user's profile data from the server
-      const response = await axios.get('http://localhost:5000/api/profile', {
+      const response = await axios.get('/api/profile', {
         headers: {
           Authorization: `${token}`,
         },
@@ -55,7 +55,7 @@ function ViewAdminProfile() {
       // Send a PUT request to update the user's profile data on the Server
     const token = window.localStorage.getItem('token'); // Assuming you store the token in local storage
       // Send a PUT request to update the user's profile data on the Server
-      const response = await axios.put('http://localhost:5000/api/admin/profile', editedData, {
+      const response = await axios.put('/api/admin/profile', editedData, {
         headers: {
           Authorization: `${token}`,
         },

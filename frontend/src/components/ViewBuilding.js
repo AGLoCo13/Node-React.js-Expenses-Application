@@ -10,7 +10,7 @@ function ViewBuilding() {
     const fetchBuildingAndApartments = async () => {
       try {
         const token = window.localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get('/api/profile', {
           headers: { Authorization: token },
         });
 
@@ -18,14 +18,14 @@ function ViewBuilding() {
         if (response.data.profileId) {
           //if true give me the building that he's admin to
           const buildingResponse = await axios.get(
-            `http://localhost:5000/api/buildings/${response.data.profileId}`
+            `/api/buildings/${response.data.profileId}`
           );
           const fetchedBuilding = buildingResponse.data;
           setBuilding(fetchedBuilding);
 
           // Fetch apartments tied to the building
           const apartmentsResponse = await axios.get(
-            `http://localhost:5000/aps/Apartments/${fetchedBuilding._id}`
+            `/aps/Apartments/${fetchedBuilding._id}`
           );
           // Extract the "apartments" field
           setApartments(apartmentsResponse.data);

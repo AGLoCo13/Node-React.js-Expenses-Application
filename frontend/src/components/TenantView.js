@@ -30,7 +30,7 @@ const fetchUserData = async () => {
         setEditedData(response.data);
 
         //Fetch apartment based on the user's profile (tenant ID)
-        const apartmentResponse = await axios.get(`http://localhost:5000/api/apartment/${response.data.profileId}`,{
+        const apartmentResponse = await axios.get(`/api/apartment/${response.data.profileId}`,{
             headers: {
                 Authorization : `${token}`,
             },
@@ -66,7 +66,7 @@ const handleSaveChanges = async () => {
         //Send a PUT request to update the user's profile data on the server 
         const token = window.localStorage.getItem('token'); //Assuming you store the token in local storage
         //Send a PUT request to update the user's profile data on the Server
-        await axios.put('http://localhost:5000/api/tenant/profile', editedData , {
+        await axios.put('/api/tenant/profile', editedData , {
             headers: {
                 Authorization: `${token}`,
             },

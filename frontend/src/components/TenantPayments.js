@@ -23,7 +23,7 @@ const fetchUserApartmentPaymentsData = async () => {
         const token = window.localStorage.getItem('token');
         //Fetch the user's profile data from the server with the token in the headers 
         //Fetch the user's profile data from the server 
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get('/api/profile', {
             headers: {
                 Authorization : `${token}`,
             },
@@ -31,7 +31,7 @@ const fetchUserApartmentPaymentsData = async () => {
         setUserData(response.data);
 
         //Fetch apartment based on the user's profile (tenant ID)
-        const apartmentResponse = await axios.get(`http://localhost:5000/api/apartment/${response.data.profileId}`,{
+        const apartmentResponse = await axios.get(`/api/apartment/${response.data.profileId}`,{
             headers : {
                 Authorization : `${token}` , 
             },
@@ -40,7 +40,7 @@ const fetchUserApartmentPaymentsData = async () => {
         console.log(apartmentResponse.data);
 
         //Fetch payments created by the building administrator and tied to the specific apartment
-        const paymentResponse = await axios.get(`http://localhost:5000/api/payments/${apartmentResponse.data._id}`)
+        const paymentResponse = await axios.get(`/api/payments/${apartmentResponse.data._id}`)
         setTetantPayments(paymentResponse.data);
     }catch(error) {
         console.error('Error fetching user data:' , error);

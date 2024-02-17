@@ -24,13 +24,13 @@ function ViewExpenses() {
     const fetchExpenses = async() => {
       try {
         const token = window.localStorage.getItem('token');
-        const response = await axios.get('http://localhost:5000/api/profile', {
+        const response = await axios.get('/api/profile', {
           headers: {Authorization: token},
         });
         if(response.data.userId) {
           //If true give me the expenses he's admin to 
           const expensesResponse = await axios.get(
-            `http://localhost:5000/api/expenses/${response.data.userId}`
+            `/api/expenses/${response.data.userId}`
           );
           const fetchedExppenses = expensesResponse.data;
           setExpenses(fetchedExppenses|| []);
