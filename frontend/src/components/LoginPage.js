@@ -24,7 +24,7 @@ function LoginPage() {
     setError('');
 
     try {
-      const response = await axios.post('http://40.113.37.29:5000/api/login', {email, password});
+      const response = await axios.post('/api/login', {email, password});
         // Clear the form fields
         setEmail('');
         setPassword('');
