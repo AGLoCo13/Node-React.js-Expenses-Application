@@ -70,7 +70,7 @@ function AdminDashboard() {
                 </Link>
               </li>
               <li className="nav-item">
-                <Link className="nav-link" to="http://localhost:3000" onClick={handleLogout}>
+                <Link className="nav-link" to="http://40.113.37.29" onClick={handleLogout}>
                   Logout
                 </Link>
               </li>

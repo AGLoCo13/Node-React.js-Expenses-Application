@@ -28,7 +28,7 @@ function ManageApartments() {
 
   const fetchTenants = async () => {
     try {
-      const response = await axios.get('http://localhost:5000/api/tenants');
+      const response = await axios.get('/api/tenants');
       const {tenants} = response.data;
       setTenants(tenants);
       console.log(tenants);

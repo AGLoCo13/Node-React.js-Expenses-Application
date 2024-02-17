@@ -26,7 +26,7 @@ function ManageBuildings() {
 
   const fetchAdministrators = async () => {
     try {
-      const response = await axios.get("http://localhost:5000/api/administrators");
+      const response = await axios.get("/api/administrators");
       const { administrators } = response.data;
       setAdministrators(administrators);
       console.log(administrators);
@@ -41,7 +41,7 @@ function ManageBuildings() {
 
   const fetchBuildings = async () => {
     try{
-    const response = await axios.get('http://localhost:5000/api/buildings');
+    const response = await axios.get('/api/buildings');
     setBuildings(response.data);
   }catch (error) {
       console.error("Error fetching Buildings:", error);
@@ -70,7 +70,7 @@ function ManageBuildings() {
     e.preventDefault();
     
     try{
-      await axios.post('http://localhost:5000/api/buildings' , newBuilding);
+      await axios.post('/api/buildings' , newBuilding);
       setNewBuilding({profile:'',address:'',floors:'',apartments:'',reserve:''});
       fetchBuildings();
       toast.success("Building Created Successfully!")
@@ -96,7 +96,7 @@ function ManageBuildings() {
     try {
       const {profile , address , floors , apartments , reserve} = editBuilding;
       const updatedField = {profile , address , floors , apartments , reserve};
-      await axios.put(`http://localhost:5000/api/buildings/${selectedBuilding._id}`, updatedField);
+      await axios.put(`/api/buildings/${selectedBuilding._id}`, updatedField);
       setSelectedBuilding(null);
       setEditBuilding({profile:'', address:'' , floors:'', apartments:'', reserve:''});
       fetchBuildings();
@@ -117,7 +117,7 @@ function ManageBuildings() {
     setShowConfirmation(false);
     if (confirmed && selectedBuilding) {
       try{
-        await axios.delete(`http://localhost:5000/api/buildings/${selectedBuilding._id}`);
+        await axios.delete(`/api/buildings/${selectedBuilding._id}`);
         fetchBuildings();
         toast.success('Building deleted successfully!')
       }catch (error) {

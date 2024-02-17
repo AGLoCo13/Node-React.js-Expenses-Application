@@ -40,7 +40,7 @@ function ExpensesCharge() {
      //Fetch all expenses
      const fetchExpenses = async () => {
       try {
-        const response = await axios.get('http://localhost:5000/api/expenses');
+        const response = await axios.get('/api/expenses');
         setExpenses(response.data);
       } catch(error) {
         console.error('Error Fetching expenses:' , error);
@@ -58,14 +58,14 @@ function ExpensesCharge() {
         const fetchBuildingAdministrator = async () => {
           try {
              const token = window.localStorage.getItem('token');
-              const response = await axios.get('http://localhost:5000/api/profile', {
+              const response = await axios.get('/api/profile', {
                 headers: {Authorization : token},
               });
   
               if (response.data.profileId){
                 //If true give me the building he's admin to 
                 const buildingResponse = await axios.get(`
-                http://localhost:5000/api/buildings/${response.data.profileId}`);
+                /api/buildings/${response.data.profileId}`);
                 const fetchedBuilding = buildingResponse.data;
                 setBuilding(fetchedBuilding);
                 //Fetch the profile user name tied to the Building
@@ -97,7 +97,7 @@ function ExpensesCharge() {
         console.log("Sending form data:" , formDataToSend);
         //Make the POST request
         const token = window.localStorage.getItem('token');
-        await axios.post('http://localhost:5000/api/expenses' , formDataToSend , {
+        await axios.post('/api/expenses' , formDataToSend , {
           headers: {Authorization: token},
         });
         toast.success('Expense for apartment passed succesfully');

@@ -26,7 +26,7 @@ function CalculateExpenses() {
       const month = currentDate.getMonth() + 1;
       const year = currentDate.getFullYear();
       //Get the administrator's profile and authorize him if he has valid token
-      const profileResponse = await axios.get('http://localhost:5000/api/profile', {
+      const profileResponse = await axios.get('/api/profile', {
         headers: { Authorization: token },
       });
 
@@ -35,15 +35,15 @@ function CalculateExpenses() {
         const userId = profileResponse.data.userId;
         //Building response , expensesResponse
         const [buildingResponse, expensesResponse] = await Promise.all([
-          axios.get(`http://localhost:5000/api/buildings/${buildingId}`),
-          axios.get(`http://localhost:5000/api/expenses/${userId}`),
+          axios.get(`/api/buildings/${buildingId}`),
+          axios.get(`/api/expenses/${userId}`),
         ]);
         const fetchedBuilding = buildingResponse.data;
         //Apartments that are tied to the building Response
-        const apartmentsResponse = await axios.get(`http://localhost:5000/aps/Apartments/${fetchedBuilding._id}`);
+        const apartmentsResponse = await axios.get(`http://40.113.37.29/aps/Apartments/${fetchedBuilding._id}`);
         const allConsumptionsResponses = await Promise.all(
           apartmentsResponse.data.map((apartment) =>
-            axios.get(`http://localhost:5000/api/consumptions/${apartment._id}`)
+            axios.get(`http://40.113.37.29/api/consumptions/${apartment._id}`)
           )
         );
         //Consumptions Response
@@ -104,7 +104,7 @@ function CalculateExpenses() {
     const year = new Date().getFullYear();
     try {
       //Check if a specific paymnet exists for the current month and year
-      const existingPaymentsResponse = await axios.get(`http://localhost:5000/api/payments/${apartment._id}`,{
+      const existingPaymentsResponse = await axios.get(`/api/payments/${apartment._id}`,{
         headers : {Authorization : token},
       });
 
@@ -112,7 +112,7 @@ function CalculateExpenses() {
 
       if (existingPaymentForCurrentMonth) {
         // If payment exists for the current month and year , delete it
-        await axios.delete(`http://localhost:5000/api/payments/${existingPaymentForCurrentMonth._id}`, {
+        await axios.delete(`/api/payments/${existingPaymentForCurrentMonth._id}`, {
           headers : {Authorization : token },
         });
       }
@@ -135,7 +135,7 @@ function CalculateExpenses() {
         total_general: apartmentExpenses[apartment._id]?.general || 0,
         payment_made: false,
       };
-      const response = await axios.post('http://localhost:5000/api/payments', paymentData, {
+      const response = await axios.post('/api/payments', paymentData, {
         headers: {Authorization: token},
       })
       if (response.status === 200) {

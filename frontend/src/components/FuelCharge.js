@@ -40,14 +40,14 @@ function FuelCharge() {
       const fetchBuildingAndApartments = async () => {
         try {
           const token = window.localStorage.getItem('token');
-          const response = await axios.get('http://localhost:5000/api/profile', {
+          const response = await axios.get('/api/profile', {
             headers: { Authorization : token} , 
           });
 
           if (response.data.profileId) {
             //If true give me the building he's admin to 
             const buildingResponse = await axios.get(
-              `http://localhost:5000/api/buildings/${response.data.profileId}`
+              `/api/buildings/${response.data.profileId}`
             );
             const fetchedBuilding = buildingResponse.data;
             setBuilding(fetchedBuilding);
@@ -75,7 +75,7 @@ function FuelCharge() {
     const handleSubmit = async (event) => {
       event.preventDefault();
       try{
-        await axios.post('http://localhost:5000/api/consumption', formData);
+        await axios.post('/api/consumption', formData);
         toast.success('Fuel Charge for apartment passed successfully!');
 
         //Force a refresh on the ConsumptionHistory component

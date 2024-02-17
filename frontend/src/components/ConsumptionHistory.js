@@ -23,7 +23,7 @@ function ConsumptionHistory({apartmentId , refresh}) {
   useEffect(() => {
     const fetchConsumptions = async() => {
         try {
-            const response = await axios.get(`http://localhost:5000/api/consumptions/${apartmentId}`);
+            const response = await axios.get(`/api/consumptions/${apartmentId}`);
             setConsumptions(response.data);
             console.log(response.data);
             setLoading(false);
