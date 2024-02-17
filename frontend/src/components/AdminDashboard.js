@@ -14,7 +14,7 @@ function AdminDashboard() {
     // Clear the token from local storage (assuming you store it as 'token')
     window.localStorage.removeItem('token');
     // Redirect the user to the login page
-    navigate('http://localhost:3000'); // Adjust the path based on your setup
+    navigate('http://40.113.37.29/'); // Adjust the path based on your setup
   };
 
   const handleManageUsersClick = () => {
