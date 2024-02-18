@@ -1,0 +1,61 @@
+---
+- hosts: webserver2
+  become: yes
+  tasks:
+    - name: Install Git
+      apt:
+        name: git
+        state: latest
+
+    - name: Clone Repository from GitHub
+      git:
+        repo: 'https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git'
+        dest: 'var/www/mern_app'
+        clone: yes
+        update: yes
+
+    - name: Install Docker dependencies
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: latest
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Set up the stable Docker repository
+      apt_repository:
+        repo: deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable
+        state: present
+
+    - name: Update package index
+      apt:
+        update_cache: yes
+
+    - name: Install Docker
+      apt:
+        name: docker-ce
+        state: latest
+
+    - name: Install Docker Compose
+      command: >
+        curl -sSL https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+      args:
+        creates: /usr/local/bin/docker-compose
+      become: yes
+      become_user: root
+
+    - name: Make Docker Compose executable
+      file:
+        path: /usr/local/bin/docker-compose
+        mode: 'a+x'
+      become: yes
+      become_user: root
+
+    - name: Build and Start Docker Compose
+      command: docker-compose -f /var/www/mern_app/docker-compose.yml up -d
