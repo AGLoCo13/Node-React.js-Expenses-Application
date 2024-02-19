@@ -1,0 +1,42 @@
+---
+- name: Install MongoDB 7.0.5 on Ubuntu 22.04
+  hosts: webserver1
+  become: yes
+  tasks:
+    - name: Install necessary packages
+      ansible.builtin.apt:
+        name:
+          - wget
+          - curl
+          - gnupg
+          - software-properties-common
+          - apt-transport-https
+          - ca-certificates
+          - lsb-release
+        update_cache: yes
+        state: present
+
+    - name: Add MongoDB GPG key for version 7.0
+      ansible.builtin.shell: |
+        curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-7-archive-keyring.gpg
+
+    - name: Add MongoDB repository for version 7.0
+      ansible.builtin.lineinfile:
+        path: /etc/apt/sources.list.d/mongodb-org-7.0.list
+        line: "deb [signed-by=/usr/share/keyrings/mongodb-7-archive-keyring.gpg] https://repo.mongodb.org/apt/ubuntu {{ ansible_distribution_release }}/mongodb-org/7.0 multiverse"
+        create: yes
+
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Install MongoDB package version 7.0.5
+      ansible.builtin.apt:
+        name: mongodb-org=7.0.5
+        state: present
+
+    - name: Enable and start mongod service
+      ansible.builtin.systemd:
+        name: mongod
+        enabled: yes
+        state: started

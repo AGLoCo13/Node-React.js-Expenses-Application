@@ -1,0 +1,48 @@
+---
+- name: Deploy MERN application from GitHub with pre-built frontend
+  hosts: webserver1
+  become: yes
+  vars:
+    github_repo_url: "https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git"
+    project_directory: "/var/www/mern_app"
+    pm2_app_name: "mern_app_backend"
+
+  tasks:
+    # - name: Install Git and Curl
+    #   ansible.builtin.apt:
+    #     name:
+    #       - git
+    #       - curl
+    #     state: present
+    #     update_cache: yes
+
+    # - name: Install Node.js (Ensure the setup for Node 18.x is done)
+    #   ansible.builtin.shell: |
+    #     curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    #     sudo apt-get install -y nodejs
+    #   args:
+    #     warn: false
+
+    # - name: Update npm to version 9.5.0
+    #   ansible.builtin.shell: |
+    #     npm install -g npm@9.5.0
+
+    #  - name: Install PM2 globally
+    #    ansible.builtin.shell: |
+    #      npm install -g pm2
+
+    - name: Clone the project repository from GitHub
+      ansible.builtin.git:
+        repo: "{{ github_repo_url }}"
+        dest: "{{ project_directory }}"
+        clone: yes
+        update: yes
+        force: yes
+
+    - name: Install backend dependencies with npm
+      ansible.builtin.shell: |
+        cd {{ project_directory }}/backend && npm install
+
+    - name: Start the backend application with PM2
+      ansible.builtin.shell: |
+        pm2 start {{ project_directory }}/backend/server.js --name "{{ pm2_app_name }}"

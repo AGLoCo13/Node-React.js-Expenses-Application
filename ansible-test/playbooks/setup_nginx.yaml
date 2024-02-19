@@ -1,0 +1,28 @@
+---
+- name: Deploy MERN Application and Configure Nginx
+  hosts: webserver1
+  become: yes
+  become_user: root
+
+  tasks:
+    - name: Install Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: yes
+
+    - name: Copy Nginx configuration for MERN app
+      ansible.builtin.copy:
+        src: my_mern_app.conf
+        dest: /etc/nginx/sites-available/my_mern_app.conf
+
+    - name: Enable Nginx configuration by creating a symlink
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/my_mern_app.conf
+        dest: /etc/nginx/sites-enabled/my_mern_app.conf
+        state: link
+
+    - name: Restart Nginx to apply new configuration
+      ansible.builtin.service:
+        name: nginx
+        state: restarted
