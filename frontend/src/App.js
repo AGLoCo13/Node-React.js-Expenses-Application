@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route,} from 'react-router-dom';
 import axios from 'axios';
 import AdminDashboard from './components/AdminDashboard.js';
@@ -19,39 +19,108 @@ import ViewExpenses from './components/ViewExpenses.js';
 import CalculateExpenses from './components/CalculateExpenses.js';
 import ViewPayments from './components/ViewPayment.js';
 import TenantPayments from './components/TenantPayments.js';
+import ProtectedRoute from './components/ProtectedRoute.js';
 function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-
   useEffect(() => {
     // Check if the user is logged in by verifying the token
     const token = window.localStorage.getItem('token');
 
     if (token) {
       axios.defaults.headers.common['Authorization'] = token;
-      setLoggedIn(true);
     }
   }, []);
 
   return (
     <Router>
       <Routes>
+        {/* Public Route */}
         <Route path="/" element={<LoginPage />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/building-administrator" element={<BuildingAdministratorDashboard />} />
-        <Route path="/tenant-dashboard" element={<TenantDashboard />} />
-        <Route path="/tenant-dashboard/view-page"  element = {<TenantView />} />
-        <Route path="/tenant-dashboard/view-payments" element = {<TenantPayments />} />
-        <Route path="/building-administrator/view-building" element={<ViewBuilding />} />
-        <Route path="/building-administrator/fuel-charge" element={<FuelCharge />} />
-        <Route path="/building-administrator/consumption-history" element={<ConsumptionHistory />} />
-        <Route path="/building-administrator/expenses-charge" element={<ExpensesCharge />} />
-        <Route path="/building-administrator/view-expenses" element={<ViewExpenses />} />
-        <Route path="/building-administrator/calculate-expenses" element = {<CalculateExpenses />} />
-        <Route path="/building-administrator/view-payments" element = {<ViewPayments />} />
-        <Route path="/admin-dashboard/manage-users" element={<ManageUsers />} />
-        <Route path="/admin-dashboard/manage-buildings" element={<ManageBuildings />} />
-        <Route path="/admin-dashboard/manage-apartments" element={<ManageApartments />} />
-        <Route path="/admin-dashboard/profile" element={<ViewAdminProfile/>} />
+        
+        {/* Site-Admin Routes */}
+        <Route path="/admin-dashboard" element={
+          <ProtectedRoute allowedRoles={['Site-admin']}>
+            <AdminDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin-dashboard/manage-users" element={
+          <ProtectedRoute allowedRoles={['Site-admin']}>
+            <ManageUsers />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin-dashboard/manage-buildings" element={
+          <ProtectedRoute allowedRoles={['Site-admin']}>
+            <ManageBuildings />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin-dashboard/manage-apartments" element={
+          <ProtectedRoute allowedRoles={['Site-admin']}>
+            <ManageApartments />
+          </ProtectedRoute>
+        } />
+        <Route path="/admin-dashboard/profile" element={
+          <ProtectedRoute allowedRoles={['Site-admin']}>
+            <ViewAdminProfile />
+          </ProtectedRoute>
+        } />
+        
+        {/* Building Administrator Routes */}
+        <Route path="/building-administrator" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <BuildingAdministratorDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/view-building" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <ViewBuilding />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/fuel-charge" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <FuelCharge />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/consumption-history" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <ConsumptionHistory />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/expenses-charge" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <ExpensesCharge />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/view-expenses" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <ViewExpenses />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/calculate-expenses" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <CalculateExpenses />
+          </ProtectedRoute>
+        } />
+        <Route path="/building-administrator/view-payments" element={
+          <ProtectedRoute allowedRoles={['Administrator']}>
+            <ViewPayments />
+          </ProtectedRoute>
+        } />
+        
+        {/* Tenant Routes */}
+        <Route path="/tenant-dashboard" element={
+          <ProtectedRoute allowedRoles={['Tenant']}>
+            <TenantDashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/tenant-dashboard/view-page" element={
+          <ProtectedRoute allowedRoles={['Tenant']}>
+            <TenantView />
+          </ProtectedRoute>
+        } />
+        <Route path="/tenant-dashboard/view-payments" element={
+          <ProtectedRoute allowedRoles={['Tenant']}>
+            <TenantPayments />
+          </ProtectedRoute>
+        } />
       </Routes>
       <ToastContainer />
     </Router>

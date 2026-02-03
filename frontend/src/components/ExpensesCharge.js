@@ -1,195 +1,365 @@
-import React , {useEffect , useState} from 'react'
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { ToastContainer , toast } from 'react-toastify';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaUpload, FaCalendarAlt, FaEuroSign, FaUser, FaCheck } from 'react-icons/fa';
+import DashboardLayout from './DashboardLayout';
+import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../css/ExpensesCharge.css'
+
 function ExpensesCharge() {
-    const [selectedFile , setSelectedFile] = useState(null); //New state for selected file
-    const [formData , setFormData] = useState({
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [formData, setFormData] = useState({
+    profile: '',
+    total: '',
+    date_created: '',
+    document: '',
+    month: '',
+    year: '',
+    type_expenses: ''
+  });
+  const [building, setBuilding] = useState(null);
+  const [administratorProfile, setAdministrator] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const navItems = [
+    { label: 'Dashboard', path: '/building-administrator', icon: FaHome },
+    { label: 'View Building', path: '/building-administrator/view-building', icon: FaBuilding },
+    { label: 'Fuel Charge', path: '/building-administrator/fuel-charge', icon: FaFire },
+    { label: 'Expenses Charge', path: '/building-administrator/expenses-charge', icon: FaFileInvoiceDollar },
+    { label: 'View Expenses', path: '/building-administrator/view-expenses', icon: FaHistory },
+    { label: 'Calculate Expenses', path: '/building-administrator/calculate-expenses', icon: FaCalculator },
+    { label: 'View Payments', path: '/building-administrator/view-payments', icon: FaMoneyBillWave }
+  ];
+
+  const expenseTypes = ['Heating', 'Elevator', 'General'];
+  const months = [
+    { value: 1, label: 'January' }, { value: 2, label: 'February' }, { value: 3, label: 'March' },
+    { value: 4, label: 'April' }, { value: 5, label: 'May' }, { value: 6, label: 'June' },
+    { value: 7, label: 'July' }, { value: 8, label: 'August' }, { value: 9, label: 'September' },
+    { value: 10, label: 'October' }, { value: 11, label: 'November' }, { value: 12, label: 'December' }
+  ];
+
+  const currentYear = new Date().getFullYear();
+  const futureYears = 10;
+  const years = Array.from({ length: futureYears }, (_, i) => currentYear + i);
+
+  useEffect(() => {
+    fetchBuildingAdministrator();
+  }, []);
+
+  const fetchBuildingAdministrator = async () => {
+    try {
+      const token = window.localStorage.getItem('token');
+      const response = await axios.get('/api/profile', {
+        headers: { Authorization: token },
+      });
+
+      if (response.data.profileId) {
+        const buildingResponse = await axios.get(
+          `/api/buildings/${response.data.profileId}`
+        );
+        const fetchedBuilding = buildingResponse.data;
+        setBuilding(fetchedBuilding);
+        setAdministrator(fetchedBuilding.profile.user);
+      }
+      setLoading(false);
+    } catch (error) {
+      console.error(error);
+      toast.error('Error loading administrator profile');
+      setLoading(false);
+    }
+  };
+
+  const handleInputChange = (event) => {
+    const { name, value } = event.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  const handleFileInputChange = (event) => {
+    const file = event.target.files[0];
+    setSelectedFile(file);
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setSubmitting(true);
+
+    try {
+      const newFormData = { ...formData, profile: administratorProfile._id };
+      newFormData.date_created = new Date();
+
+      const formDataToSend = new FormData();
+      for (const key in newFormData) {
+        formDataToSend.append(key, newFormData[key]);
+      }
+
+      if (selectedFile) {
+        formDataToSend.append('document', selectedFile);
+      }
+
+      const token = window.localStorage.getItem('token');
+      await axios.post('/api/expenses', formDataToSend, {
+        headers: { Authorization: token },
+      });
+
+      toast.success('Expense added successfully!');
+      
+      // Reset form
+      setFormData({
         profile: '',
         total: '',
-        date_created:'',
-        document:'',
-        month:'',
-        year:'',
-        type_expenses:''
-
-    })
-    const [building , setBuilding] = useState(null);
-    const [expenses , setExpenses ] = useState([]);
-    const [administratorProfile , setAdministrator] = useState(null);
-    const expenseTypes = ['Heating', 'Elevator' , 'General'];
-    const months = [
-      {value: 1, label: 'January'},
-      {value:2 , label: 'February'},
-      {value:3 , label: 'March'},
-      {value:4 , label: 'April'},
-      {value:5 , label: 'May'},
-      {value:6 , label: 'June'},
-      {value:7 , label: 'July'},
-      {value:8 , label: 'August'},
-      {value:9 , label: 'September'},
-      {value:10, label: 'October'},
-      {value:11, label: 'November'},
-      {value:12, label: 'December'}
-    ];
-     //Generate a list of years startong from the current year up to some number of years in the future
-     const currentYear = new Date().getFullYear();
-     const futureYears = 10;
-     const years = Array.from({length: futureYears}, (_, i) => currentYear + i);
-     //Fetch all expenses
-     const fetchExpenses = async () => {
-      try {
-        const response = await axios.get('/api/expenses');
-        setExpenses(response.data);
-      } catch(error) {
-        console.error('Error Fetching expenses:' , error);
-      }
-     };
-
-     const handleInputChange = (event) => {
-      const {name , value } = event.target;
-      setFormData({
-        ...formData,
-        [name] : value,
+        date_created: '',
+        document: '',
+        month: '',
+        year: '',
+        type_expenses: ''
       });
-      };
-      useEffect (() => {
-        const fetchBuildingAdministrator = async () => {
-          try {
-             const token = window.localStorage.getItem('token');
-              const response = await axios.get('/api/profile', {
-                headers: {Authorization : token},
-              });
-  
-              if (response.data.profileId){
-                //If true give me the building he's admin to 
-                const buildingResponse = await axios.get(`
-                /api/buildings/${response.data.profileId}`);
-                const fetchedBuilding = buildingResponse.data;
-                setBuilding(fetchedBuilding);
-                //Fetch the profile user name tied to the Building
-                setAdministrator(fetchedBuilding.profile.user);
-              }
-        }catch(error){
-              console.error(error);
-        }
-      }
-        fetchBuildingAdministrator();
-      }, []);
-      
-     const handleSubmit = async (event) => {
-      event.preventDefault();
-      try{
-        // Use the administrator's _id in the formData
-        const newFormData = {...formData , profile: administratorProfile._id}
-        //Set the current data and time for date_created
-        newFormData.date_created = new Date();
-         //formData to Send WILL IMPLEMENT LATER THE UPLOADING OF FILES FOR RECEIPT
-        const formDataToSend = new FormData();
-        for (const key in newFormData) {
-          formDataToSend.append(key , newFormData[key]);
-        }
-        if (selectedFile) {
-          formDataToSend.append('document' , selectedFile);
-        }
-        //Debug log 
-        console.log("Sending form data:" , formDataToSend);
-        //Make the POST request
-        const token = window.localStorage.getItem('token');
-        await axios.post('/api/expenses' , formDataToSend , {
-          headers: {Authorization: token},
-        });
-        toast.success('Expense for apartment passed succesfully');
-      } catch(error) {
-        toast.error('Error passing expense')
-      }
+      setSelectedFile(null);
+    } catch (error) {
+      console.error('Error passing expense:', error);
+      toast.error('Error adding expense');
+    } finally {
+      setSubmitting(false);
     }
-    const handleFileInputChange = (event) => {
-      const file = event.target.files[0]; //Get the selected file
-      setSelectedFile(file); //Set the selected file to the state variable
-    };
+  };
 
+  const getExpenseTypeIcon = (type) => {
+    switch (type) {
+      case 'Heating':
+        return <FaFire style={{ color: '#ef4444' }} />;
+      case 'Elevator':
+        return <FaMoneyBillWave style={{ color: '#3b82f6' }} />;
+      default:
+        return <FaFileInvoiceDollar style={{ color: '#10b981' }} />;
+    }
+  };
 
   return (
-    <div className='container'>
-      <h2 className='text-center'>Pass Building Expenses </h2>
-      <form onSubmit={handleSubmit}>
-        <label htmlFor='profile'>Administrator: </label>
-        <p className='form-control'>{administratorProfile ? administratorProfile.name : 'Loading...'}</p>
-        <label htmlFor='type_expenses'>Expense type: </label>
-        <select 
-          id='type_expenses'
-          name='type_expenses'
-          className='form-control'
-          value={formData.type_expenses}
-          onChange={handleInputChange}
-          required
-          >
-            <option value=''>Select Expense Type</option>
-            {expenseTypes.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
-        <label htmlFor = 'total'> Total: </label>
-        <input
-          type = "number"
-          id="total"
-          name="total"
-          className='form-control'
-          value={formData.total}
-          onChange={handleInputChange}
-          />
+    <DashboardLayout
+      navItems={navItems}
+      userName="Administrator"
+      userRole="Building Administrator"
+      dashboardTitle="Expenses Charge"
+    >
+      {/* Page Header */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <FaFileInvoiceDollar style={{ color: '#f59e0b' }} />
+          Pass Building Expenses
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '1rem' }}>
+          Add new building expenses and upload receipts
+        </p>
+      </div>
 
-          <label htmlFor='document' className='receipt-label'> Receipt: </label>
-          <input 
-            type='file'
-            id='document'
-            name='document'
-            accept='image/*, .pdf' //Specify the allowed file types
-            onChange={handleFileInputChange}
-            />
-            {selectedFile && <p>Selected File: {selectedFile.name}</p>} {/*Display the selected file name */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="sr-only">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ 
+          backgroundColor: 'white', 
+          borderRadius: '0.75rem', 
+          padding: '2rem', 
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+          maxWidth: '800px'
+        }}>
+          <form onSubmit={handleSubmit}>
+            <div className="row">
+              {/* Administrator Info */}
+              <div className="col-12 form-group">
+                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaUser style={{ color: '#2563eb' }} />
+                  Administrator:
+                </label>
+                <div style={{ 
+                  padding: '0.875rem', 
+                  backgroundColor: '#f8fafc', 
+                  borderRadius: '0.5rem',
+                  border: '1px solid #e2e8f0',
+                  fontWeight: '500'
+                }}>
+                  {administratorProfile ? administratorProfile.name : 'Loading...'}
+                </div>
+              </div>
 
+              {/* Expense Type */}
+              <div className="col-md-6 form-group">
+                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaFileInvoiceDollar style={{ color: '#f59e0b' }} />
+                  Expense Type:
+                </label>
+                <div style={{ position: 'relative' }}>
+                  {formData.type_expenses && (
+                    <div style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                      {getExpenseTypeIcon(formData.type_expenses)}
+                    </div>
+                  )}
+                  <select
+                    id="type_expenses"
+                    name="type_expenses"
+                    className="form-control"
+                    value={formData.type_expenses}
+                    onChange={handleInputChange}
+                    required
+                    style={{ paddingLeft: formData.type_expenses ? '2.5rem' : '0.75rem' }}
+                  >
+                    <option value="">Select Expense Type</option>
+                    {expenseTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <label htmlFor='month' className='month-label'>Month: </label>
-          <select 
-            id="month"
-            name="month"
-            className='form-control'
-            value={formData.month}
-            onChange={handleInputChange}
-            >
-              <option value="">Select a month</option>
-              {months.map((month) => (
-                <option key = {month.value} value={month.value}>
-                  {month.label}
-                </option>
-              ))}
-            </select>
-            <label htmlFor='year'> Year: </label>
-            <select
-              id='year'
-              name='year'
-              className='form-control'
-              value={formData.year}
-              onChange={handleInputChange}
+              {/* Total Amount */}
+              <div className="col-md-6 form-group">
+                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaEuroSign style={{ color: '#10b981' }} />
+                  Total Amount:
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  id="total"
+                  name="total"
+                  className="form-control"
+                  placeholder="0.00"
+                  value={formData.total}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+
+              {/* Month */}
+              <div className="col-md-6 form-group">
+                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaCalendarAlt style={{ color: '#8b5cf6' }} />
+                  Month:
+                </label>
+                <select
+                  id="month"
+                  name="month"
+                  className="form-control"
+                  value={formData.month}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select a month</option>
+                  {months.map((month) => (
+                    <option key={month.value} value={month.value}>
+                      {month.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Year */}
+              <div className="col-md-6 form-group">
+                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaCalendarAlt style={{ color: '#8b5cf6' }} />
+                  Year:
+                </label>
+                <select
+                  id="year"
+                  name="year"
+                  className="form-control"
+                  value={formData.year}
+                  onChange={handleInputChange}
+                  required
+                >
+                  <option value="">Select a year</option>
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Receipt Upload */}
+              <div className="col-12 form-group">
+                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaUpload style={{ color: '#3b82f6' }} />
+                  Receipt (Optional):
+                </label>
+                <div style={{ 
+                  border: '2px dashed #e2e8f0', 
+                  borderRadius: '0.5rem', 
+                  padding: '1.5rem',
+                  textAlign: 'center',
+                  backgroundColor: '#f8fafc',
+                  transition: 'all 0.3s ease'
+                }}>
+                  <input
+                    type="file"
+                    id="document"
+                    name="document"
+                    accept="image/*, .pdf"
+                    onChange={handleFileInputChange}
+                    style={{ display: 'none' }}
+                  />
+                  <label 
+                    htmlFor="document" 
+                    style={{ 
+                      cursor: 'pointer', 
+                      margin: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '0.5rem'
+                    }}
+                  >
+                    <FaUpload style={{ fontSize: '2rem', color: '#94a3b8' }} />
+                    <span style={{ color: '#64748b', fontWeight: '500' }}>
+                      {selectedFile ? selectedFile.name : 'Click to upload receipt'}
+                    </span>
+                    <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                      PDF, PNG, JPG (Max 10MB)
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={submitting}
+                style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.5rem',
+                  minWidth: '150px',
+                  justifyContent: 'center'
+                }}
               >
-                <option value=''>Select a year</option>
-                {years.map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-            <button type='submit' className='btn btn-primary'>
-              Pass Expense
-            </button>
-      </form>
-    </div>
-  )
+                {submitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <FaCheck /> Pass Expense
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </DashboardLayout>
+  );
 }
 
-export default ExpensesCharge
+export default ExpensesCharge;

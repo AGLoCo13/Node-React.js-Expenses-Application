@@ -1,92 +1,143 @@
-import React, { useState } from 'react';
-import { Link, useMatch} from 'react-router-dom';
-import {useNavigate} from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { FaHome, FaUsers, FaBuilding, FaDoorOpen, FaUserShield } from 'react-icons/fa';
+import DashboardLayout from './DashboardLayout';
+import StatsCard from './StatsCard';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../css/adminDashboard.css';
-import ManageUsers from './ManageUser.js';
-
 
 function AdminDashboard() {
-  const [showManageUsers, setShowManageUsers] = useState(false);
-  const navigate = useNavigate(); //Import useNavigate hook
-   // Function to handle logout
-   const handleLogout = () => {
-    // Clear the token from local storage (assuming you store it as 'token')
-    window.localStorage.removeItem('token');
-    // Redirect the user to the login page
-    navigate('http://40.113.37.29/'); // Adjust the path based on your setup
-  };
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalBuildings: 0,
+    totalApartments: 0
+  });
 
-  const handleManageUsersClick = () => {
-    setShowManageUsers(true);
-  };
+  useEffect(() => {
+    // Fetch stats from API
+    const fetchStats = async () => {
+      try {
+        const token = window.localStorage.getItem('token');
+        const [usersRes, buildingsRes, apartmentsRes] = await Promise.all([
+          axios.get('/api/users', { headers: { Authorization: token } }),
+          axios.get('/api/buildings', { headers: { Authorization: token } }),
+          axios.get('/api/apartments', { headers: { Authorization: token } })
+        ]);
 
-  const match = useMatch('/admin-dashboard/manage-users');
+        setStats({
+          totalUsers: usersRes.data?.length || 0,
+          totalBuildings: buildingsRes.data?.length || 0,
+          totalApartments: apartmentsRes.data?.apartments?.length || 0
+        });
+      } catch (error) {
+        console.error('Error fetching stats:', error);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  const navItems = [
+    { label: 'Dashboard', path: '/admin-dashboard', icon: FaHome },
+    { label: 'Manage Users', path: '/admin-dashboard/manage-users', icon: FaUsers },
+    { label: 'Manage Buildings', path: '/admin-dashboard/manage-buildings', icon: FaBuilding },
+    { label: 'Manage Apartments', path: '/admin-dashboard/manage-apartments', icon: FaDoorOpen },
+    { label: 'Profile', path: '/admin-dashboard/profile', icon: FaUserShield }
+  ];
 
   return (
-    <div>
-      <header>
-        <nav className="navbar navbar-expand-lg navbar-light bg-light">
-          <Link className="navbar-brand" to="/admin/dashboard">
-            Admin Dashboard
-          </Link>
-          <button
-            className="navbar-toggler"
-            type="button"
-            data-toggle="collapse"
-            data-target="#navbarNav"
-            aria-controls="navbarNav"
-            aria-expanded="false"
-            aria-label="Toggle navigation"
-          >
-            <span className="navbar-toggler-icon"></span>
-          </button>
-          <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav">
-              <li className="nav-item">
-                <Link
-                  className="nav-link"
-                  to="/admin-dashboard/manage-users"
-                  onClick={handleManageUsersClick}
-                >
-                  Manage Users
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/admin-dashboard/manage-buildings" onClick={handleManageUsersClick}>
-                  Manage Buildings
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/admin-dashboard/manage-apartments">
-                  Manage Apartments
-                </Link>
-              </li>
-            </ul>
-            <ul className="navbar-nav ml-auto">
-              <li className="nav-item">
-                <Link className="nav-link" to="/admin-dashboard/profile">
-                  Profile
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="http://40.113.37.29" onClick={handleLogout}>
-                  Logout
-                </Link>
-              </li>
-            </ul>
-          </div>
-        </nav>
-      </header>
-
-      <div className="container">
-        <h1>Welcome, Admin!</h1>
-        <p>Manage users , buildings and apartments by clicking to the corresponding links above.</p>
-
-        {/* Conditionally render the ManageUsers component */}
-        {match && showManageUsers && <ManageUsers />}
+    <DashboardLayout
+      navItems={navItems}
+      userName="Admin"
+      userRole="Site Administrator"
+      dashboardTitle="Admin Dashboard"
+    >
+      <div className="welcome-section" style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem' }}>
+          Welcome back, Admin!
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '1rem' }}>
+          Here's an overview of your system. Manage users, buildings, and apartments from the sidebar.
+        </p>
       </div>
-    </div>
+
+      <div className="stats-grid" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+        gap: '1.5rem',
+        marginBottom: '2rem'
+      }}>
+        <StatsCard
+          title="Total Users"
+          value={stats.totalUsers}
+          icon={FaUsers}
+          color="blue"
+        />
+        <StatsCard
+          title="Total Buildings"
+          value={stats.totalBuildings}
+          icon={FaBuilding}
+          color="green"
+        />
+        <StatsCard
+          title="Total Apartments"
+          value={stats.totalApartments}
+          icon={FaDoorOpen}
+          color="orange"
+        />
+      </div>
+
+      <div className="quick-actions" style={{
+        backgroundColor: 'white',
+        borderRadius: '0.75rem',
+        padding: '1.5rem',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+      }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
+          Quick Actions
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <a 
+            href="/admin-dashboard/manage-users" 
+            className="btn btn-primary" 
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              textAlign: 'center'
+            }}
+          >
+            <FaUsers style={{ marginRight: '0.5rem' }} />
+            Manage Users
+          </a>
+          <a 
+            href="/admin-dashboard/manage-buildings" 
+            className="btn btn-success" 
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              textAlign: 'center'
+            }}
+          >
+            <FaBuilding style={{ marginRight: '0.5rem' }} />
+            Manage Buildings
+          </a>
+          <a 
+            href="/admin-dashboard/manage-apartments" 
+            className="btn btn-warning" 
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              textAlign: 'center'
+            }}
+          >
+            <FaDoorOpen style={{ marginRight: '0.5rem' }} />
+            Manage Apartments
+          </a>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }
 

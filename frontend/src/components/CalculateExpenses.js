@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'react-toastify/dist/ReactToastify.css';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaDoorOpen, FaArrowUp, FaBriefcase, FaCheck } from 'react-icons/fa';
+import DashboardLayout from './DashboardLayout';
+import ConfirmModal from './ConfirmModal';
 import { toast } from 'react-toastify';
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 function CalculateExpenses() {
-  //Defining the Data set
   const [data, setData] = useState({
     apartments: [],
     consumptions: [],
@@ -17,15 +19,32 @@ function CalculateExpenses() {
     },
   });
   const [apartmentExpenses, setApartmentExpenses] = useState({});
-  useEffect(() => {
-    //Fetching the Required data from the database
-    const fetchData = async () => {
-      const token = window.localStorage.getItem('token');
+  const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedApartment, setSelectedApartment] = useState(null);
+  const [totals, setTotals] = useState({ heating: 0, elevator: 0, general: 0 });
 
+  const navItems = [
+    { label: 'Dashboard', path: '/building-administrator', icon: FaHome },
+    { label: 'View Building', path: '/building-administrator/view-building', icon: FaBuilding },
+    { label: 'Fuel Charge', path: '/building-administrator/fuel-charge', icon: FaFire },
+    { label: 'Expenses Charge', path: '/building-administrator/expenses-charge', icon: FaFileInvoiceDollar },
+    { label: 'View Expenses', path: '/building-administrator/view-expenses', icon: FaHistory },
+    { label: 'Calculate Expenses', path: '/building-administrator/calculate-expenses', icon: FaCalculator },
+    { label: 'View Payments', path: '/building-administrator/view-payments', icon: FaMoneyBillWave }
+  ];
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const token = window.localStorage.getItem('token');
       const currentDate = new Date();
       const month = currentDate.getMonth() + 1;
       const year = currentDate.getFullYear();
-      //Get the administrator's profile and authorize him if he has valid token
+
       const profileResponse = await axios.get('/api/profile', {
         headers: { Authorization: token },
       });
@@ -33,148 +52,399 @@ function CalculateExpenses() {
       if (profileResponse.data.profileId || profileResponse.data.userId) {
         const buildingId = profileResponse.data.profileId;
         const userId = profileResponse.data.userId;
-        //Building response , expensesResponse
+
         const [buildingResponse, expensesResponse] = await Promise.all([
           axios.get(`/api/buildings/${buildingId}`),
           axios.get(`/api/expenses/${userId}`),
         ]);
+
         const fetchedBuilding = buildingResponse.data;
-        //Apartments that are tied to the building Response
-        const apartmentsResponse = await axios.get(`http://40.113.37.29/aps/Apartments/${fetchedBuilding._id}`);
+
+        const apartmentsResponse = await axios.get(`/aps/Apartments/${fetchedBuilding._id}`);
+        // Backend returns array directly, not nested in object
+        const apartmentsData = Array.isArray(apartmentsResponse.data) ? apartmentsResponse.data : [];
+
         const allConsumptionsResponses = await Promise.all(
-          apartmentsResponse.data.map((apartment) =>
-            axios.get(`http://40.113.37.29/api/consumptions/${apartment._id}`)
+          apartmentsData.map((apartment) =>
+            axios.get(`/api/consumptions/${apartment._id}`).catch(() => ({ data: [] }))
           )
         );
-        //Consumptions Response
+
         const allConsumptions = allConsumptionsResponses.flatMap(response => response.data);
-        //Filter the expenses for the current month and year
+
         const thisMonthExpenses = expensesResponse.data.filter(expenses => {
           return expenses.month === month && expenses.year === year;
-        })
+        });
+
         const newState = {
-          apartments: apartmentsResponse.data,
+          apartments: apartmentsData,
           building: buildingResponse.data,
           expenses: thisMonthExpenses,
           consumptions: allConsumptions,
         };
-        //Finally set the data with the New State of fetched objects
+
         setData(newState);
       }
-      
-    };
-    fetchData();
-  }, []);
-  //using the useMemo hook to memoize expensive computations so that they are not recalculated on every render
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Error loading expense data');
+      setLoading(false);
+    }
+  };
+
   useMemo(() => {
-    //Calculation of the totals of every Expense with the use of reduce function
     const totalHeating = data.expenses.filter(e => e.type_expenses === 'Heating').reduce((acc, curr) => acc + curr.total, 0);
     const totalElevator = data.expenses.filter(e => e.type_expenses === 'Elevator').reduce((acc, curr) => acc + curr.total, 0);
     const totalGeneral = data.expenses.reduce((acc, curr) => acc + (curr.type_expenses !== 'Heating' && curr.type_expenses !== 'Elevator' ? curr.total : 0), 0);
-    
+
+    setTotals({ heating: totalHeating, elevator: totalElevator, general: totalGeneral });
+
     const apartmentProducts = {};
     const totalProduct = data.apartments.reduce((acc, apartment) => {
-      //Get the consumption for every apartment
       const apartmentConsumption = data.consumptions.find(c => c.apartment._id === apartment._id)?.consumption || 0;
-      //Multiply the heating millimetre with the hours of every apartment
       const product = apartment.heating * apartmentConsumption;
       apartmentProducts[apartment._id] = product;
       return acc + product;
     }, 0);
 
     const calculatedApartmentExpenses = {};
-       
+
     data.apartments.forEach(apartment => {
-      //Divide each apartment product with the total product
       const division = apartmentProducts[apartment._id] / totalProduct;
-      //Total heating is equal to the division of apartmentProducts with the total product
       calculatedApartmentExpenses[apartment._id] = {
-        heating: division * totalHeating,
-        elevator: apartment.elevator * totalElevator ,
-        general: apartment.general_expenses * totalGeneral,
+        heating: division * totalHeating || 0,
+        elevator: apartment.elevator * totalElevator || 0,
+        general: apartment.general_expenses * totalGeneral || 0,
       };
     });
 
     setApartmentExpenses(calculatedApartmentExpenses);
   }, [data]);
 
-  const handleCreatePayment = async (apartment) => {
+  const handleCreatePaymentClick = (apartment) => {
+    setSelectedApartment(apartment);
+    setShowConfirmModal(true);
+  };
+
+  const handleCreatePayment = async () => {
+    if (!selectedApartment) return;
+
     const token = window.localStorage.getItem('token');
     const month = new Date().getMonth() + 1;
     const year = new Date().getFullYear();
+
     try {
-      //Check if a specific paymnet exists for the current month and year
-      const existingPaymentsResponse = await axios.get(`/api/payments/${apartment._id}`,{
-        headers : {Authorization : token},
+      const existingPaymentsResponse = await axios.get(`/api/payments/${selectedApartment._id}`, {
+        headers: { Authorization: token },
       });
 
-      const existingPaymentForCurrentMonth = existingPaymentsResponse.data.find(payment => payment.month === month && payment.year === year );
+      const existingPaymentForCurrentMonth = existingPaymentsResponse.data.find(
+        payment => payment.month === month && payment.year === year
+      );
 
       if (existingPaymentForCurrentMonth) {
-        // If payment exists for the current month and year , delete it
         await axios.delete(`/api/payments/${existingPaymentForCurrentMonth._id}`, {
-          headers : {Authorization : token },
+          headers: { Authorization: token },
         });
       }
-      } catch (error) {
-        if (error.response && error.response.status !== 404) {
-            // Log any other error and halt the function
-            console.error('Error checking for existing payments', error);
-            return;
-        }
-        // If the error is 404, it just means no payments exist for the apartment, and we'll continue to create a new one.
+    } catch (error) {
+      if (error.response && error.response.status !== 404) {
+        console.error('Error checking for existing payments', error);
+        toast.error('Error checking existing payments');
+        return;
       }
+    }
+
     try {
-      //Create new Payment
       const paymentData = {
-        apartment: apartment._id,
-        month: new Date().getMonth() + 1 , //JS months are 0-indexed.
-        year: new Date().getFullYear(),
-        total_heating: apartmentExpenses[apartment._id]?.heating || 0,
-        total_elevator: apartmentExpenses[apartment._id]?.elevator|| 0,
-        total_general: apartmentExpenses[apartment._id]?.general || 0,
+        apartment: selectedApartment._id,
+        month: month,
+        year: year,
+        total_heating: apartmentExpenses[selectedApartment._id]?.heating || 0,
+        total_elevator: apartmentExpenses[selectedApartment._id]?.elevator || 0,
+        total_general: apartmentExpenses[selectedApartment._id]?.general || 0,
         payment_made: false,
       };
+
       const response = await axios.post('/api/payments', paymentData, {
-        headers: {Authorization: token},
-      })
+        headers: { Authorization: token },
+      });
+
       if (response.status === 200) {
-        toast.success("Payment Created succesfully");
-      }else{
-        toast.error("Failed to create payment")
+        toast.success(`Payment created for ${selectedApartment.name}`);
+      } else {
+        toast.error('Failed to create payment');
       }
-    }catch(error){
-      console.error('Error creating payment' , error);
-
+    } catch (error) {
+      console.error('Error creating payment', error);
+      toast.error('Error creating payment');
     }
-    
-  }
 
-  
+    setShowConfirmModal(false);
+    setSelectedApartment(null);
+  };
+
+  const getTotalForApartment = (apartmentId) => {
+    const expenses = apartmentExpenses[apartmentId];
+    if (!expenses) return 0;
+    return expenses.heating + expenses.elevator + expenses.general;
+  };
 
   return (
-    <div className='container mt-5'>
-      <h1 className='mb-5'>Apartment Expenses</h1>
-      {data.apartments.map((apartment) =>  (
-      <div key={apartment._id} className='card mb-3' style= {{ maxWidth: "18rem"}}>
-        <div className='card-header bg-primary text-white'>
-            {apartment.name} - Floor: {apartment.floor}
-            </div>
-          <div className='card-body'>
-            <p className='card-text'>
-                <strong>Heating:</strong> {apartmentExpenses[apartment._id]?.heating.toFixed(2)}
-              </p>
-              <p className='card-text'>
-                <strong>Elevator:</strong> {apartmentExpenses[apartment._id]?.elevator.toFixed(2)}
-              </p>
-              <p className='card-text'>
-              <strong>General:</strong> {apartmentExpenses[apartment._id]?.general.toFixed(2)}
-              </p>
-              <button className= 'btn btn-success' onClick={() => handleCreatePayment(apartment)}> Create Payment</button>
-            </div>
+    <DashboardLayout
+      navItems={navItems}
+      userName="Administrator"
+      userRole="Building Administrator"
+      dashboardTitle="Calculate Expenses"
+    >
+      {/* Page Header */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <FaCalculator style={{ color: '#2563eb' }} />
+          Calculate Expenses
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '1rem' }}>
+          Calculate and distribute expenses across all apartments
+        </p>
       </div>
-      ))}
-      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="sr-only">Loading...</span>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Totals Stats */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+            gap: '1.5rem',
+            marginBottom: '2rem'
+          }}>
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '0.75rem', 
+              padding: '1.5rem', 
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+              borderLeft: '4px solid #ef4444'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ 
+                  width: '60px', 
+                  height: '60px', 
+                  background: '#fee2e2', 
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#ef4444',
+                  fontSize: '1.75rem'
+                }}>
+                  <FaFire />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                    Total Heating
+                  </p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
+                    € {totals.heating.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '0.75rem', 
+              padding: '1.5rem', 
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+              borderLeft: '4px solid #3b82f6'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ 
+                  width: '60px', 
+                  height: '60px', 
+                  background: '#dbeafe', 
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#3b82f6',
+                  fontSize: '1.75rem'
+                }}>
+                  <FaArrowUp />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                    Total Elevator
+                  </p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
+                    € {totals.elevator.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '0.75rem', 
+              padding: '1.5rem', 
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+              borderLeft: '4px solid #10b981'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ 
+                  width: '60px', 
+                  height: '60px', 
+                  background: '#d1fae5', 
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#10b981',
+                  fontSize: '1.75rem'
+                }}>
+                  <FaBriefcase />
+                </div>
+                <div>
+                  <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
+                    Total General
+                  </p>
+                  <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
+                    € {totals.general.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Apartments Grid */}
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+            gap: '1.5rem'
+          }}>
+            {data.apartments.map((apartment) => (
+              <div key={apartment._id} style={{ 
+                backgroundColor: 'white', 
+                borderRadius: '0.75rem', 
+                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+                overflow: 'hidden',
+                transition: 'all 0.3s ease'
+              }}>
+                {/* Card Header */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+                  padding: '1rem 1.5rem',
+                  color: 'white'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <FaDoorOpen style={{ fontSize: '1.5rem' }} />
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '0.25rem' }}>
+                        {apartment.name}
+                      </h3>
+                      <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0' }}>
+                        Floor {apartment.floor}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Card Body */}
+                <div style={{ padding: '1.5rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FaFire style={{ color: '#ef4444' }} />
+                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Heating</span>
+                      </div>
+                      <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                        € {apartmentExpenses[apartment._id]?.heating.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FaArrowUp style={{ color: '#3b82f6' }} />
+                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Elevator</span>
+                      </div>
+                      <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                        € {apartmentExpenses[apartment._id]?.elevator.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <FaBriefcase style={{ color: '#10b981' }} />
+                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>General</span>
+                      </div>
+                      <span style={{ fontWeight: '600', color: '#1e293b' }}>
+                        € {apartmentExpenses[apartment._id]?.general.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+
+                    <div style={{ 
+                      borderTop: '2px solid #e2e8f0', 
+                      paddingTop: '1rem', 
+                      marginTop: '0.5rem',
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center' 
+                    }}>
+                      <span style={{ fontWeight: '600', color: '#1e293b', fontSize: '1rem' }}>Total</span>
+                      <span style={{ fontWeight: '700', color: '#2563eb', fontSize: '1.25rem' }}>
+                        € {getTotalForApartment(apartment._id).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button 
+                    className="btn btn-success"
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                    onClick={() => handleCreatePaymentClick(apartment)}
+                  >
+                    <FaCheck /> Create Payment
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {data.apartments.length === 0 && (
+            <div style={{ 
+              backgroundColor: 'white', 
+              borderRadius: '0.75rem', 
+              padding: '3rem', 
+              textAlign: 'center',
+              boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+            }}>
+              <FaDoorOpen style={{ fontSize: '4rem', color: '#e2e8f0', marginBottom: '1rem' }} />
+              <h3 style={{ color: '#64748b', marginBottom: '0.5rem' }}>No Apartments Found</h3>
+              <p style={{ color: '#94a3b8' }}>Add apartments to calculate expenses</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        show={showConfirmModal}
+        title="Create Payment"
+        message={`Are you sure you want to create payment for ${selectedApartment?.name}? Total amount: € ${selectedApartment ? getTotalForApartment(selectedApartment._id).toFixed(2) : '0.00'}`}
+        onConfirm={handleCreatePayment}
+        onCancel={() => {
+          setShowConfirmModal(false);
+          setSelectedApartment(null);
+        }}
+        confirmText="Create Payment"
+        cancelText="Cancel"
+        type="success"
+      />
+    </DashboardLayout>
   );
 }
 

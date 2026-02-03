@@ -1,0 +1,130 @@
+/* Stats Card Component Styles */
+
+.stats-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  border-left: 4px solid;
+}
+
+.stats-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+}
+
+.stats-card-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stats-info {
+  flex: 1;
+}
+
+.stats-title {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin: 0 0 0.5rem 0;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0;
+  line-height: 1;
+}
+
+.stats-trend {
+  font-size: 0.875rem;
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.stats-trend.up {
+  color: #10b981;
+}
+
+.stats-trend.down {
+  color: #ef4444;
+}
+
+.stats-icon {
+  width: 4rem;
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  font-size: 2rem;
+  opacity: 0.8;
+}
+
+/* Color Variants */
+.stats-card-blue {
+  border-left-color: #2563eb;
+}
+
+.stats-card-blue .stats-icon {
+  background-color: #dbeafe;
+  color: #2563eb;
+}
+
+.stats-card-green {
+  border-left-color: #10b981;
+}
+
+.stats-card-green .stats-icon {
+  background-color: #d1fae5;
+  color: #10b981;
+}
+
+.stats-card-orange {
+  border-left-color: #f59e0b;
+}
+
+.stats-card-orange .stats-icon {
+  background-color: #fef3c7;
+  color: #f59e0b;
+}
+
+.stats-card-red {
+  border-left-color: #ef4444;
+}
+
+.stats-card-red .stats-icon {
+  background-color: #fee2e2;
+  color: #ef4444;
+}
+
+.stats-card-purple {
+  border-left-color: #8b5cf6;
+}
+
+.stats-card-purple .stats-icon {
+  background-color: #ede9fe;
+  color: #8b5cf6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .stats-card {
+    padding: 1.25rem;
+  }
+
+  .stats-value {
+    font-size: 1.75rem;
+  }
+
+  .stats-icon {
+    width: 3rem;
+    height: 3rem;
+    font-size: 1.5rem;
+  }
+}

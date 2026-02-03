@@ -241,7 +241,14 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
 app.get('/aps/Apartments/:buildId' , async (req, res) => {
     try {
         const buildingId = req.params.buildId;
-        const apartments = await Apartment.find({ building : buildingId});
+        const apartments = await Apartment.find({ building : buildingId})
+            .populate({
+                path: 'tenant',
+                populate: {
+                    path: 'user',
+                    select: 'name'
+                }
+            });
         if (!apartments || apartments.length === 0) {
             return res.status(404).json({message: 'apartment not found'});
         }

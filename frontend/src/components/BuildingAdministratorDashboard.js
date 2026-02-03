@@ -1,104 +1,114 @@
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import {Link} from 'react-router-dom';
+import React from 'react';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory } from 'react-icons/fa';
+import DashboardLayout from './DashboardLayout';
+import StatsCard from './StatsCard';
+
 function BuildingAdministratorDashboard() {
-    const [ setShowComponent] = useState(false);
-    const navigate = useNavigate(); //Import useNavigate hook
-    // Function to handle logout
-    const handleLogout = () => {
-        //Clear the token from local storage (assuming we store it as 'token')
-        window.localStorage.removeItem('token')
-        //Redirect the user to the login page 
-        navigate('http://40.113.37.29'); //Adjust the path 
-    };
-    const handleComponentClick = () => {
-        setShowComponent(true);
-    }
+  const navItems = [
+    { label: 'Dashboard', path: '/building-administrator', icon: FaHome },
+    { label: 'View Building', path: '/building-administrator/view-building', icon: FaBuilding },
+    { label: 'Fuel Charge', path: '/building-administrator/fuel-charge', icon: FaFire },
+    { label: 'Expenses Charge', path: '/building-administrator/expenses-charge', icon: FaFileInvoiceDollar },
+    { label: 'View Expenses', path: '/building-administrator/view-expenses', icon: FaHistory },
+    { label: 'Calculate Expenses', path: '/building-administrator/calculate-expenses', icon: FaCalculator },
+    { label: 'View Payments', path: '/building-administrator/view-payments', icon: FaMoneyBillWave }
+  ];
 
   return (
-    <div>
-        <header>
-            <nav className='navbar navbar-expand-lg navbar-light bg-light'>
-                <Link className="navbar-brand" to="/building-administrator/dashboard">
-                    Building Administrator Dashboard
-                </Link>
-                <button
-                    className='navbar-toggler'
-                    type="button"
-                    data-toggle="collapse"
-                    data-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation"
-                    >
-                    <span className='navbar-toggler-icon'></span>
-                    </button>
-                    <div className='collapse navbar-collapse' id="navbarNav">
-                        <ul className= "navbar-nav">
-                            <li className='nav-item'>
-                                <Link
-                                className="nav-link"
-                                to="/building-administrator/view-building"
-                                onClick={handleComponentClick}
-                                >
-                                    View Building
-                                </Link>
-                            </li>
-                            <li className="nav-item">
-                                <Link className="nav-link" 
-                                      to="/building-administrator/fuel-charge"
-                                      onClick={handleComponentClick}
-                                      >
-                                      Fuel Charge
-                                </Link> 
-                            </li>
-                            <li className='nav-item'>
-                                <Link className ="nav-link"
-                                      to="/building-administrator/expenses-charge"
-                                      onClick={handleComponentClick}
-                                      >
-                                        Expenses Charge
-                                      </Link>
-                            </li>
-                            <li className='nav-item'>
-                                <Link className='nav-link'
-                                      to="/building-administrator/view-expenses"
-                                      onClick={handleComponentClick}>
-                                        View Expenses
-                                      </Link>
-                            </li>
-                            <li className='nav-item'>
-                                <Link className='nav-link'
-                                      to="/building-administrator/calculate-expenses"
-                                      onClick={handleComponentClick}>
-                                        Calculate Expenses
-                                      </Link>
-                                      
-                            </li>
-                            <li className='nav-item'>
-                                <Link className='nav-link'
-                                      to="/building-administrator/view-payments"
-                                      onClick={handleComponentClick}>
-                                        View Payments
-                                      </Link>
-                            </li>
-                            <li className='nav-item'>
-                                <Link className="nav-link" to="/" onClick={handleLogout}>
-                                    Logout
-                                </Link>
-                            </li>
-                             
-                        </ul>
-                    
-                    </div>
-            </nav>
-        </header>   
-           <div className='container'>
-            <h1> Welcome Administrator!</h1>
-            <p> Manage your Building's settings by clicking one of the corresponding links above.</p>
-            </div>  
-    </div>
-  )
+    <DashboardLayout
+      navItems={navItems}
+      userName="Administrator"
+      userRole="Building Administrator"
+      dashboardTitle="Building Administrator"
+    >
+      <div className="welcome-section" style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem' }}>
+          Welcome, Building Administrator!
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '1rem' }}>
+          Manage your building's expenses, track payments, and calculate monthly charges.
+        </p>
+      </div>
+
+      <div className="stats-grid" style={{ 
+        display: 'grid', 
+        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+        gap: '1.5rem',
+        marginBottom: '2rem'
+      }}>
+        <StatsCard
+          title="Total Expenses"
+          value="€ 0"
+          icon={FaFileInvoiceDollar}
+          color="orange"
+        />
+        <StatsCard
+          title="Pending Payments"
+          value="0"
+          icon={FaMoneyBillWave}
+          color="red"
+        />
+        <StatsCard
+          title="This Month"
+          value="€ 0"
+          icon={FaCalculator}
+          color="blue"
+        />
+      </div>
+
+      <div className="quick-actions" style={{
+        backgroundColor: 'white',
+        borderRadius: '0.75rem',
+        padding: '1.5rem',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+      }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
+          Quick Actions
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+          <a 
+            href="/building-administrator/expenses-charge" 
+            className="btn btn-primary" 
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              textAlign: 'center'
+            }}
+          >
+            <FaFileInvoiceDollar style={{ marginRight: '0.5rem' }} />
+            Charge Expenses
+          </a>
+          <a 
+            href="/building-administrator/calculate-expenses" 
+            className="btn btn-success" 
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              textAlign: 'center'
+            }}
+          >
+            <FaCalculator style={{ marginRight: '0.5rem' }} />
+            Calculate Expenses
+          </a>
+          <a 
+            href="/building-administrator/view-payments" 
+            className="btn btn-warning" 
+            style={{ 
+              padding: '0.75rem 1.5rem',
+              borderRadius: '0.5rem',
+              textDecoration: 'none',
+              textAlign: 'center'
+            }}
+          >
+            <FaMoneyBillWave style={{ marginRight: '0.5rem' }} />
+            View Payments
+          </a>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
 }
 
-export default BuildingAdministratorDashboard
+export default BuildingAdministratorDashboard;

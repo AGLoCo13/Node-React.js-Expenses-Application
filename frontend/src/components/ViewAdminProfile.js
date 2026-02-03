@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FaHome, FaUsers, FaBuilding, FaDoorOpen, FaUserShield, FaEdit, FaSave, FaTimes, FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt } from 'react-icons/fa';
+import DashboardLayout from './DashboardLayout';
+import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import '../css/ViewAdminProfile.css';
 
 function ViewAdminProfile() {
   const [userData, setUserData] = useState(null);
   const [editMode, setEditMode] = useState(false);
   const [editedData, setEditedData] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  const navItems = [
+    { label: 'Dashboard', path: '/admin-dashboard', icon: FaHome },
+    { label: 'Manage Users', path: '/admin-dashboard/manage-users', icon: FaUsers },
+    { label: 'Manage Buildings', path: '/admin-dashboard/manage-buildings', icon: FaBuilding },
+    { label: 'Manage Apartments', path: '/admin-dashboard/manage-apartments', icon: FaDoorOpen },
+    { label: 'Profile', path: '/admin-dashboard/profile', icon: FaUserShield }
+  ];
 
   useEffect(() => {
     fetchUserData();
@@ -14,21 +25,17 @@ function ViewAdminProfile() {
 
   const fetchUserData = async () => {
     try {
-       // Get the token from local storage
-    const token = window.localStorage.getItem('token');
-
-    // Fetch the user's profile data from the server with the token in the headers
-      // Fetch the user's profile data from the server
+      const token = window.localStorage.getItem('token');
       const response = await axios.get('/api/profile', {
-        headers: {
-          Authorization: `${token}`,
-        },
+        headers: { Authorization: `${token}` },
       });
       setUserData(response.data);
-      console.log(response);
       setEditedData(response.data);
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
+      toast.error('Error fetching profile data');
+      setLoading(false);
     }
   };
 
@@ -50,97 +57,179 @@ function ViewAdminProfile() {
   };
 
   const handleSaveChanges = async () => {
-    console.log("Attempting to save changes...")
     try {
-      // Send a PUT request to update the user's profile data on the Server
-    const token = window.localStorage.getItem('token'); // Assuming you store the token in local storage
-      // Send a PUT request to update the user's profile data on the Server
-      const response = await axios.put('/api/admin/profile', editedData, {
-        headers: {
-          Authorization: `${token}`,
-        },
+      const token = window.localStorage.getItem('token');
+      await axios.put('/api/admin/profile', editedData, {
+        headers: { Authorization: `${token}` },
       });
-      console.log("server Response:" , response);
+      setUserData(editedData);
+      setEditMode(false);
+      toast.success('Profile updated successfully!');
     } catch (error) {
       console.error('Error updating user data:', error);
+      toast.error('Error updating profile');
     }
   };
 
   return (
-    <div className='container my-4'>
-      {userData ? (
-        <>
+    <DashboardLayout
+      navItems={navItems}
+      userName={userData?.name || "Admin"}
+      userRole="Site Administrator"
+      dashboardTitle="My Profile"
+    >
+      {/* Page Header */}
+      <div style={{ marginBottom: '2rem' }}>
+        <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <FaUserShield style={{ color: '#2563eb' }} />
+          My Profile
+        </h2>
+        <p style={{ color: '#64748b', fontSize: '1rem' }}>
+          View and edit your profile information
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '3rem' }}>
+          <div className="spinner-border text-primary" role="status">
+            <span className="sr-only">Loading...</span>
+          </div>
+        </div>
+      ) : userData ? (
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '2rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)', maxWidth: '800px' }}>
           {!editMode ? (
             <>
-            <div className='profile-section'>
-              <h2>User Profile</h2>
-              <div className='profile-details'>
-              <p><strong>Name: </strong>{userData.name}</p>
-              <p><strong>Email: </strong>{userData.email} </p>
-              <p><strong>Address: </strong> {userData.address}</p>
-              <p><strong>Cellphone: </strong> {userData.cellphone} </p>
+              {/* View Mode */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+                <div style={{ 
+                  width: '100px', 
+                  height: '100px', 
+                  borderRadius: '50%', 
+                  background: 'linear-gradient(135deg, #2563eb 0%, #1e40af 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'white',
+                  fontSize: '2.5rem',
+                  fontWeight: 'bold'
+                }}>
+                  {userData.name?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.5rem', fontWeight: '600', color: '#1e293b', marginBottom: '0.25rem' }}>
+                    {userData.name}
+                  </h3>
+                  <p style={{ color: '#64748b', marginBottom: '0' }}>Site Administrator</p>
+                </div>
               </div>
-              <button className="btn btn-primary" onClick={handleEditClick}>Edit</button>
+
+              <div style={{ display: 'grid', gap: '1.5rem' }}>
+                <div style={{ borderLeft: '4px solid #2563eb', paddingLeft: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <FaUser style={{ color: '#2563eb', fontSize: '1.25rem' }} />
+                    <span style={{ fontWeight: '600', color: '#64748b', fontSize: '0.875rem', textTransform: 'uppercase' }}>Full Name</span>
+                  </div>
+                  <p style={{ fontSize: '1.125rem', color: '#1e293b', marginBottom: '0', paddingLeft: '2rem' }}>{userData.name}</p>
+                </div>
+
+                <div style={{ borderLeft: '4px solid #10b981', paddingLeft: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <FaEnvelope style={{ color: '#10b981', fontSize: '1.25rem' }} />
+                    <span style={{ fontWeight: '600', color: '#64748b', fontSize: '0.875rem', textTransform: 'uppercase' }}>Email Address</span>
+                  </div>
+                  <p style={{ fontSize: '1.125rem', color: '#1e293b', marginBottom: '0', paddingLeft: '2rem' }}>{userData.email}</p>
+                </div>
+
+                <div style={{ borderLeft: '4px solid #f59e0b', paddingLeft: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <FaMapMarkerAlt style={{ color: '#f59e0b', fontSize: '1.25rem' }} />
+                    <span style={{ fontWeight: '600', color: '#64748b', fontSize: '0.875rem', textTransform: 'uppercase' }}>Address</span>
+                  </div>
+                  <p style={{ fontSize: '1.125rem', color: '#1e293b', marginBottom: '0', paddingLeft: '2rem' }}>{userData.address || 'Not provided'}</p>
+                </div>
+
+                <div style={{ borderLeft: '4px solid #8b5cf6', paddingLeft: '1rem', backgroundColor: '#f8fafc', padding: '1rem', borderRadius: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+                    <FaPhone style={{ color: '#8b5cf6', fontSize: '1.25rem' }} />
+                    <span style={{ fontWeight: '600', color: '#64748b', fontSize: '0.875rem', textTransform: 'uppercase' }}>Phone Number</span>
+                  </div>
+                  <p style={{ fontSize: '1.125rem', color: '#1e293b', marginBottom: '0', paddingLeft: '2rem' }}>{userData.cellphone || 'Not provided'}</p>
+                </div>
+              </div>
+
+              <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn btn-primary" onClick={handleEditClick} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaEdit /> Edit Profile
+                </button>
               </div>
             </>
           ) : (
             <>
-              <h2>Edit User Profile</h2>
+              {/* Edit Mode */}
+              <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <FaEdit /> Edit Profile
+              </h3>
               <form>
-                <div className='mb-3'>
-                  <label htmlFor='name' className='form-label'>Name:</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    className="form-control"
-                    value={editedData.name || ''}
-                    onChange={handleInputChange}
-                  />
+                <div className="row">
+                  <div className="col-md-6 form-group">
+                    <label><FaUser style={{ marginRight: '0.5rem', color: '#2563eb' }} />Name:</label>
+                    <input
+                      type="text"
+                      name="name"
+                      className="form-control"
+                      value={editedData.name || ''}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 form-group">
+                    <label><FaEnvelope style={{ marginRight: '0.5rem', color: '#10b981' }} />Email:</label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="form-control"
+                      value={editedData.email || ''}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  <div className="col-md-6 form-group">
+                    <label><FaMapMarkerAlt style={{ marginRight: '0.5rem', color: '#f59e0b' }} />Address:</label>
+                    <input
+                      type="text"
+                      name="address"
+                      className="form-control"
+                      value={editedData.address || ''}
+                      onChange={handleInputChange}
+                    />
+                  </div>
+                  <div className="col-md-6 form-group">
+                    <label><FaPhone style={{ marginRight: '0.5rem', color: '#8b5cf6' }} />Cellphone:</label>
+                    <input
+                      type="text"
+                      name="cellphone"
+                      className="form-control"
+                      value={editedData.cellphone || ''}
+                      onChange={handleInputChange}
+                    />
+                  </div>
                 </div>
-                <div className = 'mb-3'>
-                  <label htmlFor='email' className='form-label'>Email:</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    className='form-control'
-                    value={editedData.email || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className='mb-3'>
-                  <label htmlFor="address" className='form-label'> Address: </label>
-                  <input
-                    type="text"
-                    id="address"
-                    name="address"
-                    className='form-control'
-                    value={editedData.address || ''}
-                    onChange={handleInputChange}
-                  />
-                </div>
-                <div className='mb-3'>
-                  <label htmlFor='cellphone' className='form-label'>Cellphone: </label>
-                  <input
-                    type="number"
-                    id="cellphone"
-                    name="cellphone"
-                    className='form-control'
-                    value={editedData.cellphone || ''}
-                    onChange={handleInputChange}
-                  />
+                <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>
+                  <button type="button" className="btn btn-success" onClick={handleSaveChanges} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FaSave /> Save Changes
+                  </button>
+                  <button type="button" className="btn btn-secondary" onClick={handleCancelEdit} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FaTimes /> Cancel
+                  </button>
                 </div>
               </form>
-              <button type="button" className="btn btn-primary me-2"onClick={handleSaveChanges}>Save Changes</button>
-              <button className="btn btn-secondary" onClick={handleCancelEdit}>Cancel</button>
             </>
           )}
-        </>
+        </div>
       ) : (
-        <p>Loading user data...</p>
+        <p style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>Unable to load profile data</p>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
 
