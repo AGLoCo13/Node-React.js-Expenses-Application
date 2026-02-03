@@ -1,9 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory } from 'react-icons/fa';
 import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
 
 function BuildingAdministratorDashboard() {
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const token = window.localStorage.getItem('token');
+        const response = await axios.get('/api/profile', {
+          headers: { Authorization: `${token}` }
+        });
+        setUserData(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        setLoading(false);
+      }
+    };
+    fetchUserData();
+  }, []);
+
   const navItems = [
     { label: 'Dashboard', path: '/building-administrator', icon: FaHome },
     { label: 'View Building', path: '/building-administrator/view-building', icon: FaBuilding },
@@ -17,13 +38,13 @@ function BuildingAdministratorDashboard() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userData?.name || "Administrator"}
       userRole="Building Administrator"
       dashboardTitle="Building Administrator"
     >
       <div className="welcome-section" style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem' }}>
-          Welcome, Building Administrator!
+          Welcome, {userData?.name || "Building Administrator"}!
         </h2>
         <p style={{ color: '#64748b', fontSize: '1rem' }}>
           Manage your building's expenses, track payments, and calculate monthly charges.

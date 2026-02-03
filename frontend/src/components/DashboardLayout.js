@@ -21,7 +21,16 @@ const DashboardLayout = ({ children, navItems, userName, userRole, dashboardTitl
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-header">
-          <h3 className="sidebar-logo">RN-Expenses</h3>
+          <h3 className="sidebar-logo" style={{ color: 'white' }}>UrbanSync</h3>
+          <p style={{ 
+            color: 'rgba(255, 255, 255, 0.7)', 
+            margin: '0.25rem 0 0 0', 
+            fontSize: '0.75rem',
+            fontStyle: 'italic',
+            textAlign: 'center'
+          }}>
+            Your Building, Simplified
+          </p>
         </div>
         
         <nav className="sidebar-nav">

@@ -4,6 +4,7 @@ import { FaHome, FaUser, FaDoorOpen, FaMoneyBillWave, FaFire, FaArrowUp, FaBrief
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import '../css/tenantPayments.css';
 
 function TenantPayments() {
   const [apartmentData, setApartmentData] = useState(null);
@@ -97,136 +98,51 @@ function TenantPayments() {
         <>
           {/* Stats Cards */}
           {totals && (
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-              gap: '1.5rem',
-              marginBottom: '2rem'
-            }}>
-              <div style={{ 
-                backgroundColor: 'white', 
-                borderRadius: '0.75rem', 
-                padding: '1.5rem', 
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-                borderLeft: '4px solid #ef4444'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ 
-                    width: '60px', 
-                    height: '60px', 
-                    background: '#fee2e2', 
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#ef4444',
-                    fontSize: '1.75rem'
-                  }}>
+            <div className="payment-stats-grid">
+              <div className="payment-stat-card" style={{ borderLeft: '4px solid #ef4444' }}>
+                <div className="payment-stat-card-content">
+                  <div className="payment-stat-icon" style={{ background: '#fee2e2', color: '#ef4444' }}>
                     <FaFire />
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
-                      Total Heating
-                    </p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
-                      € {totals.totalHeating.toFixed(2)}
-                    </p>
+                    <p className="payment-stat-label">Total Heating</p>
+                    <p className="payment-stat-value">€ {totals.totalHeating.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
 
-              <div style={{ 
-                backgroundColor: 'white', 
-                borderRadius: '0.75rem', 
-                padding: '1.5rem', 
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-                borderLeft: '4px solid #3b82f6'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ 
-                    width: '60px', 
-                    height: '60px', 
-                    background: '#dbeafe', 
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#3b82f6',
-                    fontSize: '1.75rem'
-                  }}>
+              <div className="payment-stat-card" style={{ borderLeft: '4px solid #3b82f6' }}>
+                <div className="payment-stat-card-content">
+                  <div className="payment-stat-icon" style={{ background: '#dbeafe', color: '#3b82f6' }}>
                     <FaArrowUp />
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
-                      Total Elevator
-                    </p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
-                      € {totals.totalElevator.toFixed(2)}
-                    </p>
+                    <p className="payment-stat-label">Total Elevator</p>
+                    <p className="payment-stat-value">€ {totals.totalElevator.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
 
-              <div style={{ 
-                backgroundColor: 'white', 
-                borderRadius: '0.75rem', 
-                padding: '1.5rem', 
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-                borderLeft: '4px solid #10b981'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ 
-                    width: '60px', 
-                    height: '60px', 
-                    background: '#d1fae5', 
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#10b981',
-                    fontSize: '1.75rem'
-                  }}>
+              <div className="payment-stat-card" style={{ borderLeft: '4px solid #10b981' }}>
+                <div className="payment-stat-card-content">
+                  <div className="payment-stat-icon" style={{ background: '#d1fae5', color: '#10b981' }}>
                     <FaBriefcase />
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
-                      Total General
-                    </p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
-                      € {totals.totalGeneral.toFixed(2)}
-                    </p>
+                    <p className="payment-stat-label">Total General</p>
+                    <p className="payment-stat-value">€ {totals.totalGeneral.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
 
-              <div style={{ 
-                backgroundColor: 'white', 
-                borderRadius: '0.75rem', 
-                padding: '1.5rem', 
-                boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-                borderLeft: '4px solid #8b5cf6'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                  <div style={{ 
-                    width: '60px', 
-                    height: '60px', 
-                    background: '#ede9fe', 
-                    borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: '#8b5cf6',
-                    fontSize: '1.75rem'
-                  }}>
+              <div className="payment-stat-card" style={{ borderLeft: '4px solid #8b5cf6' }}>
+                <div className="payment-stat-card-content">
+                  <div className="payment-stat-icon" style={{ background: '#ede9fe', color: '#8b5cf6' }}>
                     <FaEuroSign />
                   </div>
                   <div>
-                    <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem', fontWeight: '600', textTransform: 'uppercase' }}>
-                      Grand Total
-                    </p>
-                    <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
-                      € {totals.grandTotal.toFixed(2)}
-                    </p>
+                    <p className="payment-stat-label">Grand Total</p>
+                    <p className="payment-stat-value">€ {totals.grandTotal.toFixed(2)}</p>
                   </div>
                 </div>
               </div>
@@ -234,13 +150,13 @@ function TenantPayments() {
           )}
 
           {/* Payments Table */}
-          <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem' }}>
+          <div className="payment-history-card">
+            <h3 className="payment-history-title">
               Payment History ({tenantPayments ? tenantPayments.length : 0})
             </h3>
 
             {tenantPayments && tenantPayments.length > 0 ? (
-              <div className="table-responsive">
+              <div className="payment-table-wrapper">
                 <table className="table table-hover">
                   <thead style={{ backgroundColor: '#f8fafc' }}>
                     <tr>
@@ -271,11 +187,11 @@ function TenantPayments() {
                         </td>
                         <td>
                           {payment.payment_made ? (
-                            <span className="badge badge-success" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', width: 'fit-content' }}>
+                            <span className="badge badge-success status-badge-paid">
                               <FaCheckCircle /> Paid
                             </span>
                           ) : (
-                            <span className="badge badge-warning" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', width: 'fit-content' }}>
+                            <span className="status-badge-pending">
                               <FaClock /> Pending
                             </span>
                           )}
@@ -286,9 +202,9 @@ function TenantPayments() {
                 </table>
               </div>
             ) : (
-              <div style={{ textAlign: 'center', padding: '3rem', color: '#64748b' }}>
-                <FaMoneyBillWave style={{ fontSize: '4rem', marginBottom: '1rem', opacity: 0.3 }} />
-                <h3 style={{ marginBottom: '0.5rem' }}>No Payments Found</h3>
+              <div className="payment-empty-state">
+                <FaMoneyBillWave className="payment-empty-icon" />
+                <h3 className="payment-empty-title">No Payments Found</h3>
                 <p>You don't have any payments yet</p>
               </div>
             )}

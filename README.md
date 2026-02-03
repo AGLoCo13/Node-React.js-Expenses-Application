@@ -1,4 +1,9 @@
-# Node-React.js-Expenses-Application
+# UrbanSync - Your Building, Simplified
+
+A modern building management system for managing properties, tracking expenses, and monitoring payments.
+
+---
+
 1.Prerequisities:
 You have to install : 
 

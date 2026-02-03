@@ -1,0 +1,209 @@
+/* Tenant Payments Styles */
+
+/* Stats Cards Container */
+.payment-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Individual Stat Card */
+.payment-stat-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.payment-stat-card-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.payment-stat-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.payment-stat-label {
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.payment-stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 0;
+}
+
+/* Payment History Card */
+.payment-history-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.payment-history-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 1.5rem;
+}
+
+/* Table Responsive Wrapper */
+.payment-table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.payment-table-wrapper table {
+  min-width: 700px;
+}
+
+/* Status Badges */
+.status-badge-paid {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+}
+
+.status-badge-pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: fit-content;
+  background-color: #fef3c7;
+  color: #f59e0b;
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .payment-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.85rem;
+  }
+
+  .payment-stat-card {
+    padding: 0.9rem;
+  }
+
+  .payment-stat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 1.4rem;
+  }
+
+  .payment-stat-label {
+    font-size: 0.75rem;
+  }
+
+  .payment-stat-value {
+    font-size: 1.2rem;
+  }
+
+  .payment-history-card {
+    padding: 0.9rem;
+  }
+
+  .payment-history-title {
+    font-size: 1.125rem;
+  }
+
+  .payment-table-wrapper {
+    margin: 0 -0.9rem;
+    padding: 0 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.65rem;
+  }
+
+  .payment-stat-card {
+    padding: 0.7rem;
+  }
+
+  .payment-stat-card-content {
+    gap: 0.65rem;
+  }
+
+  .payment-stat-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+  }
+
+  .payment-stat-label {
+    font-size: 0.7rem;
+  }
+
+  .payment-stat-value {
+    font-size: 1rem;
+  }
+
+  .payment-history-card {
+    padding: 0.75rem;
+  }
+
+  .payment-history-title {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .payment-table-wrapper {
+    margin: 0 -0.75rem;
+    padding: 0 0.75rem;
+  }
+}
+
+/* Empty State */
+.payment-empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #64748b;
+}
+
+.payment-empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.3;
+}
+
+.payment-empty-title {
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+
+@media (max-width: 480px) {
+  .payment-empty-state {
+    padding: 1.5rem 0.75rem;
+  }
+
+  .payment-empty-icon {
+    font-size: 2.5rem;
+  }
+
+  .payment-empty-title {
+    font-size: 1rem;
+  }
+}

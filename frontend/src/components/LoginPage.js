@@ -83,8 +83,8 @@ function LoginPage() {
               <div className="brand-icon">
                 <FaBuilding />
               </div>
-              <h1 className="brand-title">RN-Expenses</h1>
-              <p className="brand-subtitle">Building Management System</p>
+              <h1 className="brand-title">UrbanSync</h1>
+              <p className="brand-subtitle">Your Building, Simplified</p>
             </div>
             <div className="features-list">
               <div className="feature-item">
