@@ -61,7 +61,6 @@ function CalculateExpenses() {
         const fetchedBuilding = buildingResponse.data;
 
         const apartmentsResponse = await axios.get(`/aps/Apartments/${fetchedBuilding._id}`);
-        // Backend returns array directly, not nested in object
         const apartmentsData = Array.isArray(apartmentsResponse.data) ? apartmentsResponse.data : [];
 
         const allConsumptionsResponses = await Promise.all(
@@ -93,29 +92,67 @@ function CalculateExpenses() {
     }
   };
 
+  // Calculate expenses using Presidential Decree 1985 formulas
   useMemo(() => {
     const totalHeating = data.expenses.filter(e => e.type_expenses === 'Heating').reduce((acc, curr) => acc + curr.total, 0);
     const totalElevator = data.expenses.filter(e => e.type_expenses === 'Elevator').reduce((acc, curr) => acc + curr.total, 0);
-    const totalGeneral = data.expenses.reduce((acc, curr) => acc + (curr.type_expenses !== 'Heating' && curr.type_expenses !== 'Elevator' ? curr.total : 0), 0);
+    const totalGeneral = data.expenses.filter(e => e.type_expenses === 'General').reduce((acc, curr) => acc + curr.total, 0);
 
     setTotals({ heating: totalHeating, elevator: totalElevator, general: totalGeneral });
 
-    const apartmentProducts = {};
-    const totalProduct = data.apartments.reduce((acc, apartment) => {
-      const apartmentConsumption = data.consumptions.find(c => c.apartment._id === apartment._id)?.consumption || 0;
-      const product = apartment.heating * apartmentConsumption;
-      apartmentProducts[apartment._id] = product;
-      return acc + product;
-    }, 0);
-
     const calculatedApartmentExpenses = {};
 
+    // **ΘΕΡΜΑΝΣΗ - Presidential Decree 1985**
+    // Formula: [(ei × Wi) / Σ(ei × Wi)] × 70% × P + [(fi × ei) / Σ(fi × ei)] × 30% × P
+    
+    // Calculate sum of ei × Wi for all apartments (variable part)
+    const sumEiWi = data.apartments.reduce((sum, apt) => {
+      const Wi = data.consumptions.find(c => c.apartment._id === apt._id)?.consumption || 0;
+      const ei = apt.ei || 0;
+      return sum + (ei * Wi);
+    }, 0);
+
+    // Calculate sum of fi × ei for all apartments (fixed part)
+    const sumFiEi = data.apartments.reduce((sum, apt) => {
+      const fi = apt.fi || 0;
+      const ei = apt.ei || 0;
+      return sum + (fi * ei);
+    }, 0);
+
+    // Calculate heating for each apartment
     data.apartments.forEach(apartment => {
-      const division = apartmentProducts[apartment._id] / totalProduct;
+      const Wi = data.consumptions.find(c => c.apartment._id === apartment._id)?.consumption || 0;
+      const ei = apartment.ei || 0;
+      const fi = apartment.fi || 0;
+
+      // 70% variable (based on consumption)
+      const variablePart = sumEiWi > 0 ? ((ei * Wi) / sumEiWi) * 0.70 * totalHeating : 0;
+      
+      // 30% fixed (based on position and volume)
+      const fixedPart = sumFiEi > 0 ? ((fi * ei) / sumFiEi) * 0.30 * totalHeating : 0;
+
+      const heatingCost = variablePart + fixedPart;
+
+      // **ΑΣΑΝΣΕΡ - Proportional to floor number**
+      // Calculate sum of floors (only for apartments above ground)
+      const totalFloors = data.apartments
+        .filter(apt => apt.floor > 0)
+        .reduce((sum, apt) => sum + apt.floor, 0);
+
+      const elevatorShare = apartment.floor > 0 && totalFloors > 0
+        ? (apartment.floor / totalFloors) * totalElevator 
+        : 0;
+
+      // **ΓΕΝΙΚΑ ΕΞΟΔΑ - Based on square meters**
+      const totalSquareMeters = data.apartments.reduce((sum, apt) => sum + (apt.square_meters || 0), 0);
+      const generalShare = totalSquareMeters > 0 
+        ? ((apartment.square_meters || 0) / totalSquareMeters) * totalGeneral 
+        : 0;
+
       calculatedApartmentExpenses[apartment._id] = {
-        heating: division * totalHeating || 0,
-        elevator: apartment.elevator * totalElevator || 0,
-        general: apartment.general_expenses * totalGeneral || 0,
+        heating: heatingCost,
+        elevator: elevatorShare,
+        general: generalShare,
       };
     });
 
@@ -205,7 +242,7 @@ function CalculateExpenses() {
           Calculate Expenses
         </h2>
         <p style={{ color: '#64748b', fontSize: '1rem' }}>
-          Calculate and distribute expenses across all apartments
+          Calculate and distribute expenses across all apartments (Presidential Decree 1985)
         </p>
       </div>
 
@@ -252,6 +289,7 @@ function CalculateExpenses() {
                   <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
                     € {totals.heating.toFixed(2)}
                   </p>
+                  <small className="text-muted">70% variable + 30% fixed</small>
                 </div>
               </div>
             </div>
@@ -284,6 +322,7 @@ function CalculateExpenses() {
                   <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
                     € {totals.elevator.toFixed(2)}
                   </p>
+                  <small className="text-muted">Proportional to floor number</small>
                 </div>
               </div>
             </div>
@@ -316,6 +355,7 @@ function CalculateExpenses() {
                   <p style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1e293b', marginBottom: '0' }}>
                     € {totals.general.toFixed(2)}
                   </p>
+                  <small className="text-muted">By square meters</small>
                 </div>
               </div>
             </div>
@@ -348,7 +388,7 @@ function CalculateExpenses() {
                         {apartment.name}
                       </h3>
                       <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0' }}>
-                        Floor {apartment.floor}
+                        Floor {apartment.floor} • {apartment.square_meters}m² • ei: {apartment.ei} • fi: {apartment.fi}
                       </p>
                     </div>
                   </div>
@@ -360,7 +400,7 @@ function CalculateExpenses() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <FaFire style={{ color: '#ef4444' }} />
-                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Heating</span>
+                        <span style={{ color: '#64748b', fontSize: '0.875rem' }}>Heating (70%+30%)</span>
                       </div>
                       <span style={{ fontWeight: '600', color: '#1e293b' }}>
                         € {apartmentExpenses[apartment._id]?.heating.toFixed(2) || '0.00'}

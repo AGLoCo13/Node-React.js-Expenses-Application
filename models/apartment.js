@@ -31,17 +31,9 @@ const apartmentSchema = new mongoose.Schema({
       type: Number,
       required: true,
     },
-    heating: {
+    ei: {
       type: Number,
-      required: false,
-    },
-    elevator: {
-      type: Number,
-      required: false,
-    },
-    general_expenses: {
-      type: Number,
-      required: false,
+      required: true,
     },
   });
 

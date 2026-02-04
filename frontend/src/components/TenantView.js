@@ -300,30 +300,23 @@ function TenantView() {
                     </div>
                   </div>
                 </div>
-                <div className="col-md-3" style={{ marginBottom: '1rem' }}>
+                <div className="col-md-4" style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <FaFire style={{ color: '#ef4444', fontSize: '1.25rem' }} />
                     <div>
-                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Heating Factor</p>
-                      <p style={{ fontWeight: '600', color: '#1e293b', marginBottom: 0 }}>{apartmentData.heating}</p>
+                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Volume Factor (ei)</p>
+                      <p style={{ fontWeight: '600', color: '#1e293b', marginBottom: 0 }}>{apartmentData.ei || 'N/A'}</p>
+                      <small className="text-muted" style={{ fontSize: '0.75rem' }}>From heating study</small>
                     </div>
                   </div>
                 </div>
-                <div className="col-md-3" style={{ marginBottom: '1rem' }}>
+                <div className="col-md-4" style={{ marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <FaArrowUp style={{ color: '#3b82f6', fontSize: '1.25rem' }} />
                     <div>
-                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Elevator Factor</p>
-                      <p style={{ fontWeight: '600', color: '#1e293b', marginBottom: 0 }}>{apartmentData.elevator}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="col-md-3" style={{ marginBottom: '1rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <FaBriefcase style={{ color: '#10b981', fontSize: '1.25rem' }} />
-                    <div>
-                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>General Expenses</p>
-                      <p style={{ fontWeight: '600', color: '#1e293b', marginBottom: 0 }}>{apartmentData.general_expenses}</p>
+                      <p style={{ fontSize: '0.875rem', color: '#64748b', marginBottom: '0.25rem' }}>Position Factor (fi)</p>
+                      <p style={{ fontWeight: '600', color: '#1e293b', marginBottom: 0 }}>{apartmentData.fi || 'N/A'}</p>
+                      <small className="text-muted" style={{ fontSize: '0.75rem' }}>Based on location</small>
                     </div>
                   </div>
                 </div>

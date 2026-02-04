@@ -10,11 +10,11 @@ function ManageApartments() {
   const [buildings, setBuildings] = useState([]);
   const [apartments, setApartments] = useState([]);
   const [newApartment, setNewApartment] = useState({
-    building: '', tenant: '', floor: '', name: '', square_meters: '', owner: '', fi: '', heating: '', elevator: '', general_expenses: ''
+    building: '', tenant: '', floor: '', name: '', square_meters: '', owner: false, fi: '', ei: ''
   });
   const [selectedApartment, setSelectedApartment] = useState(null);
   const [editApartment, setEditApartment] = useState({
-    building: '', tenant: '', floor: '', name: '', square_meters: '', owner: '', fi: '', heating: '', elevator: '', general_expenses: ''
+    building: '', tenant: '', floor: '', name: '', square_meters: '', owner: '', fi: '', ei: ''
   });
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -72,7 +72,7 @@ function ManageApartments() {
     try {
       await axios.post("/api/apartments", newApartment);
       setNewApartment({
-        building: '', tenant: '', name: '', floor: '', square_meters: '', owner: '', fi: '', heating: '', elevator: '', general_expenses: ''
+        building: '', tenant: '', name: '', floor: '', square_meters: '', owner: false, fi: '', ei: ''
       });
       fetchApartments();
       setShowCreateForm(false);
@@ -93,9 +93,7 @@ function ManageApartments() {
       square_meters: apartment.square_meters,
       owner: apartment.owner,
       fi: apartment.fi,
-      heating: apartment.heating,
-      elevator: apartment.elevator,
-      general_expenses: apartment.general_expenses
+      ei: apartment.ei || ''
     });
     setShowEditForm(true);
     setShowCreateForm(false);
@@ -104,13 +102,13 @@ function ManageApartments() {
   const UpdateApartment = async (e) => {
     e.preventDefault();
     try {
-      const { building, tenant, name, floor, square_meters, owner, fi, heating, elevator, general_expenses } = editApartment;
+      const { building, tenant, name, floor, square_meters, owner, fi, ei } = editApartment;
       await axios.put(`/api/apartments/${selectedApartment._id}`, {
-        building, tenant, name, floor, square_meters, owner, fi, heating, elevator, general_expenses
+        building, tenant, name, floor, square_meters, owner, fi, ei
       });
       setSelectedApartment(null);
       setEditApartment({
-        building: '', tenant: '', name: '', floor: '', square_meters: '', owner: '', fi: '', heating: '', elevator: '', general_expenses: ''
+        building: '', tenant: '', name: '', floor: '', square_meters: '', owner: '', fi: '', ei: ''
       });
       setShowEditForm(false);
       fetchApartments();
@@ -207,28 +205,46 @@ function ManageApartments() {
                 <label><FaRulerCombined style={{ marginRight: '0.5rem', color: '#f59e0b' }} />Square Meters:</label>
                 <input type="number" className="form-control" name="square_meters" value={showEditForm ? editApartment.square_meters : newApartment.square_meters} onChange={handleInputChange} required />
               </div>
-              <div className="col-md-3 form-group">
+              <div className="col-md-4 form-group">
                 <label>Owner:</label>
                 <select className="form-control" name="owner" value={(showEditForm ? editApartment.owner : newApartment.owner).toString()} onChange={handleInputChange} required>
                   <option value="true">Yes</option>
                   <option value="false">No</option>
                 </select>
               </div>
-              <div className="col-md-3 form-group">
-                <label>Load Factor (fi):</label>
-                <input type="number" step="0.01" className="form-control" name="fi" placeholder="0.6 for ground floor" value={showEditForm ? editApartment.fi : newApartment.fi} onChange={handleInputChange} required />
+              <div className="col-md-4 form-group">
+                <label title="Συντελεστής θέσης (0.20-0.35) - χαμηλότερα για ισόγειο">
+                  Position Factor (fi):
+                </label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  className="form-control" 
+                  name="fi" 
+                  placeholder="e.g. 0.25 for ground floor" 
+                  value={showEditForm ? editApartment.fi : newApartment.fi} 
+                  onChange={handleInputChange} 
+                  required 
+                  title="Συντελεστής θέσης διαμερίσματος (0.20-0.35)"
+                />
+                <small className="form-text text-muted">Ground floor: 0.25, Mid floors: 0.30, Top floor: 0.35</small>
               </div>
-              <div className="col-md-2 form-group">
-                <label><FaFire style={{ marginRight: '0.5rem', color: '#ef4444' }} />Heating:</label>
-                <input type="number" className="form-control" name="heating" value={showEditForm ? editApartment.heating : newApartment.heating} onChange={handleInputChange} />
-              </div>
-              <div className="col-md-2 form-group">
-                <label><FaArrowUp style={{ marginRight: '0.5rem', color: '#3b82f6' }} />Elevator:</label>
-                <input type="number" className="form-control" name="elevator" value={showEditForm ? editApartment.elevator : newApartment.elevator} onChange={handleInputChange} />
-              </div>
-              <div className="col-md-2 form-group">
-                <label>General:</label>
-                <input type="number" className="form-control" name="general_expenses" value={showEditForm ? editApartment.general_expenses : newApartment.general_expenses} onChange={handleInputChange} />
+              <div className="col-md-4 form-group">
+                <label title="Συντελεστής όγκου (0.40-0.85) - από μελέτη μηχανολόγου">
+                  Volume Factor (ei):
+                </label>
+                <input 
+                  type="number" 
+                  step="0.01" 
+                  className="form-control" 
+                  name="ei" 
+                  placeholder="e.g. 0.65" 
+                  value={showEditForm ? editApartment.ei : newApartment.ei} 
+                  onChange={handleInputChange} 
+                  required 
+                  title="Συντελεστής όγκου από μελέτη θέρμανσης (0.40-0.85)"
+                />
+                <small className="form-text text-muted">From heating study - typically 0.40-0.85</small>
               </div>
             </div>
             <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem' }}>

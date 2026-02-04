@@ -11,6 +11,8 @@ import ViewBuilding from './components/ViewBuilding.js';
 import FuelCharge from './components/FuelCharge.js';
 import ConsumptionHistory from './components/ConsumptionHistory.js';
 import {ToastContainer} from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import './css/toast.css';
 import BuildingAdministratorDashboard from './components/BuildingAdministratorDashboard.js';
 import ExpensesCharge from './components/ExpensesCharge.js';
 import TenantDashboard from './components/TenantDashboard.js';
@@ -122,7 +124,18 @@ function App() {
           </ProtectedRoute>
         } />
       </Routes>
-      <ToastContainer />
+      <ToastContainer 
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={true}
+        closeOnClick={true}
+        rtl={false}
+        pauseOnFocusLoss={true}
+        draggable={true}
+        pauseOnHover={true}
+        theme="colored"
+      />
     </Router>
   );
 }
