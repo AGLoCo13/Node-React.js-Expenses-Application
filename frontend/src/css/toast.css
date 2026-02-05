@@ -88,19 +88,3 @@
 .Toastify__close-button:hover {
   opacity: 1;
 }
-
-/* Smooth animations */
-@keyframes toastSlideIn {
-  from {
-    transform: translate3d(110%, 0, 0);
-    opacity: 0;
-  }
-  to {
-    transform: translate3d(0, 0, 0);
-    opacity: 1;
-  }
-}
-
-.Toastify__toast {
-  animation: toastSlideIn 0.3s ease-out;
-}

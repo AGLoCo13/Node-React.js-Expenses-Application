@@ -126,15 +126,16 @@ function App() {
       </Routes>
       <ToastContainer 
         position="top-right"
-        autoClose={3000}
+        autoClose={1500}
         hideProgressBar={false}
         newestOnTop={true}
         closeOnClick={true}
         rtl={false}
-        pauseOnFocusLoss={true}
-        draggable={true}
-        pauseOnHover={true}
+        pauseOnFocusLoss={false}
+        draggable={false}
+        pauseOnHover={false}
         theme="colored"
+        limit={1}
       />
     </Router>
   );

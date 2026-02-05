@@ -1,0 +1,109 @@
+version: '3.8'
+
+services:
+  # 1. Message Broker - RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: urbansync-rabbitmq
+    ports:
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: user
+      RABBITMQ_DEFAULT_PASS: password
+    volumes:
+      - ./rabbitmq/data:/var/lib/rabbitmq
+    networks:
+      - cloud-net
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # 2. Object Storage - MinIO
+  minio:
+    image: minio/minio@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
+    container_name: urbansync-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # API
+      - "9001:9001" # Console UI
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: password123
+    volumes:
+      - ./minio/data:/data
+    networks:
+      - cloud-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 3. Database - MongoDB
+  mongodb:
+    image: mongo:latest
+    container_name: urbansync-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: rootpassword
+      MONGO_INITDB_DATABASE: urbansync
+    volumes:
+      - ./mongodb/data:/data/db
+    networks:
+      - cloud-net
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # 4. IoT Platform - Thingsboard
+  thingsboard:
+    image: thingsboard/tb-postgres:latest
+    container_name: urbansync-thingsboard
+    ports:
+      - "9090:9090"   # HTTP
+      - "1883:1883"   # MQTT
+      - "5683:5683"   # CoAP
+    environment:
+      TB_QUEUE_TYPE: in-memory
+      TB_SERVICE_ID: tb-monolith
+    volumes:
+      - ./thingsboard/data:/data
+      - ./thingsboard/logs:/var/log/thingsboard
+    networks:
+      - cloud-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/login"]
+      interval: 60s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # 5. IoT Device Simulator - Node-RED
+  nodered:
+    image: nodered/node-red:latest
+    container_name: urbansync-nodered
+    ports:
+      - "1880:1880"
+    environment:
+      - TZ=Europe/Athens
+    volumes:
+      - ./node-red/data:/data
+    networks:
+      - cloud-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:1880"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  cloud-net:
+    driver: bridge
+    name: cloud-net

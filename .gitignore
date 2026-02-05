@@ -48,3 +48,11 @@ build/
 
 # Optional eslint cache
 .eslintcache
+
+# Docker data volumes (IoT Services)
+rabbitmq/data/
+minio/data/
+mongodb/data/
+thingsboard/data/
+thingsboard/logs/
+node-red/data/
