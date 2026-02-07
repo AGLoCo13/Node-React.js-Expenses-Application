@@ -13,6 +13,8 @@ const app = express();
 require('dotenv').config();
 //Use of multer library for the app to be able to upload receipts
 const multer = require('multer');
+const multerS3 = require('multer-s3');
+const cloudService = require('./services/cloudService');
 
 const storage = multer.diskStorage({
     destination: function(req , file , cb){
@@ -23,6 +25,20 @@ const storage = multer.diskStorage({
     }
 });
 const upload = multer({storage:storage});
+
+// MinIO storage configuration for direct cloud uploads
+const minioStorage = multerS3({
+    s3: cloudService.minioClient,
+    bucket: process.env.MINIO_BUCKET || 'receipts',
+    metadata: function (req, file, cb) {
+        cb(null, { fieldName: file.fieldname });
+    },
+    key: function (req, file, cb) {
+        const fileName = `${Date.now()}-${file.originalname}`;
+        cb(null, fileName);
+    }
+});
+const uploadToMinio = multer({ storage: minioStorage });
 
 //**************Models import
 const User = require('../models/userModel.js');
@@ -206,6 +222,31 @@ app.put('/api/expenses/:id' , expensesController.updateExpense);
 //Delete an expense
 app.delete('/api/expenses/:id' , expensesController.deleteExpense);
 
+//Upload receipt directly to MinIO
+app.post('/api/upload-receipt', authenticateUser, uploadToMinio.single('receipt'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const fileUrl = req.file.location || 
+            `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${req.file.bucket}/${req.file.key}`;
+
+        res.status(200).json({
+            message: 'Receipt uploaded successfully to MinIO',
+            file: {
+                filename: req.file.key,
+                bucket: req.file.bucket,
+                size: req.file.size,
+                url: fileUrl,
+                mimetype: req.file.mimetype
+            }
+        });
+    } catch (error) {
+        console.error('Error uploading receipt to MinIO:', error);
+        res.status(500).json({ error: 'Failed to upload receipt' });
+    }
+});
 
 //Retrieve expenses based on building-administrator's profile id
 app.get('/api/expenses/:profId', async (req ,res ) => {
@@ -376,16 +417,54 @@ app.get('/api/consumptions/:apartmentId' , async (req, res) => {
 
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-}).then(() => console.log('Successfully connected to MongoDB.'))
-.catch((error) => console.error('Failed to connect to MongoDB:', error));
+/* mongoose.connect(process.env.MONGO_URI, {
+//     useNewUrlParser: true,
+//     useUnifiedTopology: true,
+// }).then(async () => { */
+// MongoDB connection
+// ============================================================
+// ΤΕΛΙΚΗ ΔΙΟΡΘΩΣΗ ΣΥΓΧΡΟΝΙΣΜΟΥ
+// ============================================================
+const dbURI = "mongodb://root:rootpassword@127.0.0.1:27017/commons-db?authSource=admin&directConnection=true";
 
-// Server listening
-const PORT = process.env.PORT || 5000; // Fallback to 5000 if PORT is not defined
-app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`);
+console.log("⏳ Προσπάθεια σύνδεσης MongoDB...");
+
+mongoose.connect(dbURI, { 
+    family: 4, // Force IPv4
+    serverSelectionTimeoutMS: 5000,
+    socketTimeoutMS: 45000,
+})
+.then(async () => {
+    console.log('✅ MongoDB Connected SUCCESSFULLY!');
+    
+    // 1. Ξεκινάμε τα Cloud Services
+    try {
+        await cloudService.init();
+        await cloudService.consumeBuildingAlarms();
+        await cloudService.consumeMinIOEvents();
+        console.log('✅ Cloud Services initialized');
+    } catch (error) {
+        console.error('⚠️ Cloud services error:', error.message);
+    }
+
+    // 2. ΜΟΝΟ ΤΩΡΑ ξεκινάμε τον Server (για να μην τρως Timeout)
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`🚀 Server started on port ${PORT} (Database is Ready)`);
+    });
+})
+.catch((error) => {
+    console.error('❌ MONGODB CRITICAL ERROR:', error);
+    process.exit(1); // Αν δεν μπει στη βάση, κλείσε το πρόγραμμα
 });
+
+// Graceful shutdown
+process.on('SIGINT', async () => {
+    console.log('\n🛑 Shutting down gracefully...');
+    await cloudService.shutdown();
+    await mongoose.connection.close();
+    process.exit(0);
+});
+
 
 
