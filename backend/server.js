@@ -15,6 +15,7 @@ require('dotenv').config();
 //Use of multer library for the app to be able to upload receipts
 const multer = require('multer');
 const multerS3 = require('multer-s3');
+const { S3Client } = require('@aws-sdk/client-s3');
 const cloudService = require('./services/cloudService');
 
 const storage = multer.diskStorage({
@@ -27,9 +28,20 @@ const storage = multer.diskStorage({
 });
 const upload = multer({storage:storage});
 
+// Create AWS SDK v3 S3Client for MinIO (for multer-s3 compatibility)
+const s3Client = new S3Client({
+    endpoint: `http://${process.env.MINIO_ENDPOINT || 'minio'}:${process.env.MINIO_PORT || '9000'}`,
+    region: 'us-east-1',
+    credentials: {
+        accessKeyId: process.env.MINIO_ACCESS_KEY || 'admin',
+        secretAccessKey: process.env.MINIO_SECRET_KEY || 'password123'
+    },
+    forcePathStyle: true // Required for MinIO
+});
+
 // MinIO storage configuration for direct cloud uploads
 const minioStorage = multerS3({
-    s3: cloudService.minioClient,
+    s3: s3Client,
     bucket: process.env.MINIO_BUCKET || 'receipts',
     metadata: function (req, file, cb) {
         cb(null, { fieldName: file.fieldname });
@@ -281,14 +293,24 @@ app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) =
             return res.status(404).json({ error: 'No receipt attached to this expense' });
         }
         
-        // Authorization: Check if user has permission to view this receipt
+        // Get current user info
         const userId = req.user.userId;
         const userProfile = await Profile.findOne({ user: userId });
         
-        // Allow if: Admin, Building Administrator of the same building, or Tenant of same building
-        const isAuthorized = 
-            userProfile.role === 'Admin' || 
-            expense.profile.user._id.toString() === userId.toString();
+        // Authorization check with null safety
+        let isAuthorized = false;
+        
+        if (userProfile && userProfile.role === 'Admin') {
+            // Admins can always view receipts
+            isAuthorized = true;
+        } else if (expense.profile && expense.profile.user) {
+            // Check if user is the expense owner
+            isAuthorized = expense.profile.user._id.toString() === userId.toString();
+        } else {
+            // If expense has no profile/user, allow viewing (orphaned expense)
+            console.warn(`Expense ${expenseId} has missing profile/user - allowing access`);
+            isAuthorized = true;
+        }
         
         if (!isAuthorized) {
             return res.status(403).json({ error: 'Unauthorized to view this receipt' });
@@ -299,7 +321,8 @@ app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) =
         const fileName = expense.document;
         
         try {
-            const presignedUrl = await cloudService.minioClient.presignedGetObject(bucket, fileName, 3600);
+            // Use external client so the presigned URL signature matches the external endpoint
+            const presignedUrl = await cloudService.minioClientExternal.presignedGetObject(bucket, fileName, 3600);
             
             res.status(200).json({
                 url: presignedUrl,

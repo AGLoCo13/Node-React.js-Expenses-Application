@@ -1,4 +1,4 @@
-const minioClient = require('../config/minio.config');
+const { minioClient, minioClientExternal } = require('../config/minio.config');
 const rabbitmqConsumer = require('./rabbitmq-consumer');
 const Notification = require('../../models/notification');
 const Building = require('../../models/building');
@@ -6,6 +6,7 @@ const Building = require('../../models/building');
 class CloudService {
     constructor() {
         this.minioClient = minioClient;
+        this.minioClientExternal = minioClientExternal;
         this.rabbitmqConsumer = rabbitmqConsumer;
         this.isInitialized = false;
     }
