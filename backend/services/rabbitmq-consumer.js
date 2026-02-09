@@ -48,10 +48,20 @@ class RabbitMQConsumer {
                 try {
                     const alarm = JSON.parse(content);
                     await callback(alarm);
-                    this.channel.ack(msg);
+                    // Try to ack, ignore if channel is closed
+                    try {
+                        this.channel.ack(msg);
+                    } catch (ackError) {
+                        // Channel is closed, ignore
+                    }
                 } catch (error) {
                     console.error('Error processing alarm:', error);
-                    this.channel.nack(msg, false, false); // Don't requeue
+                    // Try to nack, ignore if channel is closed
+                    try {
+                        this.channel.nack(msg, false, false); // Don't requeue
+                    } catch (nackError) {
+                        // Channel is closed, ignore
+                    }
                 }
             }
         });
@@ -73,10 +83,20 @@ class RabbitMQConsumer {
                 try {
                     const event = JSON.parse(content);
                     await callback(event);
-                    this.channel.ack(msg);
+                    // Try to ack, ignore if channel is closed
+                    try {
+                        this.channel.ack(msg);
+                    } catch (ackError) {
+                        // Channel is closed, ignore
+                    }
                 } catch (error) {
                     console.error('Error processing receipt event:', error);
-                    this.channel.nack(msg, false, false);
+                    // Try to nack, ignore if channel is closed
+                    try {
+                        this.channel.nack(msg, false, false);
+                    } catch (nackError) {
+                        // Channel is closed, ignore
+                    }
                 }
             }
         });
@@ -106,10 +126,18 @@ class RabbitMQConsumer {
                 try {
                     const event = JSON.parse(content);
                     await callback(event);
-                    this.channel.ack(msg);
+                    try {
+                        this.channel.ack(msg);
+                    } catch (ackError) {
+                        // Channel is closed, ignore
+                    }
                 } catch (error) {
                     console.error('Error processing MinIO event:', error);
-                    this.channel.nack(msg, false, false);
+                    try {
+                        this.channel.nack(msg, false, false);
+                    } catch (nackError) {
+                        // Channel is closed, ignore
+                    }
                 }
             }
         }, { noAck: false });
