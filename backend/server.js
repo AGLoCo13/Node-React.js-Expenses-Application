@@ -274,6 +274,46 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
     
 });
 
+// Get building expenses for tenant
+app.get('/api/tenant/building-expenses', authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const userProfile = await Profile.findOne({ user: userId });
+        
+        if (!userProfile) {
+            return res.status(404).json({ error: 'Profile not found' });
+        }
+        
+        // Check if user is a tenant
+        if (userProfile.role !== 'Tenant') {
+            return res.status(403).json({ error: 'Only tenants can access this endpoint' });
+        }
+        
+        // Find tenant's apartment
+        const apartment = await Apartment.findOne({ tenant: userProfile._id }).populate('building');
+        
+        if (!apartment || !apartment.building) {
+            return res.status(404).json({ error: 'Apartment or building not found' });
+        }
+        
+        // Get building details
+        const building = await Building.findById(apartment.building._id);
+        
+        if (!building) {
+            return res.status(404).json({ error: 'Building not found' });
+        }
+        
+        // Find all expenses for this building's administrator
+        const expenses = await Expense.find({ profile: building.profile }).sort({ date_created: -1 });
+        
+        res.status(200).json(expenses);
+        
+    } catch (error) {
+        console.error('Error retrieving building expenses:', error);
+        res.status(500).json({ error: 'Failed to retrieve building expenses' });
+    }
+});
+
 // Get receipt file from MinIO for a specific expense
 app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) => {
     try {
@@ -303,8 +343,21 @@ app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) =
         if (userProfile && userProfile.role === 'Admin') {
             // Admins can always view receipts
             isAuthorized = true;
+        } else if (userProfile && userProfile.role === 'Tenant') {
+            // Tenants can view receipts from their building's administrator
+            try {
+                const apartment = await Apartment.findOne({ tenant: userProfile._id }).populate('building');
+                if (apartment && apartment.building) {
+                    const building = await Building.findById(apartment.building._id);
+                    if (building && expense.profile && building.profile.toString() === expense.profile._id.toString()) {
+                        isAuthorized = true;
+                    }
+                }
+            } catch (err) {
+                console.error('Error checking tenant authorization:', err);
+            }
         } else if (expense.profile && expense.profile.user) {
-            // Check if user is the expense owner
+            // Check if user is the expense owner (Building Administrator)
             isAuthorized = expense.profile.user._id.toString() === userId.toString();
         } else {
             // If expense has no profile/user, allow viewing (orphaned expense)

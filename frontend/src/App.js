@@ -21,6 +21,7 @@ import ViewExpenses from './components/ViewExpenses.js';
 import CalculateExpenses from './components/CalculateExpenses.js';
 import ViewPayments from './components/ViewPayment.js';
 import TenantPayments from './components/TenantPayments.js';
+import TenantViewExpenses from './components/TenantViewExpenses.js';
 import ProtectedRoute from './components/ProtectedRoute.js';
 function App() {
   useEffect(() => {
@@ -121,6 +122,11 @@ function App() {
         <Route path="/tenant-dashboard/view-payments" element={
           <ProtectedRoute allowedRoles={['Tenant']}>
             <TenantPayments />
+          </ProtectedRoute>
+        } />
+        <Route path="/tenant-dashboard/view-expenses" element={
+          <ProtectedRoute allowedRoles={['Tenant']}>
+            <TenantViewExpenses />
           </ProtectedRoute>
         } />
       </Routes>

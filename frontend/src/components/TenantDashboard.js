@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaHome, FaInfoCircle, FaMoneyBillWave } from 'react-icons/fa';
+import { FaHome, FaInfoCircle, FaMoneyBillWave, FaFileInvoiceDollar } from 'react-icons/fa';
 import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
 
@@ -12,7 +12,8 @@ function TenantDashboard() {
   const navItems = [
     { label: 'Dashboard', path: '/tenant-dashboard', icon: FaHome },
     { label: 'View Information', path: '/tenant-dashboard/view-page', icon: FaInfoCircle },
-    { label: 'View Payments', path: '/tenant-dashboard/view-payments', icon: FaMoneyBillWave }
+    { label: 'View Payments', path: '/tenant-dashboard/view-payments', icon: FaMoneyBillWave },
+    { label: 'Building Expenses', path: '/tenant-dashboard/view-expenses', icon: FaFileInvoiceDollar }
   ];
 
   useEffect(() => {
