@@ -6,15 +6,32 @@ const createExpense = async (req, res) => {
     // Retrieve the necessary data from the request body
     const { profile, total, date_created, month, year, type_expenses } = req.body;
 
-    //The document information from multer middleware
-    const document = req.file ? req.file.path : null;
+    // MinIO file information from multer-s3 middleware
+    let documentData = null;
+    let documentMetadata = null;
+    
+    if (req.file) {
+      // File uploaded to MinIO
+      const fileUrl = req.file.location || 
+        `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${req.file.bucket}/${req.file.key}`;
+      
+      documentData = req.file.key; // Store the MinIO key
+      documentMetadata = {
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimeType: req.file.mimetype,
+        uploadedAt: new Date()
+      };
+    }
 
     // Create a new expense instance
     const expense = new Expense({
       profile,
       total,
       date_created,
-      document,
+      document: documentData,
+      documentBucket: req.file ? req.file.bucket : 'receipts',
+      documentMetadata: documentMetadata,
       month,
       year,
       type_expenses
@@ -23,7 +40,18 @@ const createExpense = async (req, res) => {
     // Save the expense to the database
     const savedExpense = await expense.save();
 
-    res.status(201).json(savedExpense);
+    // Return response with receipt info
+    const response = {
+      ...savedExpense.toObject(),
+      receiptInfo: req.file ? {
+        uploaded: true,
+        filename: req.file.key,
+        url: req.file.location || `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${req.file.bucket}/${req.file.key}`,
+        bucket: req.file.bucket
+      } : null
+    };
+
+    res.status(201).json(response);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to create a new expense' });

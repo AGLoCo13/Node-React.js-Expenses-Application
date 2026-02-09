@@ -59,7 +59,7 @@ function FuelCharge() {
         const fetchedBuilding = buildingResponse.data;
         setBuilding(fetchedBuilding);
 
-        const apartmentsResponse = await axios.get(`/aps/Apartments/${fetchedBuilding._id}`);
+        const apartmentsResponse = await axios.get(`/api/apartments/building/${fetchedBuilding._id}`);
         setApartments(apartmentsResponse.data);
       }
       setLoading(false);

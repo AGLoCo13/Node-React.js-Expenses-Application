@@ -41,7 +41,7 @@ function ViewBuilding() {
         // Try to fetch apartments - handle if endpoint doesn't exist
         try {
           const apartmentsResponse = await axios.get(
-            `/aps/Apartments/${fetchedBuilding._id}`
+            `/api/apartments/building/${fetchedBuilding._id}`
           );
           // Backend returns array directly, not nested in object
           setApartments(Array.isArray(apartmentsResponse.data) ? apartmentsResponse.data : []);

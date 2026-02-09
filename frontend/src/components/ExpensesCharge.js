@@ -101,11 +101,15 @@ function ExpensesCharge() {
       }
 
       const token = window.localStorage.getItem('token');
-      await axios.post('/api/expenses', formDataToSend, {
+      const response = await axios.post('/api/expenses', formDataToSend, {
         headers: { Authorization: token },
       });
 
-      toast.success('Expense added successfully!');
+      if (response.data.receiptInfo && response.data.receiptInfo.uploaded) {
+        toast.success('Expense added and receipt uploaded to secure storage!');
+      } else {
+        toast.success('Expense added successfully!');
+      }
       
       // Reset form
       setFormData({

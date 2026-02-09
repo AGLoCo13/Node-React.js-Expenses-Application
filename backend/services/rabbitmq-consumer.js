@@ -88,7 +88,7 @@ class RabbitMQConsumer {
         const exchange = rabbitmqConfig.exchanges.minioEvents;
         
         // Assert the exchange (should already exist from MinIO configuration)
-        await this.channel.assertExchange(exchange, 'fanout', { durable: true });
+        await this.channel.assertExchange(exchange, 'topic', { durable: true });
         
         // Create an exclusive queue for this consumer instance
         const q = await this.channel.assertQueue('', { exclusive: true });

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaTrash, FaCalendarAlt, FaEuroSign } from 'react-icons/fa';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaTrash, FaCalendarAlt, FaEuroSign, FaFileAlt, FaDownload } from 'react-icons/fa';
 import DashboardLayout from './DashboardLayout';
 import ConfirmModal from './ConfirmModal';
 import { toast } from 'react-toastify';
@@ -96,6 +96,27 @@ function ViewExpenses() {
 
     setShowConfirmModal(false);
     setSelectedExpense(null);
+  };
+
+  const handleViewReceipt = async (expense) => {
+    try {
+      const token = window.localStorage.getItem('token');
+      const response = await axios.get(`/api/expenses/${expense._id}/receipt`, {
+        headers: { Authorization: token }
+      });
+
+      if (response.data.url) {
+        // Open receipt in new tab
+        window.open(response.data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error fetching receipt:', error);
+      if (error.response?.status === 404) {
+        toast.error('No receipt found for this expense');
+      } else {
+        toast.error('Error loading receipt');
+      }
+    }
   };
 
   const getExpenseTypeIcon = (type) => {
@@ -296,6 +317,7 @@ function ViewExpenses() {
                       <th>Date</th>
                       <th>Month</th>
                       <th>Year</th>
+                      <th>Receipt</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
@@ -317,6 +339,19 @@ function ViewExpenses() {
                         </td>
                         <td>{months.find(month => month.value === expense.month)?.label}</td>
                         <td>{expense.year}</td>
+                        <td>
+                          {expense.document ? (
+                            <button 
+                              className="btn btn-sm btn-info" 
+                              onClick={() => handleViewReceipt(expense)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                            >
+                              <FaFileAlt /> View
+                            </button>
+                          ) : (
+                            <span style={{ color: '#94a3b8', fontSize: '0.875rem' }}>No receipt</span>
+                          )}
+                        </td>
                         <td>
                           <button 
                             className="btn btn-sm btn-danger" 

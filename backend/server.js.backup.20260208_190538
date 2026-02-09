@@ -9,7 +9,6 @@ const expensesController = require('../controllers/expensesController');
 const { authenticateUser, authorizeAdmin } = require('../middleware/authMiddleware');
 const accountManagement = require('../controllers/accountManagement.js');
 const paymentController = require('../controllers/paymentController');
-const rabbitMQConsumer = require('./services/rabbitmq-consumer');
 const app = express();
 require('dotenv').config();
 //Use of multer library for the app to be able to upload receipts
@@ -210,8 +209,8 @@ app.get('/api/apartment/:tenantId' , async (req , res) => {
 
                         {/*EXPENSES APIS */}
 
-//Create a new expense with MinIO upload
-app.post('/api/expenses', uploadToMinio.single('document') , expensesController.createExpense);
+//Create a new expense 
+app.post('/api/expenses', upload.single('document') , expensesController.createExpense);
 //Retrieve all expenses 
 app.get('/api/expenses' , expensesController.getAllExpenses);
 //Update an expense 
@@ -261,62 +260,6 @@ app.get('/api/expenses/:profId', async (req ,res ) => {
     }
     
 });
-
-// Get receipt file from MinIO for a specific expense
-app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) => {
-    try {
-        const expenseId = req.params.expenseId;
-        
-        // Find the expense
-        const expense = await Expense.findById(expenseId).populate({
-            path: 'profile',
-            populate: { path: 'user' }
-        });
-        
-        if (!expense) {
-            return res.status(404).json({ error: 'Expense not found' });
-        }
-        
-        if (!expense.document) {
-            return res.status(404).json({ error: 'No receipt attached to this expense' });
-        }
-        
-        // Authorization: Check if user has permission to view this receipt
-        const userId = req.user.userId;
-        const userProfile = await Profile.findOne({ user: userId });
-        
-        // Allow if: Admin, Building Administrator of the same building, or Tenant of same building
-        const isAuthorized = 
-            userProfile.role === 'Admin' || 
-            expense.profile.user._id.toString() === userId.toString();
-        
-        if (!isAuthorized) {
-            return res.status(403).json({ error: 'Unauthorized to view this receipt' });
-        }
-        
-        // Generate presigned URL for MinIO object (expires in 1 hour)
-        const bucket = expense.documentBucket || 'receipts';
-        const fileName = expense.document;
-        
-        try {
-            const presignedUrl = await cloudService.minioClient.presignedGetObject(bucket, fileName, 3600);
-            
-            res.status(200).json({
-                url: presignedUrl,
-                filename: expense.documentMetadata?.originalName || fileName,
-                mimeType: expense.documentMetadata?.mimeType,
-                size: expense.documentMetadata?.size
-            });
-        } catch (minioError) {
-            console.error('MinIO presigned URL error:', minioError);
-            res.status(500).json({ error: 'Failed to generate receipt access link' });
-        }
-        
-    } catch (error) {
-        console.error('Error retrieving receipt:', error);
-        res.status(500).json({ error: 'Failed to retrieve receipt' });
-    }
-});
                         {/* Payments API */}
     //Create new Payment
     app.post('/api/payments' , paymentController.createPayment);
@@ -332,7 +275,7 @@ app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) =
 
 
 //Get specific Apartment by the building they're tied to 
-app.get('/api/apartments/building/:buildId' , async (req, res) => {
+app.get('/aps/Apartments/:buildId' , async (req, res) => {
     try {
         const buildingId = req.params.buildId;
         const apartments = await Apartment.find({ building : buildingId})
@@ -476,59 +419,49 @@ app.get('/api/consumptions/:apartmentId' , async (req, res) => {
 // ============================================================
 // ΛΥΣΗ ΓΙΑ PM2/DOCKER TIMING ISSUES
 // ============================================================
-const dbURI = "mongodb://mongodb:27017/urbansync";
+const dbURI = "mongodb://127.0.0.1:27017/urbansync"
 
 const connectWithRetry = async () => {
-    const connect = async (dbURI) => {
-        return mongoose.connect(dbURI, {
-	    useNewUrlParser: true,
-	    useUnifiedTopology:true,	
-            family: 4,
-            serverSelectionTimeoutMS: 30000,
-            socketTimeoutMS: 45000,
-        });
-    };
-
     const maxRetries = 10;
-    const retryDelay = 3000;
-
+    const retryDelay = 3000; // 3 seconds between retries
+    
     for (let i = 0; i < maxRetries; i++) {
         try {
             console.log(`⏳ Προσπάθεια σύνδεσης MongoDB (${i + 1}/${maxRetries})...`);
-            await connect(dbURI);
+            
+            const run = async () => {
+	         await mongoose.connect(dbURI);
+            }
+	    run()
+	     .catch((err) => console.error(err))
+            // 1. Ξεκινάμε τα Cloud Services
+            try {
+                await cloudService.init();
+                await cloudService.consumeBuildingAlarms();
+                await cloudService.consumeMinIOEvents();
+                console.log('✅ Cloud Services initialized');
+            } catch (error) {
+                console.error('⚠️ Cloud services error:', error.message);
+            }
+
+            // 2. Ξεκινάμε τον Server
             const PORT = process.env.PORT || 5000;
             app.listen(PORT, () => {
                 console.log(`🚀 Server started on port ${PORT} (Database is Ready)`);
-		console.log("🐰 Starting RabbitMQ Consumers...");
-                
-                // Consume IoT alarms from Thingsboard
-                rabbitMQConsumer.consumeAlarms(async (alarmData) => {
-                    console.log("🔥 ALARM RECEIVED IN BACKEND:", alarmData);
-		});
-                
-                // Consume MinIO receipt events
-                rabbitMQConsumer.consumeReceipts(async (event) => {
-                    const record = event.Records?.[0];
-                    const fileName = record?.s3?.object?.key;
-                    const bucket = record?.s3?.bucket?.name;
-                    const eventName = record?.eventName;
-                    console.log("📄 RECEIPT EVENT FROM MINIO:", {
-                        bucket,
-                        file: fileName,
-                        event: eventName,
-                        timestamp: new Date().toISOString()
-                    });
-                });
             });
-            return;
+            
+            return; // Success - exit the retry loop
+            
         } catch (error) {
             console.error(`❌ Αποτυχία σύνδεσης (${i + 1}/${maxRetries}):`, error.message);
+            
             if (i === maxRetries - 1) {
-                console.error("💀 CRITICAL: Αποτυχία σύνδεσης μετά από όλες τις προσπάθειες");
-                console.error("Βεβαιώσου ότι το MongoDB container τρέχει: docker ps | grep mongodb");
+                console.error('💀 CRITICAL: Αποτυχία σύνδεσης μετά από όλες τις προσπάθειες');
+                console.error('Βεβαιώσου ότι το MongoDB container τρέχει: docker ps | grep mongodb');
                 process.exit(1);
             }
-            console.log(`⏰ Αναμονή ${retryDelay/1000} δευτερόλεπτα...`);
+            
+            console.log(`⏰ Αναμονή ${retryDelay/1000} δευτερόλεπτα πριν την επόμενη προσπάθεια...`);
             await new Promise(resolve => setTimeout(resolve, retryDelay));
         }
     }

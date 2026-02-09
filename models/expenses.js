@@ -17,6 +17,16 @@ const expenseSchema = new mongoose.Schema({
     document: {
       type: String,
     },
+    documentBucket: {
+      type: String,
+      default: 'receipts'
+    },
+    documentMetadata: {
+      originalName: String,
+      size: Number,
+      mimeType: String,
+      uploadedAt: Date
+    },
     month: {
       type: Number,
       required: true,
