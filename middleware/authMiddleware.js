@@ -4,7 +4,7 @@ const extractUserId = (req, res, next) => {
   const token = req.headers.authorization;
 
   try {
-    const decodedToken = jwt.verify(token, 'your-secret-key');
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decodedToken.userId;
 
     req.user = { id: userId };
@@ -22,7 +22,7 @@ const authenticateUser = (req, res, next) => {
       return res.status(401).json({ error: 'No token provided' });
     }
 
-    const decodedToken = jwt.verify(token, 'your-secret-key');
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     req.user = {
     userId: decodedToken.userId,
     role: decodedToken.role

@@ -8,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: urbansync-frontend
     ports:
-      - "80:80"  # ΑΛΛΑΓΗ: Βγάλαμε το 3000 για να μπαίνεις κατευθείαν
+      - "80:80"
     depends_on:
       - backend
     networks:
@@ -18,24 +18,24 @@ services:
   # 2. BACKEND
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: urbansync-backend
     ports:
       - "5000:5000"
-    env_file: ./backend/.env # Διαβάζει το αρχείο που φτιάξαμε
+    env_file: ./backend/.env
     environment:
-      - NODE_PATH=/app/node_modules
+      - NODE_PATH=/app/backend/node_modules
     depends_on:
       - mongodb
       - rabbitmq
       - minio
     volumes:
-      - ./backend:/app
-      - /app/node_modules
-      - ./controllers:/controllers
-      - ./models:/models
-      - ./middleware:/middleware
+      - ./backend:/app/backend
+      - ./controllers:/app/controllers
+      - ./middleware:/app/middleware
+      - ./models:/app/models
+      - /app/backend/node_modules
     networks:
       - urbansync-network
     restart: unless-stopped
@@ -43,9 +43,12 @@ services:
   # 3. DATABASE
   mongodb:
     image: mongo:latest
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
     container_name: urbansync-mongodb
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -60,8 +63,8 @@ services:
       - "5672:5672"
       - "15672:15672"
     environment:
-      RABBITMQ_DEFAULT_USER: admin
-      RABBITMQ_DEFAULT_PASS: admin123
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -72,19 +75,19 @@ services:
   minio:
     image: minio/minio@sha256:a1ea29fa28355559ef137d71fc570e508a214ec84ff8083e39bc5428980b015e
     container_name: urbansync-minio
-    container_name: urbansync-minio
     ports:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: admin
-      MINIO_ROOT_PASSWORD: password123
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASSWORD}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
     networks:
       - urbansync-network
     restart: unless-stopped
+
   # 6. NODE-RED
   node-red:
     image: nodered/node-red:latest
@@ -96,8 +99,8 @@ services:
     networks:
       - urbansync-network
     restart: unless-stopped
-   # 7 THINGSBOARD
-  # 9. THINGSBOARD
+
+  # 7. THINGSBOARD
   thingsboard:
     image: thingsboard/tb-postgres:latest
     container_name: urbansync-thingsboard
@@ -113,6 +116,7 @@ services:
     networks:
       - urbansync-network
     restart: unless-stopped
+
 volumes:
   mongodb_data:
   rabbitmq_data:
@@ -120,6 +124,7 @@ volumes:
   node_red_data:
   thingsboard_data:
   thingsboard_logs:
+
 networks:
   urbansync-network:
     driver: bridge

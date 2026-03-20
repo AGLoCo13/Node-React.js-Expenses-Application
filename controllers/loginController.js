@@ -26,12 +26,17 @@ const handleUserLogin = async (req,res) => {
     //Find the user's profile to access the role
     const userProfile = await Profile.findOne({ user : user._id});
 
+    //null check for user profile
+    if (!userProfile) {
+      return res.status(404).json({ message: 'User profile not found' });
+    }
+
     // Generate a JWT token with the userId and isAdmin flag
     const tokenPayload = {
       userId: user._id,
       role: userProfile.role, //Include user's role in the token
     };
-    const token = jwt.sign(tokenPayload, 'your-secret-key', { expiresIn: '1h' });
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '1h' });
 
     // Return the token to the client
     res.json({ token });

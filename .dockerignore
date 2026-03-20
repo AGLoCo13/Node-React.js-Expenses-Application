@@ -1,0 +1,12 @@
+mongodb/
+minio/
+rabbitmq/
+node-red/
+thingsboard/
+frontend/
+ansible-test/
+node_modules/
+.git/
+*.md
+*.bat
+JSON DB Collections/

@@ -552,7 +552,7 @@ app.get('/api/consumptions/:apartmentId' , async (req, res) => {
 // ============================================================
 // ΛΥΣΗ ΓΙΑ PM2/DOCKER TIMING ISSUES
 // ============================================================
-const dbURI = "mongodb://mongodb:27017/urbansync";
+const dbURI = process.env.MONGODB_URI;
 
 const connectWithRetry = async () => {
     const connect = async (dbURI) => {

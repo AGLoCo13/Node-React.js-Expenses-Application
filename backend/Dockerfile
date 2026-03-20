@@ -2,26 +2,31 @@
 # Build stage
 FROM node:18-alpine AS builder
 
-WORKDIR /app
+WORKDIR /app/backend
 
 # Install dependencies
-COPY package*.json ./
-RUN npm install  --only=production
+COPY backend/package*.json ./
+RUN npm install --only=production
 
 # Production stage
 FROM node:18-alpine
-
-WORKDIR /app
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
 # Copy built dependencies
-COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/backend/node_modules /app/backend/node_modules
 
-# Copy app source
-COPY --chown=nodejs:nodejs . .
+# Copy backend source
+COPY --chown=nodejs:nodejs backend/ /app/backend/
+
+# Copy controllers, middleware, models (referenced via ../ from backend/)
+COPY --chown=nodejs:nodejs controllers/ /app/controllers/
+COPY --chown=nodejs:nodejs middleware/ /app/middleware/
+COPY --chown=nodejs:nodejs models/ /app/models/
+
+WORKDIR /app/backend
 
 # Switch to non-root user
 USER nodejs

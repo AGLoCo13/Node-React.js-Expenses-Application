@@ -53,7 +53,7 @@ const handleNewUser = async (req, res) => {
     await newProfile.save();
 
     //Generate a JWT token
-    const token = jwt.sign({ userId: newUser._id} , 'yourSecretKey',{expiresIn: '1h'});
+    const token = jwt.sign({ userId: newUser._id} , process.env.JWT_SECRET,{expiresIn: '1h'});
 
     // User registration successful
     res.status(200).json({ message: 'User registered successfully',token });
