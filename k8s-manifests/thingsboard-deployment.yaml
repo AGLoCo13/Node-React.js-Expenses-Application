@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: C:\Users\billx\AppData\Local\Microsoft\WinGet\Packages\Kubernetes.kompose_Microsoft.Winget.Source_8wekyb3d8bbwe\kompose.exe convert -f ../docker-compose.yml
+    kompose.version: 1.38.0 (a8f5d1cbd)
+  labels:
+    io.kompose.service: thingsboard
+  name: thingsboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: thingsboard
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: C:\Users\billx\AppData\Local\Microsoft\WinGet\Packages\Kubernetes.kompose_Microsoft.Winget.Source_8wekyb3d8bbwe\kompose.exe convert -f ../docker-compose.yml
+        kompose.version: 1.38.0 (a8f5d1cbd)
+      labels:
+        io.kompose.service: thingsboard
+    spec:
+      containers:
+        - env:
+            - name: TB_QUEUE_TYPE
+              value: in-memory
+          image: thingsboard/tb-postgres:latest
+          name: urbansync-thingsboard
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+            - containerPort: 1883
+              protocol: TCP
+            - containerPort: 5683
+              protocol: UDP
+          volumeMounts:
+            - mountPath: /data
+              name: thingsboard-data
+            - mountPath: /var/log/thingsboard
+              name: thingsboard-logs
+      restartPolicy: Always
+      volumes:
+        - name: thingsboard-data
+          persistentVolumeClaim:
+            claimName: thingsboard-data
+        - name: thingsboard-logs
+          persistentVolumeClaim:
+            claimName: thingsboard-logs
