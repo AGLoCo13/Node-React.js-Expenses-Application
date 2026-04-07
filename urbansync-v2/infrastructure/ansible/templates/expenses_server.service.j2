@@ -1,0 +1,19 @@
+[Unit]
+Description=Node.js Backend Service for Expenses Application
+After=network.target
+
+[Service]
+Environment=PORT={{ app_port }}
+Environment=MONGO_URI={{ mongo_uri }}
+Environment=CORS_ORIGIN={{ cors_origin }}
+WorkingDirectory={{ app_directory }}
+ExecStart=/usr/bin/node {{ app_directory }}/backend/server.js
+Restart=always
+User={{ app_user }}
+Group={{ app_group }}
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=expenses_server
+
+[Install]
+WantedBy=multi-user.target

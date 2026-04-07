@@ -1,0 +1,51 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# README
+#
+# Getting Started:
+# 1. vagrant plugin install vagrant-hostmanager
+# 2. vagrant up
+# 3. vagrant ssh
+#
+# This should put you at the control host
+#  with access, by name, to other vms
+Vagrant.configure(2) do |config|
+  config.hostmanager.enabled = true
+
+  config.vm.box = "ubuntu/jammy64"
+
+  config.vm.define "control", primary: true do |h|
+    h.vm.hostname = "control"
+    h.vm.network "private_network", ip: "192.168.56.10"
+    h.vm.provision :shell, :inline => <<~EOF
+      if [ ! -f "/home/vagrant/.ssh/id_rsa" ]; then
+        ssh-keygen -t rsa -N "" -f /home/vagrant/.ssh/id_rsa
+      fi
+
+      if [ ! -f "/vagrant/control.pub" ]; then
+        cp /home/vagrant/.ssh/id_rsa.pub /vagrant/control.pub
+      fi
+
+      if [ ! -f "/home/vagrant/.ssh/config" ]; then
+        cat << 'SSHEOF' > /home/vagrant/.ssh/config
+        Host *
+          StrictHostKeyChecking no
+          UserKnownHostsFile=/dev/null
+        SSHEOF
+      fi
+
+      if [ ! -f "/home/vagrant/.ssh/authorized_keys" ]; then
+        chown -R vagrant:vagrant /home/vagrant/.ssh/
+      fi
+    EOF
+  end
+
+  ["lb01", "app01", "app02", "db01"].each do |vm_name|
+    config.vm.define vm_name do |h|
+      h.vm.hostname = vm_name
+      h.vm.network "private_network", ip: "192.168.56.#{rand(100..254)}"
+      h.vm.provision :shell, inline: "cat /vagrant/control.pub >> /home/vagrant/.ssh/authorized_keys"
+    end
+  end
+end
