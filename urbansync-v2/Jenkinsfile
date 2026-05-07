@@ -1,0 +1,98 @@
+// urbansync-v2/Jenkinsfile
+// GitOps pipeline: build backend + frontend Docker images and push to Docker Hub
+// on every commit to main. Triggered via SCM polling (see triggers block).
+
+pipeline {
+    agent any
+
+    triggers {
+        // Poll GitHub every 2 minutes. The H spreads load across Jenkins jobs
+        // so we don't hammer SCM at exactly :00 each minute.
+        pollSCM('H/2 * * * *')
+    }
+
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '10'))
+        timestamps()
+        timeout(time: 30, unit: 'MINUTES')
+        disableConcurrentBuilds()
+    }
+
+    environment {
+        DOCKERHUB_USER = 'stefanosthedocker'
+        BACKEND_IMAGE  = "${DOCKERHUB_USER}/urbansync-backend"
+        FRONTEND_IMAGE = "${DOCKERHUB_USER}/urbansync-frontend"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_SHA = sh(
+                        script: 'git rev-parse --short=8 HEAD',
+                        returnStdout: true
+                    ).trim()
+                }
+                echo "Tagging images as :${env.GIT_SHA} and :latest"
+            }
+        }
+
+        stage('Build images') {
+            parallel {
+                stage('Backend') {
+                    steps {
+                        dir('urbansync-v2/backend') {
+                            sh '''
+                                docker build \
+                                    -t "${BACKEND_IMAGE}:${GIT_SHA}" \
+                                    -t "${BACKEND_IMAGE}:latest" \
+                                    .
+                            '''
+                        }
+                    }
+                }
+                stage('Frontend') {
+                    steps {
+                        dir('urbansync-v2/frontend') {
+                            sh '''
+                                docker build \
+                                    -t "${FRONTEND_IMAGE}:${GIT_SHA}" \
+                                    -t "${FRONTEND_IMAGE}:latest" \
+                                    .
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'docker-hub-creds',
+                    usernameVariable: 'DH_USER',
+                    passwordVariable: 'DH_TOKEN'
+                )]) {
+                    sh '''
+                        echo "$DH_TOKEN" | docker login -u "$DH_USER" --password-stdin
+                        docker push "${BACKEND_IMAGE}:${GIT_SHA}"
+                        docker push "${BACKEND_IMAGE}:latest"
+                        docker push "${FRONTEND_IMAGE}:${GIT_SHA}"
+                        docker push "${FRONTEND_IMAGE}:latest"
+                        docker logout
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Pushed ${BACKEND_IMAGE}:${GIT_SHA} and ${FRONTEND_IMAGE}:${GIT_SHA}"
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
