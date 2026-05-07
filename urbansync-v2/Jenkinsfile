@@ -1,6 +1,8 @@
 // urbansync-v2/Jenkinsfile
-// GitOps pipeline: build backend + frontend Docker images and push to Docker Hub
-// on every commit to main. Triggered via SCM polling (see triggers block).
+// GitOps pipeline: build backend + frontend Docker images and push to the local
+// container registry (localhost:5000) on every commit. Triggered via SCM polling.
+// To switch to a cloud registry (ACR, Docker Hub), change REGISTRY and add a
+// docker login step before the push stage.
 
 pipeline {
     agent any
@@ -19,9 +21,9 @@ pipeline {
     }
 
     environment {
-        DOCKERHUB_USER = 'stefanosthedocker'
-        BACKEND_IMAGE  = "${DOCKERHUB_USER}/urbansync-backend"
-        FRONTEND_IMAGE = "${DOCKERHUB_USER}/urbansync-frontend"
+        REGISTRY       = 'localhost:5000'
+        BACKEND_IMAGE  = "${REGISTRY}/urbansync-backend"
+        FRONTEND_IMAGE = "${REGISTRY}/urbansync-frontend"
     }
 
     stages {
@@ -67,29 +69,21 @@ pipeline {
             }
         }
 
-        stage('Push to Docker Hub') {
+        stage('Push to local registry') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'docker-hub-creds',
-                    usernameVariable: 'DH_USER',
-                    passwordVariable: 'DH_TOKEN'
-                )]) {
-                    sh '''
-                        echo "$DH_TOKEN" | docker login -u "$DH_USER" --password-stdin
-                        docker push "${BACKEND_IMAGE}:${GIT_SHA}"
-                        docker push "${BACKEND_IMAGE}:latest"
-                        docker push "${FRONTEND_IMAGE}:${GIT_SHA}"
-                        docker push "${FRONTEND_IMAGE}:latest"
-                        docker logout
-                    '''
-                }
+                sh '''
+                    docker push "${BACKEND_IMAGE}:${GIT_SHA}"
+                    docker push "${BACKEND_IMAGE}:latest"
+                    docker push "${FRONTEND_IMAGE}:${GIT_SHA}"
+                    docker push "${FRONTEND_IMAGE}:latest"
+                '''
             }
         }
     }
 
     post {
         success {
-            echo "Pushed ${BACKEND_IMAGE}:${GIT_SHA} and ${FRONTEND_IMAGE}:${GIT_SHA}"
+            echo "Pushed ${BACKEND_IMAGE}:${GIT_SHA} and ${FRONTEND_IMAGE}:${GIT_SHA} to ${REGISTRY}"
         }
         always {
             cleanWs()

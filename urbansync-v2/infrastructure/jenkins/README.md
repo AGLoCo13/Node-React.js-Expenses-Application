@@ -1,121 +1,78 @@
 # Jenkins (UrbanSync GitOps)
 
-Local Jenkins controller for the UrbanSync CI pipeline. Builds the backend
-and frontend Docker images and pushes them to Docker Hub on every commit.
+Jenkins controller running in Docker. On every push to `feature/stefanos-branch`
+it builds the v2 backend and frontend Docker images and pushes them to the local
+container registry at `localhost:5000`.
+
+## How the pipeline works
+
+The pipeline is defined in [urbansync-v2/Jenkinsfile](../../Jenkinsfile) and
+runs four stages:
+
+1. **Checkout** — clones the repo and captures the 8-char git SHA used as the
+   image tag.
+2. **Build images** *(parallel)* — runs `docker build` for the backend
+   (`urbansync-v2/backend/`) and frontend (`urbansync-v2/frontend/`) at the same
+   time. Each image is tagged `:latest` and `:<sha>`.
+3. **Push to local registry** — pushes all four tags to `localhost:5000`. No
+   credentials needed (local registry is unauthenticated).
+4. **Post / cleanup** — wipes the Jenkins workspace. Images remain cached on
+   Docker Desktop for fast layer reuse on the next build.
+
+The trigger is SCM polling every ~2 minutes (`pollSCM('H/2 * * * *')`),
+declared inside the Jenkinsfile.
 
 ## Prerequisites
 
-- Docker Desktop running (Linux container mode, WSL2 backend on Windows)
-- A Docker Hub account (we will create credentials inside Jenkins later)
+- Docker Desktop running (WSL2 backend on Windows 11)
+- Local registry running — start it first:
+  ```powershell
+  cd urbansync-v2/infrastructure/registry
+  docker compose up -d
+  ```
+  See [urbansync-v2/infrastructure/registry/README.md](../registry/README.md)
+  for verification steps.
+- `github-creds` Jenkins credential — only needed if the repo is private
+  (username + personal access token, ID `github-creds`).
 
-## First-time setup
+## How to start Jenkins
 
 From this directory (`urbansync-v2/infrastructure/jenkins/`):
 
 ```powershell
 docker compose up -d --build
-```
-
-The first build pulls the `jenkins/jenkins:lts-jdk17` base, installs the
-Docker CLI, and preinstalls the plugins listed in `plugins.txt`. Expect
-a few minutes on first run; later starts are instant.
-
-### Get the initial admin password
-
-```powershell
 docker exec urbansync-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
 
-Open <http://localhost:8080>, paste the password, then:
-
-1. Choose **Install suggested plugins** (the ones we preinstalled are
-   already there — Jenkins will skip those and add a few extras).
-2. Create the admin user when prompted.
-3. Accept the default Jenkins URL (`http://localhost:8080/`).
-
-### Verify Docker access
-
-After login, open **Manage Jenkins → System Information**, or run a quick
-sanity job:
-
-```
-Manage Jenkins → Script Console
-```
-
-Paste:
-
-```groovy
-"docker version".execute().text
-```
-
-You should see both Client and Server sections — Server confirms the
-mounted socket reaches Docker Desktop.
-
-## Next steps
-
-1. **Add Docker Hub credentials** — Manage Jenkins → Credentials → System →
-   Global → Add Credentials. Kind: *Username with password*. ID:
-   `docker-hub-creds`. Username = your Docker Hub username, Password =
-   a Docker Hub **access token** (not your account password — generate one
-   at <https://hub.docker.com/settings/security>).
-2. **Add GitHub credentials** if the repo is private — same place, kind
-   *Username with password* (use a personal access token), ID `github-creds`.
-3. **Create the pipeline job** — see the next section.
+Open <http://localhost:8080>, paste the password, install suggested plugins,
+and create the admin user.
 
 ## Creating the Pipeline job
 
-The `Jenkinsfile` lives at [urbansync-v2/Jenkinsfile](../../Jenkinsfile) and
-builds + pushes both app images on every commit to `main`. To wire it up:
-
-1. **Commit and push** the Jenkinsfile and this `infrastructure/jenkins/`
-   directory to GitHub on `main`. Jenkins polls the remote, so the pipeline
-   files must be visible there.
-2. In Jenkins: **New Item** → name it `urbansync-v2` → choose **Pipeline** →
-   OK.
-3. On the job config page:
+1. Commit and push the `Jenkinsfile` and this `infrastructure/` directory to
+   `feature/stefanos-branch` on GitHub.
+2. In Jenkins: **New Item** → name `urbansync-v2` → **Pipeline** → OK.
+3. Configure:
    - **General** → check *GitHub project*, paste the repo URL.
-   - **Build Triggers** → leave blank. The trigger is declared inside the
-     `Jenkinsfile` (`pollSCM('H/2 * * * *')`), so Jenkins picks it up after
-     the first run.
-   - **Pipeline** section:
-     - Definition: *Pipeline script from SCM*
-     - SCM: *Git*
-     - Repository URL: `https://github.com/<your-fork>/Node-React.js-Expenses-Application.git`
-     - Credentials: `github-creds` (only if the repo is private; leave empty if public)
-     - Branch Specifier: `*/feature/stefanos-branch` (current dev branch — switch to `*/main` once changes are merged)
-     - Script Path: `urbansync-v2/Jenkinsfile`
+   - **Build Triggers** → leave blank (trigger is in the Jenkinsfile).
+   - **Pipeline** → Definition: *Pipeline script from SCM* → SCM: *Git*
+     → Repository URL: your GitHub repo URL
+     → Credentials: `github-creds` (only if private)
+     → Branch Specifier: `*/feature/stefanos-branch`
+     → Script Path: `urbansync-v2/Jenkinsfile`
    - Save.
-4. **First run** — click **Build Now** once. The first run cannot be
-   triggered by polling because Jenkins needs an initial baseline.
-5. After the first build succeeds, every push to the tracked branch will
-   trigger a new build within ~2 minutes.
-
-## Verifying it worked
-
-- The build log should end with `Pushed stefanosthedocker/urbansync-backend:<sha>`
-  and the matching frontend line.
-- On <https://hub.docker.com/u/stefanosthedocker> you should see two repos:
-  `urbansync-backend` and `urbansync-frontend`, each with `latest` and a
-  short-SHA tag for every successful build.
+4. Click **Build Now** for the first run (polling can't trigger before a
+   baseline exists).
 
 ## Lifecycle
 
 ```powershell
-# Stop (preserves jenkins_home volume)
+# Stop Jenkins (jenkins_home volume is preserved)
 docker compose down
 
-# Stop and wipe state (DESTRUCTIVE — re-runs first-time setup)
+# Stop and wipe all state (DESTRUCTIVE — requires full first-run setup again)
 docker compose down -v
 
 # Tail logs
 docker compose logs -f jenkins
 ```
-
-## Notes
-
-- The container runs as `root` so that the mounted `/var/run/docker.sock`
-  is usable. This is acceptable for a local dev/class setup; in a hardened
-  deployment you would either run Jenkins agents in DinD or add the
-  `jenkins` user to a docker group with the matching host GID.
-- `jenkins_home` is a named Docker volume — credentials, jobs, and plugin
-  state survive container rebuilds. Treat it as the source of truth.
