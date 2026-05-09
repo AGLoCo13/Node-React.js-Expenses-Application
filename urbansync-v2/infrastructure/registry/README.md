@@ -8,6 +8,11 @@ This mirrors how a cloud registry (Azure Container Registry, Docker Hub, ECR)
 would work in production — the only difference when you migrate is the hostname
 and a credential.
 
+> **Start this before anything else.** Both Jenkins (to push images) and the
+> v2 app stack (to pull and run images) depend on this registry being up.
+> If the registry is down, Jenkins builds will fail at the Push stage and
+> `docker compose up -d` will fail to pull the frontend and backend images.
+
 ## How to start
 
 ```powershell

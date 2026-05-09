@@ -79,6 +79,20 @@ pipeline {
                 '''
             }
         }
+
+        stage('Deploy') {
+            steps {
+                withCredentials([file(credentialsId: 'backend-env-file', variable: 'BACKEND_ENV')]) {
+                    dir('urbansync-v2') {
+                        sh '''
+                            cp "$BACKEND_ENV" backend/.env
+                            docker compose pull
+                            docker compose up -d
+                        '''
+                    }
+                }
+            }
+        }
     }
 
     post {
