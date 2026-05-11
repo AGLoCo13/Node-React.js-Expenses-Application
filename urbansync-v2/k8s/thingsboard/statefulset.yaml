@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: thingsboard
+  namespace: urbansync
+spec:
+  serviceName: thingsboard
+  replicas: 1
+  selector:
+    matchLabels:
+      app: thingsboard
+  template:
+    metadata:
+      labels:
+        app: thingsboard
+    spec:
+      containers:
+        - name: thingsboard
+          image: thingsboard/tb-postgres:latest
+          ports:
+            - containerPort: 9090   # HTTP UI
+            - containerPort: 1883   # MQTT
+            - containerPort: 5683   # CoAP UDP
+              protocol: UDP
+          volumeMounts:
+            - name: thingsboard-data
+              mountPath: /data
+            - name: thingsboard-logs
+              mountPath: /var/log/thingsboard
+      volumes:
+        - name: thingsboard-data
+          persistentVolumeClaim:
+            claimName: thingsboard-data-pvc
+        - name: thingsboard-logs
+          persistentVolumeClaim:
+            claimName: thingsboard-logs-pvc

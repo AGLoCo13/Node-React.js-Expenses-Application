@@ -13,6 +13,9 @@ frontend/build/
 .env.*.local
 backend/.env
 
+# ── Kubernetes secrets ────────────────────────────────────────────────────
+k8s/secrets.yaml
+
 # ── IaC secrets ───────────────────────────────────────────────────────────
 infrastructure/opentofu/terraform.tfvars
 infrastructure/opentofu/.terraform/

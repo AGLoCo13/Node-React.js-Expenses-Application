@@ -11,13 +11,15 @@ git push
                     └─► Build backend image  ─┐  (parallel)
                         Build frontend image ─┘
                             └─► Push both images to local registry (localhost:5000)
-                                    └─► docker compose pull + up -d
-                                            └─► New version live at http://localhost
+                                    └─► kubectl apply -f k8s/ --recursive
+                                            └─► kubectl rollout restart (frontend + backend)
+                                                    └─► New version live at http://localhost
 ```
 
 Jenkins runs in a Docker container with the host Docker daemon mounted via
-socket, so all `docker build`, `docker push`, and `docker compose` commands
-run against Docker Desktop on the host machine — no Docker-in-Docker required.
+socket, so all `docker build` and `docker push` commands run against Docker
+Desktop on the host — no Docker-in-Docker required. `kubectl` talks to the
+Docker Desktop Kubernetes cluster via the mounted kubeconfig.
 
 ---
 
@@ -26,8 +28,11 @@ run against Docker Desktop on the host machine — no Docker-in-Docker required.
 Before running anything, make sure these are in place:
 
 - Docker Desktop installed and running (Windows 11, WSL2 backend)
-- The local container registry is up — see
-  [urbansync-v2/infrastructure/registry/README.md](../registry/README.md)
+- **Kubernetes enabled** in Docker Desktop (Settings → Kubernetes → Enable Kubernetes)
+- **nginx ingress controller** installed — see [urbansync-v2/k8s/README.md](../../k8s/README.md)
+- **`localhost:5000` added to insecure registries** in Docker Desktop — see [urbansync-v2/k8s/README.md](../../k8s/README.md)
+- The local container registry is up — see [urbansync-v2/infrastructure/registry/README.md](../registry/README.md)
+- The K8s manifests applied at least once — see [urbansync-v2/k8s/README.md](../../k8s/README.md)
 - The repo is pushed to GitHub on `feature/stefanos-branch`
 
 ---
@@ -42,7 +47,8 @@ docker compose up -d --build
 
 This builds a custom Jenkins image that includes:
 - Jenkins LTS on JDK 21
-- Docker CLI + Docker Compose plugin (so pipelines can run `docker build` and `docker compose`)
+- Docker CLI + Docker Compose plugin (so pipelines can run `docker build`)
+- kubectl (so the Deploy stage can apply K8s manifests)
 - Pre-installed plugins (Pipeline, Git, GitHub, Docker Workflow, Blue Ocean, etc.)
 
 Retrieve the initial admin password:
@@ -58,22 +64,10 @@ plugins**, then create your admin user.
 
 ## Step 2 — Add credentials
 
-Jenkins needs two credentials. Add them at:
+Jenkins needs one credential. Add it at:
 **Manage Jenkins → Credentials → System → Global credentials → Add Credentials**
 
-### Credential 1 — Backend environment file
-
-The pipeline copies this into the workspace before running `docker compose` so
-the backend has its database and service connection strings.
-
-| Field | Value |
-|---|---|
-| Kind | Secret file |
-| File | Upload `urbansync-v2/backend/.env` from your machine |
-| ID | `backend-env-file` |
-| Description | Backend environment variables |
-
-### Credential 2 — GitHub (only if repo is private)
+### GitHub (only if repo is private)
 
 | Field | Value |
 |---|---|
@@ -82,6 +76,10 @@ the backend has its database and service connection strings.
 | Password | A GitHub personal access token (PAT) with `Contents: Read` permission — generate at github.com/settings/tokens |
 | ID | `github-creds` |
 | Description | GitHub access token |
+
+> The `backend-env-file` credential used in the previous Docker Compose deploy
+> is no longer needed. Secrets are now stored in `k8s/secrets.yaml` and applied
+> directly to the cluster.
 
 ---
 
@@ -133,30 +131,24 @@ After the first build succeeds, every subsequent push to
 ```powershell
 curl http://localhost:5000/v2/_catalog
 # {"repositories":["urbansync-backend","urbansync-frontend"]}
+```
 
-curl http://localhost:5000/v2/urbansync-frontend/tags/list
-# {"name":"urbansync-frontend","tags":["latest","<sha>",...]}
+**Check the K8s pods are running:**
+
+```powershell
+kubectl get pods -n urbansync
+# All pods should show STATUS = Running
 ```
 
 **Check the app is running:**
 
 Open **http://localhost** — the login page should load.
 
-**Check running containers:**
-
-```powershell
-docker ps --filter name=urbansync
-```
-
-You should see `urbansync-v2-frontend`, `urbansync-v2-backend`, and the
-supporting services (mongodb, rabbitmq, minio, etc.) all running.
-
 ---
 
 ## Migrating to a cloud registry (when ready)
 
-When the project moves to Azure, the only change needed in the pipeline is
-one line in `urbansync-v2/Jenkinsfile`:
+When the project moves to Azure, change one line in `urbansync-v2/Jenkinsfile`:
 
 ```groovy
 // Change this:
@@ -166,15 +158,16 @@ REGISTRY = 'localhost:5000'
 REGISTRY = '<yourname>.azurecr.io'
 ```
 
-Then add an `az acr login` step (or a Jenkins credential binding for Docker
-Hub) before the Push stage. Everything else stays the same.
+Then add an `az acr login` step before the Push stage, and update the image
+references in `urbansync-v2/k8s/frontend/deployment.yaml` and
+`urbansync-v2/k8s/backend/deployment.yaml` to match the new registry hostname.
 
 ---
 
 ## Lifecycle commands
 
 ```powershell
-# Rebuild Jenkins image (e.g. after Dockerfile changes)
+# Rebuild Jenkins image (e.g. after Dockerfile changes — required when adding kubectl)
 docker compose build --no-cache
 docker compose up -d
 
