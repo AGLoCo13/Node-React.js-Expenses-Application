@@ -162,6 +162,20 @@ Then add an `az acr login` step before the Push stage, and update the image
 references in `urbansync-v2/k8s/frontend/deployment.yaml` and
 `urbansync-v2/k8s/backend/deployment.yaml` to match the new registry hostname.
 
+Also remove the two workarounds in the Deploy stage of `urbansync-v2/Jenkinsfile`
+that exist only because of Docker Desktop on Windows:
+
+1. The `sed` that rewrites `127.0.0.1` → `host.docker.internal` in the kubeconfig
+   (AKS kubeconfig points to the real cluster hostname, no rewrite needed).
+2. The `--insecure-skip-tls-verify` flags on both `kubectl` commands
+   (AKS issues a proper TLS cert that matches its hostname).
+
+The Deploy stage on AKS should simplify to:
+```groovy
+sh 'kubectl apply -f urbansync-v2/k8s/ --recursive'
+sh 'kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync'
+```
+
 ---
 
 ## Lifecycle commands

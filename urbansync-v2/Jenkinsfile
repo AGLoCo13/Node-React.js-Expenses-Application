@@ -89,8 +89,8 @@ pipeline {
                     KUBECONFIG=$(mktemp)
                     sed "s/127.0.0.1/host.docker.internal/g" /root/.kube/config > "$KUBECONFIG"
                     export KUBECONFIG
-                    kubectl apply -f urbansync-v2/k8s/ --recursive
-                    kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync
+                    kubectl apply -f urbansync-v2/k8s/ --recursive --insecure-skip-tls-verify
+                    kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync --insecure-skip-tls-verify
                     rm -f "$KUBECONFIG"
                 '''
             }
