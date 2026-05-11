@@ -112,7 +112,7 @@ function LoginPage() {
               <p className="login-description">
                 Please login with your credentials to continue
               </p>
-              <span style={{ fontSize: '20px', color: '#fa0000' }}>v3 — CI/CD pipeline active</span>
+              <span style={{ fontSize: '20px', color: '#fa0000' }}>v4 — CI/CD pipeline active with k8!</span>
             </div>
 
             <form onSubmit={handleSubmit} className="login-form">
