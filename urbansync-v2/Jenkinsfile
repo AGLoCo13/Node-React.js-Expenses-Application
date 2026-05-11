@@ -82,8 +82,17 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'kubectl apply -f urbansync-v2/k8s/ --recursive'
-                sh 'kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync'
+                sh '''
+                    # The mounted kubeconfig has 127.0.0.1 as the API server address.
+                    # From inside the Jenkins container 127.0.0.1 is the container itself,
+                    # not the host. Rewrite to host.docker.internal before calling kubectl.
+                    KUBECONFIG=$(mktemp)
+                    sed "s/127.0.0.1/host.docker.internal/g" /root/.kube/config > "$KUBECONFIG"
+                    export KUBECONFIG
+                    kubectl apply -f urbansync-v2/k8s/ --recursive
+                    kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync
+                    rm -f "$KUBECONFIG"
+                '''
             }
         }
     }
