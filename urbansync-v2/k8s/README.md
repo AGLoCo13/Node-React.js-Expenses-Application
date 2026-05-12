@@ -11,7 +11,7 @@ k8s/
 ├── namespace.yaml          All resources live in the "urbansync" namespace
 ├── secrets.yaml            Passwords and connection strings (gitignored)
 ├── configmap.yaml          Non-sensitive env vars
-├── ingress.yaml            Routes / → frontend, /api → backend
+├── ingress.yaml            Routes all traffic → frontend (nginx handles /api/ internally)
 ├── frontend/               Deployment + Service
 ├── backend/                Deployment + Service
 ├── mongodb/                StatefulSet + Service + PVC
