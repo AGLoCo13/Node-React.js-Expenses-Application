@@ -1,0 +1,147 @@
+---
+# =============================================================================
+# setup-microk8s.yml — Ansible Playbook for MicroK8s Installation
+# =============================================================================
+# Σκοπός: Αυτόματο στήσιμο MicroK8s cluster στο Azure VM
+#         - Εγκατάσταση MicroK8s μέσω snap
+#         - Ενεργοποίηση addons: dns, ingress
+#         - Δικαιώματα στον azureuser (χωρίς sudo)
+# Χρήση:  ansible-playbook -i inventory.ini setup-microk8s.yml
+# =============================================================================
+
+- name: Setup MicroK8s on Azure VM
+  hosts: azure_vm
+  become: true
+  gather_facts: true
+
+  vars:
+    microk8s_user: azureuser
+    microk8s_channel: "1.29/stable"
+    microk8s_addons:
+      - dns
+      - ingress
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # 1. Ενημέρωση συστήματος
+    # -------------------------------------------------------------------------
+    - name: Update apt package cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install snapd (if not present)
+      apt:
+        name: snapd
+        state: present
+
+    - name: Ensure snapd service is running
+      systemd:
+        name: snapd
+        state: started
+        enabled: yes
+
+    # -------------------------------------------------------------------------
+    # 2. Εγκατάσταση MicroK8s μέσω snap
+    # -------------------------------------------------------------------------
+    - name: Install MicroK8s via snap
+      community.general.snap:
+        name: microk8s
+        classic: yes
+        channel: "{{ microk8s_channel }}"
+        state: present
+
+    # -------------------------------------------------------------------------
+    # 3. Αναμονή μέχρι το MicroK8s να είναι έτοιμο
+    # -------------------------------------------------------------------------
+    - name: Wait for MicroK8s to be ready
+      command: microk8s status --wait-ready --timeout 120
+      changed_when: false
+      retries: 3
+      delay: 10
+
+    # -------------------------------------------------------------------------
+    # 4. Ενεργοποίηση addons: dns και ingress
+    # -------------------------------------------------------------------------
+    - name: Enable MicroK8s addon - dns
+      command: microk8s enable dns
+      register: dns_result
+      changed_when: "'Addon dns is already enabled' not in dns_result.stdout"
+
+    - name: Print dns addon result
+      debug:
+        msg: "{{ dns_result.stdout }}"
+
+    - name: Enable MicroK8s addon - ingress
+      command: microk8s enable ingress
+      register: ingress_result
+      changed_when: "'Addon ingress is already enabled' not in ingress_result.stdout"
+
+    - name: Print ingress addon result
+      debug:
+        msg: "{{ ingress_result.stdout }}"
+
+    # -------------------------------------------------------------------------
+    # 5. Δικαιώματα στον azureuser — προσθήκη στο group microk8s
+    # -------------------------------------------------------------------------
+    - name: Add {{ microk8s_user }} to microk8s group
+      user:
+        name: "{{ microk8s_user }}"
+        groups: microk8s
+        append: yes
+
+    - name: Set ownership of ~/.kube directory for {{ microk8s_user }}
+      file:
+        path: /home/{{ microk8s_user }}/.kube
+        state: directory
+        owner: "{{ microk8s_user }}"
+        group: "{{ microk8s_user }}"
+        mode: "0755"
+
+    # -------------------------------------------------------------------------
+    # 6. Δημιουργία kubeconfig για τον azureuser
+    # -------------------------------------------------------------------------
+    - name: Generate kubeconfig for {{ microk8s_user }}
+      shell: microk8s config > /home/{{ microk8s_user }}/.kube/config
+      args:
+        creates: /home/{{ microk8s_user }}/.kube/config
+
+    - name: Set correct permissions on kubeconfig
+      file:
+        path: /home/{{ microk8s_user }}/.kube/config
+        owner: "{{ microk8s_user }}"
+        group: "{{ microk8s_user }}"
+        mode: "0600"
+
+    # -------------------------------------------------------------------------
+    # 7. Επαλήθευση εγκατάστασης
+    # -------------------------------------------------------------------------
+    - name: Verify MicroK8s status
+      command: microk8s status
+      register: microk8s_status
+      changed_when: false
+
+    - name: Print MicroK8s status
+      debug:
+        msg: "{{ microk8s_status.stdout_lines }}"
+
+    - name: Verify kubectl works (list nodes)
+      command: microk8s kubectl get nodes
+      register: nodes_output
+      changed_when: false
+
+    - name: Print cluster nodes
+      debug:
+        msg: "{{ nodes_output.stdout_lines }}"
+
+    # -------------------------------------------------------------------------
+    # 8. Τελικό μήνυμα
+    # -------------------------------------------------------------------------
+    - name: Setup complete
+      debug:
+        msg: |
+          🎉 Stage 2 Complete — MicroK8s is ready!
+          ✅ MicroK8s εγκαταστάθηκε στο VM {{ inventory_hostname }}
+          ✅ Addons ενεργά: dns, ingress
+          ✅ Ο χρήστης '{{ microk8s_user }}' έχει πλήρη πρόσβαση
+          📌 Επόμενο βήμα: Stage 3 — Deploy της εφαρμογής στο Kubernetes
