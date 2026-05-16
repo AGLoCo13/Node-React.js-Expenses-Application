@@ -1,0 +1,28 @@
+services:
+  jenkins:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: urbansync-jenkins:lts
+    container_name: urbansync-jenkins
+    user: root  # required so the in-container docker CLI can access the mounted socket
+    ports:
+      - "8080:8080"   # Jenkins web UI
+      - "50000:50000" # JNLP agent port (unused for now, kept for future agents)
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      # Mount the host Docker socket so `docker build` inside the pipeline
+      # talks to Docker Desktop on the host. On Windows this is provided by
+      # Docker Desktop's WSL2 backend.
+      - //var/run/docker.sock:/var/run/docker.sock
+      # Mount host kubeconfig so kubectl inside the pipeline can reach the
+      # Docker Desktop Kubernetes cluster.
+      - //c/Users/Stefanos/.kube:/root/.kube:ro
+    environment:
+      # Skip the setup wizard? Leave it ON for the first run so the user
+      # creates the admin account and reviews suggested plugins.
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
+    restart: unless-stopped
+
+volumes:
+  jenkins_home:

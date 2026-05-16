@@ -14,9 +14,7 @@ services:
 
   # ── 1. FRONTEND (React multi-stage build → Nginx) ────────────────────────
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
+    image: localhost:5000/urbansync-frontend:latest
     container_name: urbansync-v2-frontend
     ports:
       - "80:80"
@@ -28,12 +26,10 @@ services:
 
   # ── 2. BACKEND (self-contained — all modules baked into image) ────────────
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: localhost:5000/urbansync-backend:latest
     container_name: urbansync-v2-backend
     ports:
-      - "5000:5000"
+      - "5001:5000"  # 5000 is reserved for the local registry; backend API reachable at localhost:5001
     env_file: ./backend/.env
     # NOTE: No source-code volume mounts. The image is fully self-contained.
     # Named volume for uploaded receipts is kept for persistence.

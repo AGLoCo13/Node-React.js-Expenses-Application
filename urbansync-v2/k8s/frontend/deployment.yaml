@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: urbansync-frontend
+  namespace: urbansync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: urbansync-frontend
+  template:
+    metadata:
+      labels:
+        app: urbansync-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: localhost:5000/urbansync-frontend:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
