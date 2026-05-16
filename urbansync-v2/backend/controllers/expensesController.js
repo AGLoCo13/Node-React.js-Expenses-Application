@@ -1,4 +1,6 @@
 const Expense = require('../models/expenses.js');
+const {extractReceiptData} = require('../services/aiService.js');
+const multer = require('multer');
 
 // Create a new expense
 const createExpense = async (req, res) => {
@@ -110,9 +112,26 @@ const deleteExpense = async (req, res) => {
   }
 };
 
+//Συναρτηση για το ΑΙ εξαγωγής δεδομένων από την απόδειξη
+const extractDataFromReceipt = async (req, res) => {
+  if(!req.file) {
+    return res.status(400).json({ message: "No receipt file provided" });
+  }
+
+  try {
+    //Στελνουμε το αρχειο στο ΑΙ
+    const extractedData = await extractReceiptData(req.file.buffer, req.file.mimetype);
+    res.status(200).json(extractedData);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to extract data from receipt' });
+  }
+}
+
 module.exports = {
   createExpense,
   getAllExpenses,
   updateExpense,
-  deleteExpense
+  deleteExpense,
+  extractDataFromReceipt
 };

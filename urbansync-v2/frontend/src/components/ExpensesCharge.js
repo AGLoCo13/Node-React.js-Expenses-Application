@@ -5,7 +5,9 @@ import DashboardLayout from './DashboardLayout';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+
 function ExpensesCharge() {
+  const [isExtracting , setIsExtracting] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [formData, setFormData] = useState({
     profile: '',
@@ -81,6 +83,51 @@ function ExpensesCharge() {
   const handleFileInputChange = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
+
+    if (file) {
+      //Επιτρέπουμε και εικονες και pdf
+      const isImage = file.type.startsWith('image/');
+      const isPdf = file.type === 'application/pdf';
+
+      if (isImage || isPdf) {
+        handleReceiptAi(file);
+    }
+  }
+  };
+
+  const handleReceiptAi = async (file) => {
+    if (!file) return;
+    setIsExtracting(true);
+    const aiFormData = new FormData();
+    aiFormData.append('receipt', file);
+
+    try {
+      toast.info('AI is analyzing the receipt, please wait...');
+
+      const response = await axios.post('/api/expenses/extract-receipt-data', aiFormData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      const { amount, month, year, type } = response.data;
+
+      // --- ΔΙΟΡΘΩΣΗ: Μετατροπή του string "January" σε value 1 ---
+      const matchedMonth = months.find(m => m.label === month);
+
+      setFormData(prevData => ({
+        ...prevData,
+        total: amount || prevData.total,
+        month: matchedMonth ? matchedMonth.value : prevData.month, // Εδώ γίνεται η μαγεία
+        year: year || prevData.year,
+        type_expenses: type || prevData.type_expenses
+      }));
+      
+      toast.success('AI has extracted data from the receipt!');
+    } catch (error) {
+      console.error('Error extracting data from receipt:', error);
+      toast.error('Failed to extract data from receipt');
+    } finally {
+      setIsExtracting(false);
+    }
   };
 
   const handleSubmit = async (event) => {
@@ -288,51 +335,59 @@ function ExpensesCharge() {
                 </select>
               </div>
 
-              {/* Receipt Upload */}
-              <div className="col-12 form-group">
-                <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <FaUpload style={{ color: '#3b82f6' }} />
-                  Receipt (Optional):
-                </label>
-                <div style={{ 
-                  border: '2px dashed #e2e8f0', 
-                  borderRadius: '0.5rem', 
-                  padding: '1.5rem',
-                  textAlign: 'center',
-                  backgroundColor: '#f8fafc',
-                  transition: 'all 0.3s ease'
-                }}>
-                  <input
-                    type="file"
-                    id="document"
-                    name="document"
-                    accept="image/*, .pdf"
-                    onChange={handleFileInputChange}
-                    style={{ display: 'none' }}
-                  />
-                  <label 
-                    htmlFor="document" 
-                    style={{ 
-                      cursor: 'pointer', 
-                      margin: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '0.5rem'
-                    }}
-                  >
-                    <FaUpload style={{ fontSize: '2rem', color: '#94a3b8' }} />
-                    <span style={{ color: '#64748b', fontWeight: '500' }}>
-                      {selectedFile ? selectedFile.name : 'Click to upload receipt'}
-                    </span>
-                    <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                      PDF, PNG, JPG (Max 10MB)
-                    </span>
+               {/* Receipt Upload */}
+                <div className="col-12 form-group">
+                  <label style={{ fontWeight: '600', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <FaUpload style={{ color: '#3b82f6' }} />
+                    Receipt (Optional):
                   </label>
+                  <div style={{ 
+                    border: isExtracting ? '2px solid #3b82f6' : '2px dashed #e2e8f0', // Γίνεται μπλε όταν δουλεύει το AI
+                    borderRadius: '0.5rem', 
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    backgroundColor: isExtracting ? '#eff6ff' : '#f8fafc',
+                    transition: 'all 0.3s ease',
+                    position: 'relative'
+                  }}>
+                    {/* Spinner που εμφανίζεται πάνω δεξιά στο upload box */}
+                    {isExtracting && (
+                      <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
+                        <div className="spinner-border spinner-border-sm text-primary" role="status"></div>
+                      </div>
+                    )}
+                    
+                    <input
+                      type="file"
+                      id="document"
+                      name="document"
+                      accept="image/*, .pdf"
+                      onChange={handleFileInputChange}
+                      style={{ display: 'none' }}
+                      disabled={isExtracting} // Απενεργοποίηση κατά το extraction
+                    />
+                    <label 
+                      htmlFor="document" 
+                      style={{ 
+                        cursor: isExtracting ? 'wait' : 'pointer', 
+                        margin: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}
+                    >
+                      <FaUpload style={{ fontSize: '2rem', color: isExtracting ? '#3b82f6' : '#94a3b8' }} />
+                      <span style={{ color: isExtracting ? '#3b82f6' : '#64748b', fontWeight: '500' }}>
+                        {isExtracting ? 'AI is analyzing...' : (selectedFile ? selectedFile.name : 'Click to upload receipt')}
+                      </span>
+                      <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
+                        PDF, PNG, JPG (Max 10MB)
+                      </span>
+                    </label>
+                  </div>
                 </div>
-              </div>
-            </div>
-
+                </div>
             {/* Submit Button */}
             <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button
@@ -365,5 +420,4 @@ function ExpensesCharge() {
     </DashboardLayout>
   );
 }
-
 export default ExpensesCharge;

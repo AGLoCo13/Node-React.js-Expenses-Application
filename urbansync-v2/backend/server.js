@@ -41,6 +41,7 @@ const minioStorage = multerS3({
     }
 });
 const uploadToMinio = multer({ storage: minioStorage });
+const uploadMemory = multer({storage: multer.memoryStorage() });
 
 // ── Models now live INSIDE backend/ ───────────────────────────────────────
 const User = require('./models/userModel.js');
@@ -287,6 +288,12 @@ app.get('/api/expenses' , expensesController.getAllExpenses);
 app.put('/api/expenses/:id' , expensesController.updateExpense);
 //Delete an expense
 app.delete('/api/expenses/:id' , expensesController.deleteExpense);
+
+/* Expenses Endpoint for AI data extraction from receipt */
+app.post('/api/expenses/extract-receipt-data', uploadMemory.single('receipt'), expensesController.extractDataFromReceipt);
+
+//Create a new expense with MinIO upload
+app.post('/api/expenses', uploadToMinio.single('document') , expensesController.createExpense);
 
 //Upload receipt directly to MinIO
 app.post('/api/upload-receipt', authenticateUser, uploadToMinio.single('receipt'), async (req, res) => {
