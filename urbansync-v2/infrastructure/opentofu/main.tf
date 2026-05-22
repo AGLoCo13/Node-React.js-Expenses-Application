@@ -90,7 +90,7 @@ resource "azurerm_network_security_group" "main" {
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
 
-  # Κανόνας: Επιτρέπει εισερχόμενη κίνηση SSH (port 22)
+  # Κανόνας 1: Επιτρέπει εισερχόμενη κίνηση SSH (port 22)
   security_rule {
     name                       = "Allow-SSH"
     priority                   = 100
@@ -99,6 +99,19 @@ resource "azurerm_network_security_group" "main" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+
+  # Κανόνας 2: Επιτρέπει HTTP (80) για το UrbanSync και 8080 για τον Jenkins
+  security_rule {
+    name                       = "Allow-HTTP-Jenkins"
+    priority                   = 110
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_ranges    = ["80", "8080"]  # Προσοχή: Εδώ είναι ranges στον πληθυντικό
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }

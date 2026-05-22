@@ -1,147 +1,161 @@
 ---
 # =============================================================================
-# setup-microk8s.yml — Ansible Playbook for MicroK8s Installation
+# setup-k8s.yml — Εγκατάσταση Full K8s (kubeadm) & Docker στο Azure
 # =============================================================================
-# Σκοπός: Αυτόματο στήσιμο MicroK8s cluster στο Azure VM
-#         - Εγκατάσταση MicroK8s μέσω snap
-#         - Ενεργοποίηση addons: dns, ingress
-#         - Δικαιώματα στον azureuser (χωρίς sudo)
-# Χρήση:  ansible-playbook -i inventory.ini setup-microk8s.yml
-# =============================================================================
-
-- name: Setup MicroK8s on Azure VM
+- name: Setup Full Kubernetes and Docker on Azure VM
   hosts: azure_vm
   become: true
   gather_facts: true
 
   vars:
-    microk8s_user: azureuser
-    microk8s_channel: "1.29/stable"
-    microk8s_addons:
-      - dns
-      - ingress
+    k8s_user: azureuser
+    k8s_version: "1.29"
 
   tasks:
     # -------------------------------------------------------------------------
-    # 1. Ενημέρωση συστήματος
+    # 1. Προετοιμασία Συστήματος (Swap & Kernel)
     # -------------------------------------------------------------------------
-    - name: Update apt package cache
-      apt:
-        update_cache: yes
-        cache_valid_time: 3600
-
-    - name: Install snapd (if not present)
-      apt:
-        name: snapd
-        state: present
-
-    - name: Ensure snapd service is running
-      systemd:
-        name: snapd
-        state: started
-        enabled: yes
-
-    # -------------------------------------------------------------------------
-    # 2. Εγκατάσταση MicroK8s μέσω snap
-    # -------------------------------------------------------------------------
-    - name: Install MicroK8s via snap
-      community.general.snap:
-        name: microk8s
-        classic: yes
-        channel: "{{ microk8s_channel }}"
-        state: present
-
-    # -------------------------------------------------------------------------
-    # 3. Αναμονή μέχρι το MicroK8s να είναι έτοιμο
-    # -------------------------------------------------------------------------
-    - name: Wait for MicroK8s to be ready
-      command: microk8s status --wait-ready --timeout 120
+    - name: Disable swap (K8s requirement)
+      command: swapoff -a
       changed_when: false
-      retries: 3
-      delay: 10
+
+    - name: Disable swap permanently in fstab
+      replace:
+        path: /etc/fstab
+        regexp: '^([^#].*?\sswap\s+sw\s+.*)$'
+        replace: '# \1'
+
+    - name: Load kernel modules for containerd
+      modprobe:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - overlay
+        - br_netfilter
+
+    - name: Set sysctl parameters for K8s
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: "net.bridge.bridge-nf-call-iptables", value: "1" }
+        - { name: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+        - { name: "net.ipv4.ip_forward", value: "1" }
 
     # -------------------------------------------------------------------------
-    # 4. Ενεργοποίηση addons: dns και ingress
+    # 2. Εγκατάσταση Docker & Containerd
     # -------------------------------------------------------------------------
-    - name: Enable MicroK8s addon - dns
-      command: microk8s enable dns
-      register: dns_result
-      changed_when: "'Addon dns is already enabled' not in dns_result.stdout"
+    - name: Install dependencies
+      apt:
+        name: [apt-transport-https, ca-certificates, curl, gpg]
+        state: present
+        update_cache: yes
 
-    - name: Print dns addon result
-      debug:
-        msg: "{{ dns_result.stdout }}"
+    - name: Install Docker and Docker Compose
+      apt:
+        name: [docker.io, docker-compose-v2]
+        state: present
 
-    - name: Enable MicroK8s addon - ingress
-      command: microk8s enable ingress
-      register: ingress_result
-      changed_when: "'Addon ingress is already enabled' not in ingress_result.stdout"
-
-    - name: Print ingress addon result
-      debug:
-        msg: "{{ ingress_result.stdout }}"
-
-    # -------------------------------------------------------------------------
-    # 5. Δικαιώματα στον azureuser — προσθήκη στο group microk8s
-    # -------------------------------------------------------------------------
-    - name: Add {{ microk8s_user }} to microk8s group
+    - name: Add user to docker group
       user:
-        name: "{{ microk8s_user }}"
-        groups: microk8s
+        name: "{{ k8s_user }}"
+        groups: docker
         append: yes
 
-    - name: Set ownership of ~/.kube directory for {{ microk8s_user }}
+    - name: Create containerd config directory
       file:
-        path: /home/{{ microk8s_user }}/.kube
+        path: /etc/containerd
         state: directory
-        owner: "{{ microk8s_user }}"
-        group: "{{ microk8s_user }}"
+
+    - name: Generate default containerd config
+      shell: containerd config default > /etc/containerd/config.toml
+      args:
+        creates: /etc/containerd/config.toml
+
+    - name: Configure SystemdCgroup for containerd
+      replace:
+        path: /etc/containerd/config.toml
+        regexp: "SystemdCgroup = false"
+        replace: "SystemdCgroup = true"
+      notify: restart containerd
+
+    # -------------------------------------------------------------------------
+    # 3. Εγκατάσταση Εργαλείων K8s (kubeadm, kubelet, kubectl)
+    # -------------------------------------------------------------------------
+    - name: Ensure keyrings dir exists
+      file:
+        path: /etc/apt/keyrings
+        state: directory
         mode: "0755"
 
-    # -------------------------------------------------------------------------
-    # 6. Δημιουργία kubeconfig για τον azureuser
-    # -------------------------------------------------------------------------
-    - name: Generate kubeconfig for {{ microk8s_user }}
-      shell: microk8s config > /home/{{ microk8s_user }}/.kube/config
+    - name: Add Kubernetes apt GPG key
+      shell: curl -fsSL https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
       args:
-        creates: /home/{{ microk8s_user }}/.kube/config
+        creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
-    - name: Set correct permissions on kubeconfig
+    - name: Add Kubernetes apt repository
+      apt_repository:
+        repo: "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_version }}/deb/ /"
+        state: present
+        filename: kubernetes
+
+    - name: Install kubelet, kubeadm, kubectl
+      apt:
+        name: [kubelet, kubeadm, kubectl]
+        state: present
+        update_cache: yes
+
+    # -------------------------------------------------------------------------
+    # 4. Αρχικοποίηση K8s (Μόνο την πρώτη φορά)
+    # -------------------------------------------------------------------------
+    - name: Check if cluster is already initialized
+      stat:
+        path: /etc/kubernetes/admin.conf
+      register: kubeadm_conf
+
+    - name: Initialize K8s cluster
+      command: kubeadm init --pod-network-cidr=192.168.0.0/16
+      when: not kubeadm_conf.stat.exists
+
+    # -------------------------------------------------------------------------
+    # 5. Ρύθμιση πρόσβασης για τον azureuser
+    # -------------------------------------------------------------------------
+    - name: Create .kube directory for user
       file:
-        path: /home/{{ microk8s_user }}/.kube/config
-        owner: "{{ microk8s_user }}"
-        group: "{{ microk8s_user }}"
+        path: "/home/{{ k8s_user }}/.kube"
+        state: directory
+        owner: "{{ k8s_user }}"
+        group: "{{ k8s_user }}"
+        mode: "0755"
+
+    - name: Copy admin.conf to user's kubeconfig
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "/home/{{ k8s_user }}/.kube/config"
+        remote_src: yes
+        owner: "{{ k8s_user }}"
+        group: "{{ k8s_user }}"
         mode: "0600"
 
     # -------------------------------------------------------------------------
-    # 7. Επαλήθευση εγκατάστασης
+    # 6. Εγκατάσταση Δικτύου (Calico) & Untaint
     # -------------------------------------------------------------------------
-    - name: Verify MicroK8s status
-      command: microk8s status
-      register: microk8s_status
-      changed_when: false
+    - name: Install Calico Pod Network
+      become: false
+      command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
+      when: not kubeadm_conf.stat.exists
 
-    - name: Print MicroK8s status
-      debug:
-        msg: "{{ microk8s_status.stdout_lines }}"
+    - name: Untaint the master node (allow pods on control-plane)
+      become: false
+      command: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+      when: not kubeadm_conf.stat.exists
+      ignore_errors: yes
 
-    - name: Verify kubectl works (list nodes)
-      command: microk8s kubectl get nodes
-      register: nodes_output
-      changed_when: false
-
-    - name: Print cluster nodes
-      debug:
-        msg: "{{ nodes_output.stdout_lines }}"
-
-    # -------------------------------------------------------------------------
-    # 8. Τελικό μήνυμα
-    # -------------------------------------------------------------------------
-    - name: Setup complete
-      debug:
-        msg: |
-          🎉 Stage 2 Complete — MicroK8s is ready!
-          ✅ MicroK8s εγκαταστάθηκε στο VM {{ inventory_hostname }}
-          ✅ Addons ενεργά: dns, ingress
-          ✅ Ο χρήστης '{{ microk8s_user }}' έχει πλήρη πρόσβαση
-          📌 Επόμενο βήμα: Stage 3 — Deploy της εφαρμογής στο Kubernetes
+  handlers:
+    - name: restart containerd
+      systemd:
+        name: containerd
+        state: restarted
+        daemon_reload: yes

@@ -17,7 +17,7 @@ services:
       - //var/run/docker.sock:/var/run/docker.sock
       # Mount host kubeconfig so kubectl inside the pipeline can reach the
       # Docker Desktop Kubernetes cluster.
-      - //c/Users/Stefanos/.kube:/root/.kube:ro
+      - //c/Users/billx/.kube:/root/.kube:ro
     environment:
       # Skip the setup wizard? Leave it ON for the first run so the user
       # creates the admin account and reviews suggested plugins.
