@@ -142,69 +142,47 @@ kubectl get pvc -n urbansync
 
 ## Step 5 — Start Jenkins
 
+Jenkins is configured automatically via **Jenkins Configuration as Code (JCasC)** —
+no setup wizard, no UI clicks. On first boot it reads `jenkins.yaml` and creates
+the admin account, GitHub credential, and pipeline job.
+
+Before starting, provide your GitHub PAT:
+
 ```powershell
+# Windows (local dev — uses docker-compose.local.yml override for Windows paths)
+"GITHUB_PAT=ghp_yourtoken" | Out-File -Encoding ascii urbansync-v2/infrastructure/jenkins/.env
+cd urbansync-v2/infrastructure/jenkins
+docker compose -f docker-compose.yml -f docker-compose.local.yml up -d --build
+```
+
+```bash
+# Linux / Azure VM (direct)
+echo "GITHUB_PAT=ghp_yourtoken" > urbansync-v2/infrastructure/jenkins/.env
 cd urbansync-v2/infrastructure/jenkins
 docker compose up -d --build
 ```
 
-The `--build` flag is required on first run and after any Dockerfile change
-(e.g. adding kubectl, upgrading base image).
+Jenkins is ready at **http://localhost:8080**. Log in with `admin` / `password123`.
 
-Get the initial admin password:
-```powershell
-docker exec urbansync-jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-```
-
-Open **http://localhost:8080** and complete the setup wizard:
-1. Paste the password
-2. Click **Install suggested plugins** (wait ~3 min)
-3. Create your admin user
-
-> **Ansible note:** `community.docker.docker_compose_v2` starts the container.
-> Jenkins initial configuration can be automated with:
-> - **Jenkins Configuration as Code (JCasC)** plugin — mount a `jenkins.yaml`
->   config file into the container at startup (no wizard needed)
-> - **jenkins-job-builder** — creates pipeline jobs from YAML definitions
-> This is the recommended path for full Ansible automation of Step 5 + Step 6.
+> **Ansible note:** `deploy.yml` handles this automatically. It reads the PAT
+> from `ansible/vars/secrets.yml` (gitignored — copy from `secrets.yml.example`
+> and fill in the real value), writes the `.env` file, and starts the container
+> via `community.docker.docker_compose_v2`.
 
 ---
 
-## Step 6 — Configure Jenkins (UI steps)
+## Step 6 — Trigger the first build
 
-### 6a — Add GitHub credential (only if repo is private)
+Polling cannot fire before Jenkins has a baseline commit reference. Kick off
+the first run manually:
 
-**Manage Jenkins → Credentials → System → Global → Add Credentials**
+1. Open **http://localhost:8080**, log in with `admin` / `password123`
+2. Click **urbansync-v2** → **Build Now**
 
-| Field | Value |
-|-------|-------|
-| Kind | Username with password |
-| Username | Your GitHub username |
-| Password | GitHub PAT with `Contents: Read` scope |
-| ID | `github-creds` |
+Watch the Stage View: `Checkout → Build images → Push to registry → Deploy`
 
-### 6b — Create the pipeline job
-
-1. **New Item** → name `urbansync-v2` → **Pipeline** → OK
-2. **General** → check GitHub project → URL: `https://github.com/AGLoCo13/Node-React.js-Expenses-Application`
-3. **Pipeline** → Pipeline script from SCM → Git
-   - Repository URL: `https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git`
-   - Credentials: `github-creds` (or none if public)
-   - Branch: `*/feature/stefanos-branch`
-   - Script Path: `urbansync-v2/Jenkinsfile`
-4. **Save**
-
-### 6c — Trigger first build
-
-Click **Build Now** on the `urbansync-v2` job page.
-
-Watch Stage View: `Checkout → Build images → Push to registry → Deploy`
-
-After first success, all future pushes to `feature/stefanos-branch` trigger
+After the first build succeeds, every push to `dev-combined` triggers a build
 automatically within ~2 minutes.
-
-> **Ansible note:** Steps 6a–6c can be fully automated with the Jenkins REST
-> API via Ansible `uri` module tasks, or with **jenkins-job-builder** +
-> **JCasC**. Credentials can be seeded via the Jenkins credentials API.
 
 ---
 

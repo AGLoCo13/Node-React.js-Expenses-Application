@@ -12,16 +12,22 @@ services:
     volumes:
       - jenkins_home:/var/jenkins_home
       # Mount the host Docker socket so `docker build` inside the pipeline
-      # talks to Docker Desktop on the host. On Windows this is provided by
-      # Docker Desktop's WSL2 backend.
-      - //var/run/docker.sock:/var/run/docker.sock
-      # Mount host kubeconfig so kubectl inside the pipeline can reach the
-      # Docker Desktop Kubernetes cluster.
-      - //c/Users/billx/.kube:/root/.kube:ro
+      # talks to the host Docker daemon.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Mount host kubeconfig so kubectl inside the pipeline can reach the cluster.
+      # Linux (Azure VM): /home/azureuser/.kube
+      # Windows (local dev): //c/Users/Stefanos/.kube or //c/Users/billx/.kube
+      - /home/azureuser/.kube:/root/.kube:ro
+      # Mount JCasC config — Jenkins reads this on every startup.
+      - ./jenkins.yaml:/var/jenkins_home/casc_configs/jenkins.yaml:ro
     environment:
-      # Skip the setup wizard? Leave it ON for the first run so the user
-      # creates the admin account and reviews suggested plugins.
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=true
+      # Disable the first-run setup wizard — JCasC handles all configuration.
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      # Tell the JCasC plugin where to find the config file.
+      - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs/jenkins.yaml
+      # GitHub PAT — read from the .env file written by Ansible (or exported in shell).
+      # Never hardcode this value here.
+      - GITHUB_PAT=${GITHUB_PAT}
     restart: unless-stopped
 
 volumes:

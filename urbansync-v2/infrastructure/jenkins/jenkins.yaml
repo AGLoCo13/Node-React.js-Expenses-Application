@@ -1,0 +1,44 @@
+jenkins:
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "password123"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-creds"
+              username: "AGLoCo13"
+              password: "${GITHUB_PAT}"
+              description: "GitHub PAT for repo access"
+
+jobs:
+  - script: >
+      pipelineJob('urbansync-v2') {
+        description('UrbanSync v2 CI/CD pipeline')
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url('https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git')
+                  credentials('github-creds')
+                }
+                branch('*/dev-combined')
+              }
+            }
+            scriptPath('urbansync-v2/Jenkinsfile')
+          }
+        }
+        properties {
+          githubProjectUrl('https://github.com/AGLoCo13/Node-React.js-Expenses-Application')
+        }
+      }
