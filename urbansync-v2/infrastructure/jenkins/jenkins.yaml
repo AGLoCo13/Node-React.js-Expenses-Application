@@ -4,7 +4,7 @@ jenkins:
       allowsSignup: false
       users:
         - id: "admin"
-          password: "password123"
+          password: "${JENKINS_ADMIN_PASSWORD}"
   authorizationStrategy:
     loggedInUsersCanDoAnything:
       allowAnonymousRead: false
@@ -16,7 +16,7 @@ credentials:
           - usernamePassword:
               scope: GLOBAL
               id: "github-creds"
-              username: "AGLoCo13"
+              username: "${GITHUB_USERNAME}"
               password: "${GITHUB_PAT}"
               description: "GitHub PAT for repo access"
 

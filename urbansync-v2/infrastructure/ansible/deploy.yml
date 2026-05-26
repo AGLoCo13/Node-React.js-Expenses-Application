@@ -120,7 +120,7 @@
     - name: "5a | Γράψε .env με GITHUB_PAT για το docker-compose του Jenkins"
       ansible.builtin.copy:
         dest: "{{ app_dir }}/infrastructure/jenkins/.env"
-        content: "GITHUB_PAT={{ github_pat }}\n"
+        content: "GITHUB_PAT={{ github_pat }}\nJENKINS_ADMIN_PASSWORD={{ jenkins_admin_password }}\n GITHUB_USERNAME={{ github_username }}\n "
         owner: "{{ deploy_user }}"
         group: "{{ deploy_user }}"
         mode: "0600"
@@ -134,9 +134,82 @@
       # Builds το custom image urbansync-jenkins:lts και ξεκινά τον container
 
     # ---------------------------------------------------------------------------
-    # BLOCK 6 — Τελικό μήνυμα
+    # BLOCK 6 — Εγκατάσταση και ρύθμιση ArgoCD
     # ---------------------------------------------------------------------------
-    - name: "6 | Deployment ολοκληρώθηκε"
+
+    - name: "6a | Δημιουργία namespace argocd"
+      ansible.builtin.command:
+        cmd: kubectl create namespace argocd --dry-run=client -o yaml
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: argocd_ns_yaml
+      changed_when: false
+
+    - name: "6a | Εφαρμογή namespace argocd"
+      ansible.builtin.command:
+        cmd: kubectl apply -f -
+      args:
+        stdin: "{{ argocd_ns_yaml.stdout }}"
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: "6b | Εγκατάσταση ArgoCD (upstream stable manifest, server-side apply)"
+      ansible.builtin.command:
+        cmd: kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: argocd_install_result
+      changed_when: "'configured' in argocd_install_result.stdout or 'created' in argocd_install_result.stdout"
+
+    - name: "6b | Αναμονή ArgoCD server deployment"
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/argocd-server -n argocd --timeout=300s
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: "6c | Γράψε repo-secret.yaml από secrets.yml"
+      ansible.builtin.copy:
+        dest: "{{ app_dir }}/infrastructure/argocd/repo-secret.yaml"
+        content: |
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: urbansync-repo-credentials
+            namespace: argocd
+            labels:
+              argocd.argoproj.io/secret-type: repository
+          type: Opaque
+          stringData:
+            type: git
+            url: https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
+            username: {{ github_username }}
+            password: {{ github_pat }}
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
+        mode: "0600"
+
+    - name: "6d | Εφαρμογή repo-secret στο cluster"
+      ansible.builtin.command:
+        cmd: kubectl apply -f "{{ app_dir }}/infrastructure/argocd/repo-secret.yaml"
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: repo_secret_result
+      changed_when: "'created' in repo_secret_result.stdout or 'configured' in repo_secret_result.stdout"
+
+    - name: "6e | Εφαρμογή ArgoCD Application CR"
+      ansible.builtin.command:
+        cmd: kubectl apply -f "{{ app_dir }}/infrastructure/argocd/application.yaml"
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: app_result
+      changed_when: "'created' in app_result.stdout or 'configured' in app_result.stdout"
+
+    # ---------------------------------------------------------------------------
+    # BLOCK 7 — Τελικό μήνυμα
+    # ---------------------------------------------------------------------------
+    - name: "7 | Deployment ολοκληρώθηκε"
       ansible.builtin.debug:
         msg: |
           🎉 UrbanSync Deployment Complete!

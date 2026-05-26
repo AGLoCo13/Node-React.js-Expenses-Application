@@ -1,8 +1,8 @@
 // urbansync-v2/Jenkinsfile
-// GitOps pipeline: build backend + frontend Docker images and push to the local
-// container registry (localhost:5000) on every commit. Triggered via SCM polling.
-// To switch to a cloud registry (ACR, Docker Hub), change REGISTRY and add a
-// docker login step before the push stage.
+// GitOps pipeline: build → push → update manifest tag → ArgoCD deploys.
+// Jenkins builds Docker images, pushes them to localhost:5000, then rewrites
+// the image tag in the k8s deployment manifests and commits back to dev-combined.
+// ArgoCD watches dev-combined and syncs the cluster automatically.
 
 pipeline {
     agent any
@@ -80,26 +80,43 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Update manifests') {
             steps {
-                sh '''
-                    # The mounted kubeconfig has 127.0.0.1 as the API server address.
-                    # From inside the Jenkins container 127.0.0.1 is the container itself,
-                    # not the host. Rewrite to host.docker.internal before calling kubectl.
-                    KUBECONFIG=$(mktemp)
-                    sed "s/127.0.0.1/host.docker.internal/g" /root/.kube/config > "$KUBECONFIG"
-                    export KUBECONFIG
-                    kubectl apply -f urbansync-v2/k8s/ --recursive --insecure-skip-tls-verify
-                    kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync --insecure-skip-tls-verify
-                    rm -f "$KUBECONFIG"
-                '''
+                withCredentials([usernamePassword(
+                    credentialsId: 'github-creds',
+                    usernameVariable: 'GIT_USER',
+                    passwordVariable: 'GIT_PAT'
+                )]) {
+                    sh '''
+                        git config user.email "jenkins@urbansync.local"
+                        git config user.name  "Jenkins CI"
+
+                        sed -i "s|localhost:5000/urbansync-frontend:.*|localhost:5000/urbansync-frontend:${GIT_SHA}|g" \
+                            urbansync-v2/k8s/frontend/deployment.yaml
+                        sed -i "s|localhost:5000/urbansync-backend:.*|localhost:5000/urbansync-backend:${GIT_SHA}|g" \
+                            urbansync-v2/k8s/backend/deployment.yaml
+
+                        git add \
+                            urbansync-v2/k8s/frontend/deployment.yaml \
+                            urbansync-v2/k8s/backend/deployment.yaml
+
+                        if git diff --cached --quiet; then
+                            echo "No manifest changes — already up to date."
+                        else
+                            git commit -m "ci: update image tags to ${GIT_SHA} [skip ci]"
+                            git push \
+                                "https://${GIT_USER}:${GIT_PAT}@github.com/AGLoCo13/Node-React.js-Expenses-Application.git" \
+                                HEAD:dev-combined
+                        fi
+                    '''
+                }
             }
         }
     }
 
     post {
         success {
-            echo "Pushed ${BACKEND_IMAGE}:${GIT_SHA} and ${FRONTEND_IMAGE}:${GIT_SHA} to ${REGISTRY}"
+            echo "Built and pushed ${BACKEND_IMAGE}:${GIT_SHA} and ${FRONTEND_IMAGE}:${GIT_SHA}. Manifests updated — ArgoCD will sync the cluster."
         }
         always {
             cleanWs()

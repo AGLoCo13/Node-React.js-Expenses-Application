@@ -25,9 +25,11 @@ services:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
       # Tell the JCasC plugin where to find the config file.
       - CASC_JENKINS_CONFIG=/var/jenkins_home/casc_configs/jenkins.yaml
-      # GitHub PAT — read from the .env file written by Ansible (or exported in shell).
-      # Never hardcode this value here.
+      # Secrets — read from the .env file written by Ansible (or set in shell).
+      # Never hardcode these values here.
       - GITHUB_PAT=${GITHUB_PAT}
+      - JENKINS_ADMIN_PASSWORD=${JENKINS_ADMIN_PASSWORD}
+      - GITHUB_USERNAME=${GITHUB_USERNAME}
     restart: unless-stopped
 
 volumes:
