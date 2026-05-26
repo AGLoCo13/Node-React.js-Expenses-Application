@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: localhost:5000/urbansync-frontend:a9892596
+          image: localhost:5000/urbansync-frontend:c450e87c
           imagePullPolicy: Always
           ports:
             - containerPort: 80
