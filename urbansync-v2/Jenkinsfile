@@ -35,8 +35,16 @@ pipeline {
                         script: 'git rev-parse --short=8 HEAD',
                         returnStdout: true
                     ).trim()
+                    def commitMsg = sh(
+                        script: 'git log -1 --pretty=%B',
+                        returnStdout: true
+                    ).trim()
+                    if (commitMsg.contains('[skip ci]')) {
+                        currentBuild.result = 'NOT_BUILT'
+                        error('Skipping build — [skip ci] in commit message')
+                    }
                 }
-                echo "Tagging images as :${env.GIT_SHA} and :latest"
+                echo "Tagging images as :${env.GIT_SHA}"
             }
         }
 
