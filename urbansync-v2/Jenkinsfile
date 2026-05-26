@@ -41,7 +41,6 @@ pipeline {
                     ).trim()
                     if (commitMsg.contains('[skip ci]')) {
                         currentBuild.result = 'NOT_BUILT'
-                        error('Skipping build — [skip ci] in commit message')
                     }
                 }
                 echo "Tagging images as :${env.GIT_SHA}"
@@ -49,6 +48,7 @@ pipeline {
         }
 
         stage('Build images') {
+            when { expression { currentBuild.result == null } }
             parallel {
                 stage('Backend') {
                     steps {
@@ -78,6 +78,7 @@ pipeline {
         }
 
         stage('Push to local registry') {
+            when { expression { currentBuild.result == null } }
             steps {
                 sh '''
                     docker push "${BACKEND_IMAGE}:${GIT_SHA}"
@@ -89,6 +90,7 @@ pipeline {
         }
 
         stage('Update manifests') {
+            when { expression { currentBuild.result == null } }
             steps {
                 withCredentials([usernamePassword(
                     credentialsId: 'github-creds',
