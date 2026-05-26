@@ -11,6 +11,8 @@ spec:
     repoURL: https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
     targetRevision: dev-combined
     path: urbansync-v2/k8s
+    directory:
+      recurse: true
   destination:
     server: https://kubernetes.default.svc
     namespace: urbansync
