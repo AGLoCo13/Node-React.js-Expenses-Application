@@ -11,16 +11,18 @@ git push
                     └─► Build backend image  ─┐  (parallel)
                         Build frontend image ─┘
                             └─► Push both images to local registry (localhost:5000)
-                                    └─► kubectl apply -f k8s/ --recursive
-                                            └─► kubectl rollout restart (frontend + backend)
-                                                    └─► New version live
+                                    └─► Update image tag in k8s/ manifests → git commit [skip ci] → git push
+                                            └─► ArgoCD detects manifest commit → syncs cluster
+                                                    └─► New pods roll out
 ```
 
 Jenkins runs in a Docker container with the host Docker daemon mounted via
-socket — no Docker-in-Docker required. `kubectl` talks to the Kubernetes cluster
-via the mounted kubeconfig. **Jenkins Configuration as Code (JCasC)** configures
-the admin account, GitHub credential, and pipeline job automatically on first boot
-— no setup wizard required.
+socket — no Docker-in-Docker required. **Jenkins Configuration as Code (JCasC)**
+configures the admin account, GitHub credential, and pipeline job automatically
+on first boot — no setup wizard required.
+
+Deployment is handled entirely by **ArgoCD** — see
+[infrastructure/argocd/README.md](../argocd/README.md).
 
 ---
 
@@ -112,9 +114,12 @@ a build automatically within ~2 minutes.
 curl http://localhost:5000/v2/_catalog
 # {"repositories":["urbansync-backend","urbansync-frontend"]}
 
-# K8s pods are running
+# ArgoCD has synced the new manifests
+kubectl get application urbansync -n argocd
+# SYNC STATUS = Synced, HEALTH = Healthy
+
+# K8s pods are running the new image
 kubectl get pods -n urbansync
-# All pods should show STATUS = Running
 ```
 
 ---
@@ -127,15 +132,8 @@ kubectl get pods -n urbansync
    ```
 2. Add `az acr login --name <yourname>` before the Push stage.
 3. Update `image:` in `k8s/frontend/deployment.yaml` and `k8s/backend/deployment.yaml`.
-4. Remove the two Docker Desktop workarounds from the Deploy stage:
-   - The `sed` rewriting `127.0.0.1` → `host.docker.internal` in the kubeconfig
-   - The `--insecure-skip-tls-verify` flags on both `kubectl` commands
 
-   The Deploy stage simplifies to:
-   ```groovy
-   sh 'kubectl apply -f urbansync-v2/k8s/ --recursive'
-   sh 'kubectl rollout restart deployment/urbansync-frontend deployment/urbansync-backend -n urbansync'
-   ```
+No kubectl workarounds to remove — ArgoCD handles all cluster interaction directly.
 
 ---
 

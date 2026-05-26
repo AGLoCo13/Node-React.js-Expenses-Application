@@ -14,7 +14,7 @@ urbansync-v2/
 │   ├── services/      CloudService (MinIO + RabbitMQ)
 │   ├── workers/       Background processors
 │   └── config/        Service configs (MinIO, RabbitMQ)
-├── k8s/               Kubernetes manifests (Docker Desktop)
+├── k8s/               Kubernetes manifests (managed by ArgoCD)
 │   ├── frontend/      Deployment + Service
 │   ├── backend/       Deployment + Service
 │   ├── mongodb/       StatefulSet + Service + PVC
@@ -23,7 +23,8 @@ urbansync-v2/
 │   ├── thingsboard/   StatefulSet + Service + PVCs
 │   └── nodered/       Deployment + Service + PVC
 └── infrastructure/
-    ├── jenkins/       CI/CD — Jenkins with Docker + kubectl
+    ├── jenkins/       CI/CD — builds images, updates manifest tags
+    ├── argocd/        GitOps — watches k8s/ and syncs the cluster
     ├── registry/      Local container registry (registry:2)
     ├── opentofu/      IaC — Azure VM provisioning
     └── ansible/       Configuration management
@@ -34,12 +35,12 @@ urbansync-v2/
 | Phase | Component | Status |
 |-------|-----------|--------|
 | 1 | Project restructuring (this) | ✅ Done |
-| 2 | GitOps — Jenkins CI/CD (local registry + Docker Compose) | ✅ Done |
+| 2 | GitOps — Jenkins CI/CD + ArgoCD | ✅ Done |
 | 3 | Kubernetes manifests (Docker Desktop K8s) | ✅ Done |
-| 4 | Serverless — OpenWhisk (MinIO triggers) | 🔜 |
-| 5 | Design Patterns — Circuit Breaker, Idempotency, Retry | 🔜 |
-| 6 | Monitoring — Prometheus + Grafana + HPA | 🔜 |
-| 7 | IaC — OpenTofu + Ansible (Azure VM) | 🔜 |
+| 4 | IaC — OpenTofu + Ansible (Azure VM) | ✅ Done |
+| 5 | Serverless — OpenWhisk (MinIO triggers) | 🔜 |
+| 6 | Design Patterns — Circuit Breaker, Idempotency, Retry | 🔜 |
+| 7 | Monitoring — Prometheus + Grafana + HPA | 🔜 |
 
 ## Key Fix from v1
 The v1 project had `controllers/`, `models/`, and `middleware/` at the **repo root**,
