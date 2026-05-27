@@ -4,6 +4,23 @@ const rabbitmqConsumer = require('./rabbitmq-consumer');
 const Notification = require('../models/notification');
 const Building = require('../models/building');
 
+const {withRetry} = require('../resilience/retryHelper');
+const {minioBreaker} = require('../resilience/circuitBreaker');
+
+// ── REPLACE uploadToMinIO() ────────────────────────────────────────────────
+/**
+ * uploadToMinIO — stores a file buffer in the MinIO 'receipts' bucket.
+ *
+ * PATTERN: RETRY
+ *   Retries up to 3 times on transient S3 errors (network blips,
+ *   temporary MinIO overload). Uses exponential back-off.
+ *
+ * PATTERN: CIRCUIT BREAKER (minioBreaker)
+ *   If MinIO is persistently unreachable, the circuit opens and
+ *   uploadToMinIO() fast-fails with a typed error instead of
+ *   hanging until the multer-s3 TCP timeout expires.
+ */
+
 class CloudService {
     constructor() {
         this.minioClient = minioClient;
@@ -38,21 +55,33 @@ class CloudService {
      * Verify MinIO connection and bucket
      */
     async verifyMinIO() {
-        try {
-            const bucketName = process.env.MINIO_BUCKET || 'receipts';
+        const bucketName = process.env.MINIO_BUCKET || 'receipts';
+        return withRetry(
+        async () => {
             const exists = await this.minioClient.bucketExists(bucketName);
-            
             if (exists) {
-                console.log(`✅ MinIO bucket '${bucketName}' verified`);
+                console.log(`✅ [MinIO] Bucket '${bucketName}' verified`);
             } else {
-                console.log(`⚠️  MinIO bucket '${bucketName}' not found`);
+                console.warn(`⚠️  [MinIO] Bucket '${bucketName}' not found`);
             }
-        } catch (error) {
-            console.error('❌ MinIO verification failed:', error.message);
-            throw error;
-        }
+        },
+        { retries: 5, minTimeout: 2000, maxTimeout: 10000 },
+        'MinIO-BucketVerify'
+        );
     }
-
+    // ── NEW: getPresignedUrl() — used by server.js receipt endpoint ────────────
+    /**
+        * getPresignedUrl — generates a presigned GET URL for a stored receipt.
+        *
+        * PATTERN: CIRCUIT BREAKER (minioBreaker)
+        *   Protects the HTTP route from hanging when MinIO is down.
+        *   Returns a fast 503 via the breaker fallback.
+    */
+    async getPresignedUrl(bucket, fileName, expirySeconds = 3600) {
+    return minioBreaker.fire(async () => {
+        return this.minioClient.presignedGetObject(bucket, fileName, expirySeconds);
+    });
+    }
     /**
      * Start consuming building alarms from Thingsboard
      */
@@ -146,11 +175,11 @@ class CloudService {
             const size = record?.s3?.object?.size;
             const eventName = record?.eventName;
             
-            console.log('☁️  MinIO Event Details:');
-            console.log(`   📦 Bucket: ${bucket}`);
-            console.log(`   📄 File: ${key}`);
-            console.log(`   📊 Size: ${size} bytes`);
-            console.log(`   🔔 Event: ${eventName}`);
+            console.log('MinIO Event Details:');
+            console.log(`Bucket: ${bucket}`);
+            console.log(`File: ${key}`);
+            console.log(`Size: ${size} bytes`);
+            console.log(`Event: ${eventName}`);
             
             // TODO: Add additional processing:
             // - Update expense record with file metadata
@@ -168,28 +197,33 @@ class CloudService {
      * Upload file to MinIO
      */
     async uploadToMinIO(fileName, fileBuffer, metadata = {}) {
-        try {
-            const bucketName = process.env.MINIO_BUCKET || 'receipts';
-            
-            await this.minioClient.putObject(
-                bucketName,
-                fileName,
-                fileBuffer,
-                metadata
+        const bucketName = process.env.MINIO_BUCKET || 'receipts';
+        return withRetry(
+            async(bail) => {
+                if (minioBreaker.opened) {
+                    bail(new Error('MinIO circuit OPEN - upload aborted'));
+                    return;
+            }
+            //fire through ciruit breaker
+            return minioBreaker.fire(async () => {
+                await this.minioClient.putObject(
+                    bucketName,
+                    fileName,
+                    fileBuffer,
+                    metadata
+                );
+                console.log(`[MinIO] File uploaded:: ${fileName}`); 
+                return {
+                    bucket: bucketName,
+                    key: fileName,
+                    url: `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`
+                };
+            });
+            },
+            {
+                retries:    3,minTimeout: 2000, maxTimeout: 5000},
+                'minIO-Upload'
             );
-            
-            console.log(`✅ File uploaded to MinIO: ${fileName}`);
-            
-            return {
-                bucket: bucketName,
-                key: fileName,
-                url: `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${bucketName}/${fileName}`
-            };
-            
-        } catch (error) {
-            console.error('Error uploading to MinIO:', error);
-            throw error;
-        }
     }
 
     /**

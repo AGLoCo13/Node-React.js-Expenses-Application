@@ -1,0 +1,79 @@
+# ============================================================
+# Knative Service — receipt-annotator
+# ============================================================
+# Deploys the serverless function to the urbansync namespace.
+# Knative will:
+#   - Scale to 0 after 60s of inactivity (scale-to-zero)
+#   - Scale up to 3 replicas under load
+#   - Handle cold starts transparently via the Activator
+# ============================================================
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: receipt-annotator
+  namespace: urbansync
+  labels:
+    app: receipt-annotator
+    urbansync/component: serverless
+spec:
+  template:
+    metadata:
+      annotations:
+        # Scale to zero after 60 seconds of no traffic
+        autoscaling.knative.dev/scale-to-zero-grace-period: "60s"
+        # Target: 1 request per pod (conservative for AI workload)
+        autoscaling.knative.dev/target: "1"
+        # Maximum scale
+        autoscaling.knative.dev/max-scale: "3"
+    spec:
+      # Time to wait for pod to start before routing traffic (handles cold start)
+      timeoutSeconds: 60
+      containers:
+        - image: localhost:5000/urbansync-receipt-annotator:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MINIO_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: MINIO_ENDPOINT
+            - name: MINIO_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: MINIO_PORT
+            - name: MINIO_USE_SSL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: MINIO_USE_SSL
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: urbansync-secrets
+                  key: minio-access-key
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: urbansync-secrets
+                  key: minio-secret-key
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: urbansync-secrets
+                  key: gemini-api-key
+          resources:
+            requests:
+              cpu:    "100m"
+              memory: "128Mi"
+            limits:
+              cpu:    "500m"
+              memory: "512Mi"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10

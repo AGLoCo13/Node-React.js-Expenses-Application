@@ -11,6 +11,8 @@ const { authenticateUser, authorizeAdmin } = require('./middleware/authMiddlewar
 const accountManagement = require('./controllers/accountManagement.js');
 const paymentController = require('./controllers/paymentController');
 const rabbitMQConsumer = require('./services/rabbitmq-consumer');
+// Design Patterns
+const {withRetry} = require('./resilience/retryHelper.js');
 const app = express();
 require('dotenv').config();
 //Use of multer library for the app to be able to upload receipts
@@ -375,14 +377,14 @@ app.get('/api/expenses/:expenseId/receipt', authenticateUser, async (req, res) =
         const fileName = expense.document;
         
         try {
-            const presignedUrl = await cloudService.minioClient.presignedGetObject(bucket, fileName, 3600);
-            
+            const presignedUrl = await cloudService.getPresignedUrl(bucket, fileName, 3600);
             res.status(200).json({
-                url: presignedUrl,
-                filename: expense.documentMetadata?.originalName || fileName,
-                mimeType: expense.documentMetadata?.mimeType,
-                size: expense.documentMetadata?.size
-            });
+            url:      presignedUrl,
+            filename: expense.documentMetadata?.originalName || fileName,
+            mimeType: expense.documentMetadata?.mimeType,
+            size:     expense.documentMetadata?.size
+        });
+        
         } catch (minioError) {
             console.error('MinIO presigned URL error:', minioError);
             res.status(500).json({ error: 'Failed to generate receipt access link' });
@@ -545,72 +547,70 @@ app.get('/api/consumptions/:apartmentId' , async (req, res) => {
 })
 
 
-// ========================================================
-// ΤΕΛΙΚΗ ΔΙΟΡΘΩΣΗ ΣΥΓΧΡΟΝΙΣΜΟΥ
 // ============================================================
-// MongoDB connection with Retry Logic
+// MongoDB connection — Pattern: RETRY
 // ============================================================
-// ΛΥΣΗ ΓΙΑ PM2/DOCKER TIMING ISSUES
+// Replaces the crude for-loop with withRetry() exponential
+// back-off + jitter. Behaviour is identical but more robust:
+//   - Jitter prevents thundering-herd after a cluster restart
+//   - Back-off grows: 3s → 6s → 12s → 16s (capped)
+//   - process.exit(1) on final failure (same as before)
 // ============================================================
 const dbURI = process.env.MONGODB_URI;
 
 const connectWithRetry = async () => {
-    const connect = async (dbURI) => {
-        return mongoose.connect(dbURI, {
-	    useNewUrlParser: true,
-	    useUnifiedTopology:true,	
-            family: 4,
-            serverSelectionTimeoutMS: 30000,
-            socketTimeoutMS: 45000,
-        });
-    };
-
-    const maxRetries = 10;
-    const retryDelay = 3000;
-
-    for (let i = 0; i < maxRetries; i++) {
+    await withRetry(async (bail) => {
         try {
-            console.log(`⏳ Προσπάθεια σύνδεσης MongoDB (${i + 1}/${maxRetries})...`);
-            await connect(dbURI);
-            const PORT = process.env.PORT || 5000;
-            app.listen(PORT, () => {
-                console.log(`🚀 Server started on port ${PORT} (Database is Ready)`);
-		console.log("🐰 Starting RabbitMQ Consumers...");
-                
-                // Consume IoT alarms from Thingsboard
-                rabbitMQConsumer.consumeAlarms(async (alarmData) => {
-                    console.log("🔥 ALARM RECEIVED IN BACKEND:", alarmData);
-		});
-                
-                // Consume MinIO receipt events
-                rabbitMQConsumer.consumeReceipts(async (event) => {
-                    const record = event.Records?.[0];
-                    const fileName = record?.s3?.object?.key;
-                    const bucket = record?.s3?.bucket?.name;
-                    const eventName = record?.eventName;
-                    console.log("📄 RECEIPT EVENT FROM MINIO:", {
-                        bucket,
-                        file: fileName,
-                        event: eventName,
-                        timestamp: new Date().toISOString()
-                    });
+            await mongoose.connect(dbURI, {
+                useNewUrlParser: true,
+                useUnifiedTopology: true,
+                family: 4,
+                serverSelectionTimeoutMS: 30000, // 5s timeout for initial connection
+                socketTimeoutMS: 45000,          // 45s for all operations (queries, etc.)
+            });
+        } catch (err) {
+            // Non-retryable: config error (bad URI, auth failure)
+                if (err.name === 'MongoParseError' ||
+                    err.message.includes('Authentication failed')) {
+                    bail(err); // Stop retrying immediately
+                    return;
+                }
+                throw err;   // Retryable: network errors, timeouts
+        }
+    },{
+        retries: 10,
+        minTimeout: 3000,  // 3s initial wait
+        maxTimeout: 16000, // 16s cap
+        factor: 2,         // Exponential back-off multiplier
+        randomize: true,   // Add jitter to prevent thundering-herd
+    }, 'MongoDB'
+).then(() => {
+        const PORT = process.env.PORT || 5000;
+        app.listen(PORT, () => {
+            console.log(`🚀 Server started on port ${PORT} (Database is Ready)`);
+            console.log("🐰 Starting RabbitMQ Consumers...");
+            rabbitMQConsumer.consumeAlarms(async (alarmData) => {
+                console.log("🔥 ALARM RECEIVED IN BACKEND:", alarmData);
+            });
+            rabbitMQConsumer.consumeReceipts(async (event) => {
+                const record = event.Records?.[0];
+                const fileName = record?.s3?.object?.key;
+                const bucket = record?.s3?.bucket?.name;
+                const eventName = record?.eventName;
+                console.log("📄 RECEIPT EVENT FROM MINIO:", {
+                    bucket,
+                    file: fileName,
+                    event: eventName,
+                    timestamp: new Date().toISOString()
                 });
             });
-            return;
-        } catch (error) {
-            console.error(`❌ Αποτυχία σύνδεσης (${i + 1}/${maxRetries}):`, error.message);
-            if (i === maxRetries - 1) {
-                console.error("💀 CRITICAL: Αποτυχία σύνδεσης μετά από όλες τις προσπάθειες");
-                console.error("Βεβαιώσου ότι το MongoDB container τρέχει: docker ps | grep mongodb");
-                process.exit(1);
-            }
-            console.log(`⏰ Αναμονή ${retryDelay/1000} δευτερόλεπτα...`);
-            await new Promise(resolve => setTimeout(resolve, retryDelay));
-        }
-    }
+        });
+    }).catch((err) => {
+        console.error("💀 CRITICAL: Failed to connect to MongoDB after all retries:", err.message);
+        process.exit(1);
+    });
 };
 
-// Start connection with retry logic
 connectWithRetry();
 
 // Graceful shutdown
