@@ -43,7 +43,7 @@ const minioStorage = multerS3({
     }
 });
 const uploadToMinio = multer({ storage: minioStorage });
-const uploadMemory = multer({storage: multer.memoryStorage() });
+const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // ── Models now live INSIDE backend/ ───────────────────────────────────────
 const User = require('./models/userModel.js');
@@ -291,8 +291,11 @@ app.put('/api/expenses/:id' , expensesController.updateExpense);
 //Delete an expense
 app.delete('/api/expenses/:id' , expensesController.deleteExpense);
 
-/* Expenses Endpoint for AI data extraction from receipt */
+/* Expenses Endpoint for AI data extraction from receipt — legacy path (kept for backward-compat) */
 app.post('/api/expenses/extract-receipt-data', uploadMemory.single('receipt'), expensesController.extractDataFromReceipt);
+
+/* Knative proxy endpoint — canonical path used by the frontend */
+app.post('/api/expenses/knative-extract', authenticateUser, uploadMemory.single('receipt'), expensesController.extractDataFromReceipt);
 
 //Create a new expense with MinIO upload
 app.post('/api/expenses', uploadToMinio.single('document') , expensesController.createExpense);
@@ -327,6 +330,10 @@ app.post('/api/upload-receipt', authenticateUser, uploadToMinio.single('receipt'
 app.get('/api/expenses/:profId', async (req ,res ) => {
     try {
         const profileId = req.params.profId;
+        // Guard: reject non-ObjectId path segments (e.g. "knative-extract")
+        if (!mongoose.Types.ObjectId.isValid(profileId)) {
+            return res.status(400).json({ error: 'Invalid profile ID' });
+        }
         const expenses = await Expense.find({profile: profileId});
 
         if(!expenses) {

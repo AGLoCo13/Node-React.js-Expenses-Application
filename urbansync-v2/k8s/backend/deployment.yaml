@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: backend
-          image: localhost:5000/urbansync-backend:d4772bef
-          imagePullPolicy: Always
+          image: localhost:5000/urbansync-backend:v2
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           env:
@@ -70,3 +70,8 @@ spec:
                 configMapKeyRef:
                   name: urbansync-config
                   key: MINIO_BUCKET
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: urbansync-secrets
+                  key: gemini-api-key

@@ -41,6 +41,11 @@ Thumbs.db
 dist/
 build/
 *.tgz
+*.tar
+*.tar.gz
+
+# Local binaries / tools (download from official sources, do not commit)
+*.exe
 
 # Temporary files
 *.tmp

@@ -104,8 +104,12 @@ function ExpensesCharge() {
     try {
       toast.info('AI is analyzing the receipt, please wait...');
 
-      const response = await axios.post('/api/expenses/extract-receipt-data', aiFormData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const token = window.localStorage.getItem('token');
+      const response = await axios.post('/api/expenses/knative-extract', aiFormData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          Authorization: token
+        }
       });
 
       const { amount, month, year, type } = response.data;

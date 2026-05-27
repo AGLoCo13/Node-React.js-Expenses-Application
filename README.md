@@ -1,6 +1,19 @@
-# UrbanSync - Your Building, Simplified
+# UrbanSync — Your Building, Simplified
 
-A modern building management system for managing properties, tracking expenses, and monitoring payments.
+> ⚠️ **This is the v1 legacy README** describing the original local Node.js + MongoDB setup.
+>
+> The current production version is a **Cloud-Native microservices stack** running on
+> Kubernetes with Knative, Jenkins CI/CD, RabbitMQ, MinIO, ThingsBoard, and Node-RED.
+>
+> **👉 For full architecture, K8s deployment commands, and Knative setup, see:
+> [`urbansync-v2/README.md`](urbansync-v2/README.md)**
+
+---
+
+## v1 — Local Development Setup (Legacy)
+
+> The instructions below apply only to the original single-process Node.js application.
+> They are preserved here for historical reference.
 
 ---
 

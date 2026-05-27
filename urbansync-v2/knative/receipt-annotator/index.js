@@ -28,7 +28,19 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(express.json());
 
 // ── Clients ──────────────────────────────────────────────────────────────────
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Lazy-init: validate key at startup (log warning but don't crash),
+// then instantiate inside the request handler to avoid a top-level throw
+// if the secret is temporarily missing during a cold-start race condition.
+if (!process.env.GEMINI_API_KEY) {
+    console.warn('[receipt-annotator] ⚠️  GEMINI_API_KEY is not set — AI extraction will fail at runtime.');
+}
+
+/** Returns a ready GoogleGenerativeAI client, throwing a clear error if key missing. */
+function getGenAI() {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) throw new Error('GEMINI_API_KEY environment variable is not configured.');
+    return new GoogleGenerativeAI(key);
+}
 
 const minioClient = new Minio.Client({
     endPoint:  process.env.MINIO_ENDPOINT  || 'minio',
@@ -131,7 +143,7 @@ function streamToBuffer(bucket, key) {
 
 // ── Gemini AI extraction ──────────────────────────────────────────────────────
 async function extractReceiptData(imageBuffer, mimeType) {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const model = getGenAI().getGenerativeModel({ model: 'gemini-1.5-pro' });
 
     const prompt = `You are an expert accounting AI for a building management system.
 Analyze this receipt and extract the details.

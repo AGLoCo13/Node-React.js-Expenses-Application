@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 async function extractReceiptData(imageBuffer, mimeType) {
     try {
         // Χρησιμοποιούμε το γρήγορο μοντέλο
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         // Το αυστηρό System Prompt
         const prompt = `You are an expert accounting AI for a building management system.
@@ -43,6 +43,22 @@ async function extractReceiptData(imageBuffer, mimeType) {
         return JSON.parse(cleanJson);
 
     } catch (error) {
+        const status = error?.status;
+        const isQuota = status === 429 || (error?.message && error.message.includes('429'));
+
+        if (isQuota) {
+            // Quota exceeded — return empty placeholders so the UI stays usable.
+            // The user can fill in the fields manually.
+            console.warn("⚠️  AI quota exceeded (429). Returning empty placeholders.");
+            return {
+                amount: null,
+                month: "",
+                year: "",
+                type: "General",
+                _aiError: "AI quota exceeded — please fill in the fields manually."
+            };
+        }
+
         console.error("AI Extraction Error:", error);
         throw new Error("Failed to extract data from receipt");
     }
