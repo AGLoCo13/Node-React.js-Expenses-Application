@@ -97,6 +97,52 @@
       ansible.builtin.debug:
         msg: "{{ secrets_result.stdout_lines }}"
 
+    # ---------------------------------------------------------------------------
+    # BLOCK 4b.5 — Εγκατάσταση Knative Serving v1.14.0 (απαιτείται για kservice.yaml)
+    # ---------------------------------------------------------------------------
+
+    - name: "4b.5a | Εγκατάσταση Knative Serving CRDs"
+      ansible.builtin.command:
+        cmd: kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.14.0/serving-crds.yaml
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: knative_crds_result
+      changed_when: "'configured' in knative_crds_result.stdout or 'created' in knative_crds_result.stdout"
+
+    - name: "4b.5b | Εγκατάσταση Knative Serving core"
+      ansible.builtin.command:
+        cmd: kubectl apply -f https://github.com/knative/serving/releases/download/knative-v1.14.0/serving-core.yaml
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: knative_core_result
+      changed_when: "'configured' in knative_core_result.stdout or 'created' in knative_core_result.stdout"
+
+    - name: "4b.5c | Αναμονή Knative controller"
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/controller -n knative-serving --timeout=300s
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: "4b.5d | Εγκατάσταση Kourier (networking layer)"
+      ansible.builtin.command:
+        cmd: kubectl apply -f https://github.com/knative/net-kourier/releases/download/knative-v1.14.0/kourier.yaml
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: kourier_result
+      changed_when: "'configured' in kourier_result.stdout or 'created' in kourier_result.stdout"
+
+    - name: "4b.5e | Ρύθμιση Knative να χρησιμοποιεί Kourier"
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch configmap/config-network
+          --namespace knative-serving
+          --type merge
+          --patch '{"data":{"ingress-class":"kourier.ingress.networking.knative.dev"}}'
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
     # 4c. Τέλος, ολόκληρος ο φάκελος k8s/ (recursive) — καλύπτει όλα τα υπόλοιπα manifests
     - name: "4c | kubectl apply — k8s/ (recursive, όλα τα υπόλοιπα manifests)"
       ansible.builtin.command:
