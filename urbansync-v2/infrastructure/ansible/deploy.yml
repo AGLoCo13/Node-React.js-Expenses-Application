@@ -120,7 +120,7 @@
     - name: "5a | Γράψε .env με GITHUB_PAT για το docker-compose του Jenkins"
       ansible.builtin.copy:
         dest: "{{ app_dir }}/infrastructure/jenkins/.env"
-        content: "GITHUB_PAT={{ github_pat }}\nJENKINS_ADMIN_PASSWORD={{ jenkins_admin_password }}\n GITHUB_USERNAME={{ github_username }}\n "
+        content: "GITHUB_PAT={{ github_pat }}\nJENKINS_ADMIN_PASSWORD={{ jenkins_admin_password }}\nGITHUB_USERNAME={{ github_username }}\n"
         owner: "{{ deploy_user }}"
         group: "{{ deploy_user }}"
         mode: "0600"
