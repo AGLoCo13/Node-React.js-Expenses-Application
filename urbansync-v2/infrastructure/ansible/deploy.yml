@@ -180,10 +180,11 @@
         group: "{{ deploy_user }}"
         mode: "0600"
 
-    - name: "5b | Εκκίνηση Jenkins (infrastructure/jenkins/)"
+    - name: "5b | Build + εκκίνηση Jenkins (infrastructure/jenkins/)"
       community.docker.docker_compose_v2:
         project_src: "{{ app_dir }}/infrastructure/jenkins"
         state: present
+        build: always
         pull: missing
       # Χρησιμοποιεί το docker-compose.yml στο infrastructure/jenkins/
       # Builds το custom image urbansync-jenkins:lts και ξεκινά τον container
