@@ -47,14 +47,16 @@
     # ---------------------------------------------------------------------------
     # BLOCK 2 — Αντιγραφή φακέλου urbansync-v2 στον server
     # ---------------------------------------------------------------------------
-    - name: "2 | Αντιγραφή φακέλου urbansync-v2 → {{ app_dir }}"
-      ansible.builtin.copy:
+    - name: "2 | Sync urbansync-v2/ → {{ app_dir }} (rsync, only changed files)"
+      ansible.posix.synchronize:
         src: "{{ local_src }}/urbansync-v2/"
         dest: "{{ app_dir }}/"
-        owner: "{{ deploy_user }}"
-        group: "{{ deploy_user }}"
-        mode: preserve
-      # Η trailing slash στο src αντιγράφει τα περιεχόμενα (όχι τον ίδιο τον φάκελο)
+        delete: true
+        rsync_opts:
+          - "--exclude=node_modules"
+          - "--exclude=.git"
+          - "--exclude=*.log"
+      become: false
 
     # ---------------------------------------------------------------------------
     # BLOCK 3 — Εκκίνηση τοπικού Docker Registry
@@ -120,6 +122,13 @@
     - name: "4b.5c | Αναμονή Knative controller"
       ansible.builtin.command:
         cmd: kubectl rollout status deployment/controller -n knative-serving --timeout=300s
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
+    - name: "4b.5c2 | Αναμονή Knative webhook"
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/webhook -n knative-serving --timeout=300s
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false
