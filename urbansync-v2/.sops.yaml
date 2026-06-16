@@ -1,0 +1,12 @@
+# SOPS encryption config for UrbanSync.
+# The age public key below is committed — it is NOT secret.
+# The private key must be shared out-of-band (Discord/Teams/etc.) and stored at:
+#   Windows: %APPDATA%\sops\age\keys.txt
+#   Linux:   ~/.config/sops/age/keys.txt
+#
+# To generate a new key pair:  age-keygen -o <path>
+# Replace the public key below with the output line starting with "age1..."
+
+creation_rules:
+  - path_regex: secrets.*\.yml
+    age: age1gv55p0f9e8k6qurz937qe023ccrp7p9ufxnc2zsyuy8ugtqzl4dql8su6r

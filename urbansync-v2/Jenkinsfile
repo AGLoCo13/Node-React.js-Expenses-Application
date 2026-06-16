@@ -102,13 +102,13 @@ pipeline {
                         git config user.name  "Jenkins CI"
 
                         sed -i "s|localhost:5000/urbansync-frontend:.*|localhost:5000/urbansync-frontend:${GIT_SHA}|g" \
-                            urbansync-v2/k8s/frontend/deployment.yaml
+                            urbansync-v2/k8s/base/frontend/deployment.yaml
                         sed -i "s|localhost:5000/urbansync-backend:.*|localhost:5000/urbansync-backend:${GIT_SHA}|g" \
-                            urbansync-v2/k8s/backend/deployment.yaml
+                            urbansync-v2/k8s/base/backend/deployment.yaml
 
                         git add \
-                            urbansync-v2/k8s/frontend/deployment.yaml \
-                            urbansync-v2/k8s/backend/deployment.yaml
+                            urbansync-v2/k8s/base/frontend/deployment.yaml \
+                            urbansync-v2/k8s/base/backend/deployment.yaml
 
                         if git diff --cached --quiet; then
                             echo "No manifest changes — already up to date."

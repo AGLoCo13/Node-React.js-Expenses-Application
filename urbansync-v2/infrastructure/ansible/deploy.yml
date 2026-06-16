@@ -11,13 +11,10 @@
 # Χρήση:  ansible-playbook -i inventory.ini deploy.yml
 # =============================================================================
 
-- name: Deploy UrbanSync to Azure VM
-  hosts: azure_vm
+- name: Deploy UrbanSync
+  hosts: all
   become: true
   gather_facts: true
-
-  vars_files:
-    - vars/secrets.yml
 
   vars:
     # Φάκελος προορισμού στον remote server
@@ -36,6 +33,14 @@
   # BLOCK 1 — Δημιουργία φακέλου προορισμού
   # ---------------------------------------------------------------------------
   tasks:
+    # ---------------------------------------------------------------------------
+    # BLOCK 0 — Decrypt secrets (SOPS + age)
+    # ---------------------------------------------------------------------------
+    - name: "0 | Decrypt secrets (SOPS + age)"
+      community.sops.load_vars:
+        file: "{{ playbook_dir }}/vars/secrets.enc.yml"
+      no_log: true
+
     - name: "1 | Δημιουργία φακέλου προορισμού {{ deploy_dest }}"
       ansible.builtin.file:
         path: "{{ deploy_dest }}"
@@ -74,9 +79,9 @@
     # ---------------------------------------------------------------------------
 
     # 4a. Πρώτα το namespace — πρέπει να υπάρχει πριν από οτιδήποτε άλλο
-    - name: "4a | kubectl apply — k8s/namespace.yaml"
+    - name: "4a | kubectl apply — k8s/base/namespace.yaml"
       ansible.builtin.command:
-        cmd: kubectl apply -f "{{ app_dir }}/k8s/namespace.yaml"
+        cmd: kubectl apply -f "{{ app_dir }}/k8s/base/namespace.yaml"
       become: true
       become_user: "{{ deploy_user }}"
       register: ns_result
@@ -86,18 +91,36 @@
       ansible.builtin.debug:
         msg: "{{ ns_result.stdout_lines }}"
 
-    # 4b. Μετά τα secrets — χρειάζονται πριν τα deployments
-    - name: "4b | kubectl apply — k8s/secrets.yaml"
+    # ---------------------------------------------------------------------------
+    # BLOCK 4b — Apply urbansync-secrets K8s Secret (from SOPS-decrypted vars)
+    # ---------------------------------------------------------------------------
+    - name: "4b | Apply urbansync-secrets K8s Secret"
       ansible.builtin.command:
-        cmd: kubectl apply -f "{{ app_dir }}/k8s/secrets.yaml"
+        cmd: kubectl apply -f -
+      args:
+        stdin: |
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: urbansync-secrets
+            namespace: urbansync
+          type: Opaque
+          stringData:
+            mongo-user: "{{ mongo_user }}"
+            mongo-pass: "{{ mongo_pass }}"
+            mongo-uri: "{{ mongo_uri }}"
+            rabbitmq-user: "{{ rabbitmq_user }}"
+            rabbitmq-pass: "{{ rabbitmq_pass }}"
+            rabbitmq-url: "{{ rabbitmq_url }}"
+            minio-access-key: "{{ minio_access_key }}"
+            minio-secret-key: "{{ minio_secret_key }}"
+            jwt-secret: "{{ jwt_secret }}"
+            gemini-api-key: "{{ gemini_api_key }}"
       become: true
       become_user: "{{ deploy_user }}"
-      register: secrets_result
-      changed_when: "'configured' in secrets_result.stdout or 'created' in secrets_result.stdout"
-
-    - name: "4b | Αποτέλεσμα secrets"
-      ansible.builtin.debug:
-        msg: "{{ secrets_result.stdout_lines }}"
+      register: k8s_secret_result
+      changed_when: "'created' in k8s_secret_result.stdout or 'configured' in k8s_secret_result.stdout"
+      no_log: true
 
     # ---------------------------------------------------------------------------
     # BLOCK 4b.5 — Εγκατάσταση Knative Serving v1.14.0 (απαιτείται για kservice.yaml)
@@ -152,16 +175,114 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
 
-    # 4c. Τέλος, ολόκληρος ο φάκελος k8s/ (recursive) — καλύπτει όλα τα υπόλοιπα manifests
-    - name: "4c | kubectl apply — k8s/ (recursive, όλα τα υπόλοιπα manifests)"
+    # ---------------------------------------------------------------------------
+    # BLOCK 4d — Εγκατάσταση Secrets Store CSI Driver + Azure Key Vault provider
+    # ---------------------------------------------------------------------------
+
+    - name: "4d.0 | Εγκατάσταση Helm (αν δεν υπάρχει)"
+      ansible.builtin.shell:
+        cmd: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+      args:
+        creates: /usr/local/bin/helm
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.1 | Helm repo — secrets-store-csi-driver"
       ansible.builtin.command:
-        cmd: kubectl apply -R -f "{{ app_dir }}/k8s/"
+        cmd: helm repo add secrets-store-csi-driver https://kubernetes-sigs.github.io/secrets-store-csi-driver/charts
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.2 | Helm repo — csi-secrets-store-provider-azure"
+      ansible.builtin.command:
+        cmd: helm repo add csi-secrets-store-provider-azure https://azure.github.io/secrets-store-csi-driver-provider-azure/charts
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.3 | Helm repo update"
+      ansible.builtin.command:
+        cmd: helm repo update
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.4 | Εγκατάσταση Secrets Store CSI Driver"
+      ansible.builtin.command:
+        cmd: >
+          helm upgrade --install csi-secrets-store
+          secrets-store-csi-driver/secrets-store-csi-driver
+          -n kube-system --set syncSecret.enabled=true
+          --version 1.4.8
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.5 | Εγκατάσταση Azure Key Vault provider"
+      ansible.builtin.command:
+        cmd: >
+          helm upgrade --install azure-csi-provider
+          csi-secrets-store-provider-azure/csi-secrets-store-provider-azure
+          -n kube-system
+          --version 1.5.3
+          --set secrets-store-csi-driver.install=false
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.5b | Εγκατάσταση Azure CLI (αν δεν υπάρχει)"
+      ansible.builtin.shell:
+        cmd: curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+      args:
+        creates: /usr/bin/az
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.5c | az login με Managed Identity"
+      ansible.builtin.command:
+        cmd: az login --identity
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4d.6 | Populate Azure Key Vault με secrets"
+      ansible.builtin.command:
+        cmd: >
+          az keyvault secret set
+          --vault-name "{{ azure_keyvault_name }}"
+          --name "{{ item.name }}"
+          --value "{{ item.value }}"
+      loop:
+        - { name: mongo-user,       value: "{{ mongo_user | default('admin') }}" }
+        - { name: mongo-pass,       value: "{{ mongo_pass | default('admin123') }}" }
+        - { name: mongo-uri,        value: "{{ mongo_uri | default('mongodb://admin:admin123@mongodb:27017/commons-db?authSource=admin') }}" }
+        - { name: rabbitmq-user,    value: "{{ rabbitmq_user | default('admin') }}" }
+        - { name: rabbitmq-pass,    value: "{{ rabbitmq_pass | default('admin123') }}" }
+        - { name: rabbitmq-url,     value: "{{ rabbitmq_url | default('amqp://admin:admin123@rabbitmq:5672') }}" }
+        - { name: minio-access-key, value: "{{ minio_access_key | default('admin') }}" }
+        - { name: minio-secret-key, value: "{{ minio_secret_key | default('password123') }}" }
+        - { name: jwt-secret,       value: "{{ jwt_secret | default('your-secret-key') }}" }
+        - { name: gemini-api-key,   value: "{{ gemini_api_key | default('REPLACE_WITH_REAL_KEY') }}" }
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    # 4c. Εφαρμογή Kustomize overlay (local ή prod ανάλογα με deploy_env)
+    - name: "4c | kubectl apply -k k8s/overlays/{{ deploy_env | default('prod') }}/"
+      ansible.builtin.command:
+        cmd: kubectl apply -k "{{ app_dir }}/k8s/overlays/{{ deploy_env | default('prod') }}/"
       become: true
       become_user: "{{ deploy_user }}"
       register: k8s_result
       changed_when: "'configured' in k8s_result.stdout or 'created' in k8s_result.stdout"
 
-    - name: "4c | Αποτέλεσμα k8s/ (recursive)"
+    - name: "4c | Αποτέλεσμα k8s overlay"
       ansible.builtin.debug:
         msg: "{{ k8s_result.stdout_lines }}"
 
@@ -254,9 +375,9 @@
       register: repo_secret_result
       changed_when: "'created' in repo_secret_result.stdout or 'configured' in repo_secret_result.stdout"
 
-    - name: "6e | Εφαρμογή ArgoCD Application CR"
+    - name: "6e | Εφαρμογή ArgoCD Application CR (prod)"
       ansible.builtin.command:
-        cmd: kubectl apply -f "{{ app_dir }}/infrastructure/argocd/application.yaml"
+        cmd: kubectl apply -f "{{ app_dir }}/infrastructure/argocd/application-prod.yaml"
       become: true
       become_user: "{{ deploy_user }}"
       register: app_result
