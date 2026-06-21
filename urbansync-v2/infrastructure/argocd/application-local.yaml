@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: urbansync-local
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
+    targetRevision: dev-combined
+    path: urbansync-v2/k8s/overlays/local
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: urbansync
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      name: urbansync-secrets
+      namespace: urbansync
+      jsonPointers:
+        - /data
+        - /metadata/annotations

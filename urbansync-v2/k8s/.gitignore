@@ -1,0 +1,4 @@
+# Plaintext secrets — never commit these
+secrets.yaml
+overlays/local/plain-secrets.yaml
+overlays/local/pub-cert.pem

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: urbansync
+  name: urbansync-prod
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -10,9 +10,7 @@ spec:
   source:
     repoURL: https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
     targetRevision: dev-combined
-    path: urbansync-v2/k8s
-    directory:
-      recurse: true
+    path: urbansync-v2/k8s/overlays/prod
   destination:
     server: https://kubernetes.default.svc
     namespace: urbansync
@@ -22,6 +20,8 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=true
+  # urbansync-secrets is created by the CSI driver at pod start time, not from Git.
+  # ignoreDifferences prevents ArgoCD from pruning it.
   ignoreDifferences:
     - group: ""
       kind: Secret

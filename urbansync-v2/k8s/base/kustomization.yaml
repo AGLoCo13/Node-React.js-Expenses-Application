@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - ingress.yaml
+  - backend/deployment.yaml
+  - backend/service.yaml
+  - frontend/deployment.yaml
+  - frontend/service.yaml
+  - mongodb/statefulset.yaml
+  - mongodb/service.yaml
+  - mongodb/pvc.yaml
+  - rabbitmq/statefulset.yaml
+  - rabbitmq/service.yaml
+  - rabbitmq/pvc.yaml
+  - minio/statefulset.yaml
+  - minio/service.yaml
+  - minio/pvc.yaml
+  - thingsboard/statefulset.yaml
+  - thingsboard/service.yaml
+  - thingsboard/pvc.yaml
+  - nodered/deployment.yaml
+  - nodered/service.yaml
+  - nodered/pvc.yaml
+  - knative/kservice.yaml
