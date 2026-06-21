@@ -21,9 +21,10 @@ pipeline {
     }
 
     environment {
-        REGISTRY       = 'localhost:5000'
-        BACKEND_IMAGE  = "${REGISTRY}/urbansync-backend"
-        FRONTEND_IMAGE = "${REGISTRY}/urbansync-frontend"
+        REGISTRY        = 'localhost:5000'
+        BACKEND_IMAGE   = "${REGISTRY}/urbansync-backend"
+        FRONTEND_IMAGE  = "${REGISTRY}/urbansync-frontend"
+        ANNOTATOR_IMAGE = "${REGISTRY}/urbansync-receipt-annotator"
     }
 
     stages {
@@ -74,6 +75,18 @@ pipeline {
                         }
                     }
                 }
+                stage('Receipt Annotator') {
+                    steps {
+                        dir('urbansync-v2/knative/receipt-annotator') {
+                            sh '''
+                                docker build \
+                                    -t "${ANNOTATOR_IMAGE}:${GIT_SHA}" \
+                                    -t "${ANNOTATOR_IMAGE}:latest" \
+                                    .
+                            '''
+                        }
+                    }
+                }
             }
         }
 
@@ -85,6 +98,8 @@ pipeline {
                     docker push "${BACKEND_IMAGE}:latest"
                     docker push "${FRONTEND_IMAGE}:${GIT_SHA}"
                     docker push "${FRONTEND_IMAGE}:latest"
+                    docker push "${ANNOTATOR_IMAGE}:${GIT_SHA}"
+                    docker push "${ANNOTATOR_IMAGE}:latest"
                 '''
             }
         }
@@ -105,10 +120,13 @@ pipeline {
                             urbansync-v2/k8s/base/frontend/deployment.yaml
                         sed -i "s|localhost:5000/urbansync-backend:.*|localhost:5000/urbansync-backend:${GIT_SHA}|g" \
                             urbansync-v2/k8s/base/backend/deployment.yaml
+                        sed -i "s|localhost:5000/urbansync-receipt-annotator:.*|localhost:5000/urbansync-receipt-annotator:${GIT_SHA}|g" \
+                            urbansync-v2/k8s/base/knative/kservice.yaml
 
                         git add \
                             urbansync-v2/k8s/base/frontend/deployment.yaml \
-                            urbansync-v2/k8s/base/backend/deployment.yaml
+                            urbansync-v2/k8s/base/backend/deployment.yaml \
+                            urbansync-v2/k8s/base/knative/kservice.yaml
 
                         if git diff --cached --quiet; then
                             echo "No manifest changes — already up to date."
@@ -126,7 +144,7 @@ pipeline {
 
     post {
         success {
-            echo "Built and pushed ${BACKEND_IMAGE}:${GIT_SHA} and ${FRONTEND_IMAGE}:${GIT_SHA}. Manifests updated — ArgoCD will sync the cluster."
+            echo "Built and pushed ${BACKEND_IMAGE}:${GIT_SHA}, ${FRONTEND_IMAGE}:${GIT_SHA}, and ${ANNOTATOR_IMAGE}:${GIT_SHA}. Manifests updated — ArgoCD will sync the cluster."
         }
         always {
             cleanWs()
