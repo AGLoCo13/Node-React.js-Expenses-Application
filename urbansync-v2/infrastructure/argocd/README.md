@@ -10,12 +10,21 @@ automatically — no manual `kubectl apply` required.
 
 ```
 git push (code change)
-    └─► Jenkins: build images → push to registry → update image tag in k8s/ → git push [skip ci]
+    └─► Jenkins: build images → push to registry → update image tag in k8s/base/ → git push [skip ci]
             └─► ArgoCD detects new commit on dev-combined
-                    └─► Diffs k8s/ manifests against live cluster state
+                    └─► Diffs k8s/overlays/<local|prod>/ (Kustomize) against live cluster state
                             └─► Applies changed manifests
                                     └─► New pods roll out automatically
 ```
+
+Two separate `Application` CRs watch the same repo/branch but different Kustomize
+overlay paths, so one Git history drives two environments with different secret
+delivery mechanisms (see [Secret Management](#secret-handling-per-environment) below):
+
+| Application | Watches | Secret source |
+|---|---|---|
+| `urbansync-local` | `urbansync-v2/k8s/overlays/local` | Ansible applies `urbansync-secrets` directly |
+| `urbansync-prod` | `urbansync-v2/k8s/overlays/prod` | Azure Key Vault CSI driver creates it at pod start |
 
 ArgoCD runs inside the Kubernetes cluster and talks to the API server directly
 (`kubernetes.default.svc`) — no kubeconfig mount or external access needed.
@@ -31,9 +40,10 @@ ArgoCD runs inside the Kubernetes cluster and talks to the API server directly
 
 | File | Purpose |
 |------|---------|
-| `application.yaml` | ArgoCD Application CR — declares what to watch and where to deploy |
+| `application-local.yaml` | ArgoCD Application CR for local (Docker Desktop) — watches `k8s/overlays/local` |
+| `application-prod.yaml` | ArgoCD Application CR for prod (Azure VM) — watches `k8s/overlays/prod`, has `ignoreDifferences` on `urbansync-secrets` (created by the CSI driver, not Git) |
 | `repo-secret.yaml.example` | Template for the private repo credential secret |
-| `repo-secret.yaml` | Real credential secret — **gitignored**, created from example or by Ansible |
+| `repo-secret.yaml` | Real credential secret — **gitignored**, written by Ansible from `secrets.enc.yml` |
 | `.gitignore` | Gitignores `repo-secret.yaml` |
 
 ---
@@ -42,7 +52,7 @@ ArgoCD runs inside the Kubernetes cluster and talks to the API server directly
 
 - ArgoCD installed in the cluster (`argocd` namespace)
 - Repo credential secret applied (`repo-secret.yaml`)
-- `application.yaml` applied
+- `application-local.yaml` (Docker Desktop) or `application-prod.yaml` (Azure VM) applied
 
 ---
 
@@ -74,29 +84,37 @@ cp repo-secret.yaml.example repo-secret.yaml
 # The PAT needs Contents: Read and Write scope
 
 kubectl apply -f repo-secret.yaml
-kubectl apply -f application.yaml
+kubectl apply -f application-local.yaml    # Docker Desktop
+# or
+kubectl apply -f application-prod.yaml     # Azure VM
 ```
 
 The repo secret must be applied **before** the Application CR — ArgoCD connects to
 the repo immediately on creation and will fail with an auth error if the secret
 arrives later.
 
-On the **Azure VM**, Ansible writes `repo-secret.yaml` automatically from
-`ansible/vars/secrets.yml` (gitignored) and applies both files.
+On the **Azure VM**, Ansible writes `repo-secret.yaml` automatically from the
+SOPS-decrypted `ansible/vars/secrets.enc.yml` (see
+[infrastructure/ansible/SECRETS.md](../ansible/SECRETS.md)) and applies both files —
+no manual step needed.
 
 ---
 
-## What `application.yaml` configures
+## What `application-local.yaml` / `application-prod.yaml` configure
 
-| Setting | Value |
-|---------|-------|
-| Watches repo | `AGLoCo13/Node-React.js-Expenses-Application` |
-| Branch | `dev-combined` |
-| Manifest path | `urbansync-v2/k8s/` |
-| Destination cluster | in-cluster (`kubernetes.default.svc`) |
-| Destination namespace | `urbansync` |
-| Auto-sync | enabled (`selfHeal` + `prune`) |
-| `urbansync-secrets` | ignored — applied by Ansible directly, gitignored |
+| Setting | Local | Prod |
+|---------|-------|------|
+| Watches repo | `AGLoCo13/Node-React.js-Expenses-Application` | same |
+| Branch | `dev-combined` | same |
+| Manifest path | `urbansync-v2/k8s/overlays/local` | `urbansync-v2/k8s/overlays/prod` |
+| Destination cluster | in-cluster (`kubernetes.default.svc`) | same |
+| Destination namespace | `urbansync` | same |
+| Auto-sync | enabled (`selfHeal` + `prune`) | same |
+| `urbansync-secrets` | `ignoreDifferences` — applied by Ansible directly | `ignoreDifferences` — created by the Azure Key Vault CSI driver when the backend pod starts |
+
+Both ignore the Secret for the same underlying reason: in neither environment is
+`urbansync-secrets` defined as a Git-tracked manifest, so without `ignoreDifferences`
+ArgoCD's `prune: true` would delete it on every sync.
 
 ---
 
@@ -126,11 +144,12 @@ $enc = kubectl get secret argocd-initial-admin-secret -n argocd -o jsonpath='{.d
 ## Verify it worked
 
 ```bash
-# Application is synced and healthy
-kubectl get application urbansync -n argocd
+# Both applications synced and healthy
+kubectl get application -n argocd
 
-# Watch sync status in real time
-kubectl get application urbansync -n argocd -w
+# Watch sync status in real time (pick one)
+kubectl get application urbansync-local -n argocd -w
+kubectl get application urbansync-prod -n argocd -w
 
 # All app pods running
 kubectl get pods -n urbansync
@@ -149,6 +168,6 @@ After a successful end-to-end test:
 
 1. Change `REGISTRY` in `urbansync-v2/Jenkinsfile` to your ACR address
 2. Add `az acr login` before the Push stage
-3. Update `image:` in `k8s/frontend/deployment.yaml` and `k8s/backend/deployment.yaml`
+3. Update `image:` in `k8s/base/frontend/deployment.yaml` and `k8s/base/backend/deployment.yaml`
 4. Update `url:` in `repo-secret.yaml` if the repo moves
-5. No changes needed to `application.yaml` — it watches Git, not the registry
+5. No changes needed to `application-prod.yaml` — it watches Git, not the registry
