@@ -38,6 +38,9 @@ jobs:
             scriptPath('urbansync-v2/Jenkinsfile')
           }
         }
+        triggers {
+          scm('H/2 * * * *')
+        }
         properties {
           githubProjectUrl('https://github.com/AGLoCo13/Node-React.js-Expenses-Application')
         }
