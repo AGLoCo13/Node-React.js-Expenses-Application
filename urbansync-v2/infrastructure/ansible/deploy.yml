@@ -175,6 +175,21 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
 
+    # The upstream Knative/Kourier manifests request 300m+200m+200m CPU by default.
+    # On a 2-vCPU VM that's enough alone to starve the CSI driver pods of room to
+    # schedule (saw them stuck Pending for 4 days). Re-applying the upstream YAML
+    # above resets these on every run, so re-trim them right after every time.
+    - name: "4b.5f | Μείωση CPU requests σε Knative/Kourier (μικρός κόμβος)"
+      ansible.builtin.command:
+        cmd: kubectl set resources deployment/{{ item.name }} -n {{ item.namespace }} --requests=cpu={{ item.cpu }}
+      loop:
+        - { name: activator,               namespace: knative-serving, cpu: 100m }
+        - { name: 3scale-kourier-gateway,   namespace: kourier-system,  cpu: 100m }
+        - { name: net-kourier-controller,   namespace: knative-serving, cpu: 50m }
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
     # ---------------------------------------------------------------------------
     # BLOCK 4d — Εγκατάσταση Secrets Store CSI Driver + Azure Key Vault provider
     # ---------------------------------------------------------------------------
