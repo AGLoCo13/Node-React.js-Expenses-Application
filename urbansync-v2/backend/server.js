@@ -283,8 +283,8 @@ app.get('/api/apartment/:tenantId' , async (req , res) => {
 
                         {/*EXPENSES APIS */}
 
-//Create a new expense with MinIO upload
-app.post('/api/expenses', uploadToMinio.single('document') , expensesController.createExpense);
+//Create a new expense with MinIO upload (memory buffer → manual MinIO upload in controller)
+app.post('/api/expenses', uploadMemory.single('document') , expensesController.createExpense);
 //Retrieve all expenses 
 app.get('/api/expenses' , expensesController.getAllExpenses);
 //Update an expense 
@@ -298,26 +298,27 @@ app.post('/api/expenses/extract-receipt-data', uploadMemory.single('receipt'), e
 /* Knative proxy endpoint — canonical path used by the frontend */
 app.post('/api/expenses/knative-extract', authenticateUser, uploadMemory.single('receipt'), expensesController.extractDataFromReceipt);
 
-//Create a new expense with MinIO upload
-app.post('/api/expenses', uploadToMinio.single('document') , expensesController.createExpense);
+// (duplicate route removed — already defined above with uploadMemory)
 
-//Upload receipt directly to MinIO
-app.post('/api/upload-receipt', authenticateUser, uploadToMinio.single('receipt'), async (req, res) => {
+//Upload receipt directly to MinIO (memory buffer → manual upload via native minio client)
+app.post('/api/upload-receipt', authenticateUser, uploadMemory.single('receipt'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const fileUrl = req.file.location || 
-            `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${req.file.bucket}/${req.file.key}`;
+        const fileName = `${Date.now()}-${req.file.originalname}`;
+        const result = await cloudService.uploadToMinIO(fileName, req.file.buffer, {
+            'Content-Type': req.file.mimetype
+        });
 
         res.status(200).json({
             message: 'Receipt uploaded successfully to MinIO',
             file: {
-                filename: req.file.key,
-                bucket: req.file.bucket,
+                filename: fileName,
+                bucket: result.bucket,
                 size: req.file.size,
-                url: fileUrl,
+                url: result.url,
                 mimetype: req.file.mimetype
             }
         });

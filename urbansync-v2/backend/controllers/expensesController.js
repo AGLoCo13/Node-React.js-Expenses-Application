@@ -1,6 +1,6 @@
 const Expense = require('../models/expenses.js');
 const {extractReceiptData} = require('../services/aiService.js');
-const multer = require('multer');
+const cloudService = require('../services/cloudService');
 
 // Create a new expense
 const createExpense = async (req, res) => {
@@ -8,16 +8,20 @@ const createExpense = async (req, res) => {
     // Retrieve the necessary data from the request body
     const { profile, total, date_created, month, year, type_expenses } = req.body;
 
-    // MinIO file information from multer-s3 middleware
+    // Upload file to MinIO manually (req.file comes from uploadMemory middleware)
     let documentData = null;
     let documentMetadata = null;
+    const bucketName = process.env.MINIO_BUCKET || 'receipts';
+    let uploadResult = null;
     
-    if (req.file) {
-      // File uploaded to MinIO
-      const fileUrl = req.file.location || 
-        `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${req.file.bucket}/${req.file.key}`;
+    if (req.file && req.file.buffer) {
+      // Generate unique filename and upload to MinIO via native minio client
+      const fileName = `${Date.now()}-${req.file.originalname}`;
+      uploadResult = await cloudService.uploadToMinIO(fileName, req.file.buffer, {
+        'Content-Type': req.file.mimetype
+      });
       
-      documentData = req.file.key; // Store the MinIO key
+      documentData = fileName; // Store the MinIO key
       documentMetadata = {
         originalName: req.file.originalname,
         size: req.file.size,
@@ -32,7 +36,7 @@ const createExpense = async (req, res) => {
       total,
       date_created,
       document: documentData,
-      documentBucket: req.file ? req.file.bucket : 'receipts',
+      documentBucket: bucketName,
       documentMetadata: documentMetadata,
       month,
       year,
@@ -45,11 +49,11 @@ const createExpense = async (req, res) => {
     // Return response with receipt info
     const response = {
       ...savedExpense.toObject(),
-      receiptInfo: req.file ? {
+      receiptInfo: uploadResult ? {
         uploaded: true,
-        filename: req.file.key,
-        url: req.file.location || `http://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}/${req.file.bucket}/${req.file.key}`,
-        bucket: req.file.bucket
+        filename: documentData,
+        url: uploadResult.url,
+        bucket: bucketName
       } : null
     };
 
