@@ -112,7 +112,7 @@ function LoginPage() {
               <p className="login-description">
                 Please login with your credentials to continue
               </p>
-              <span style={{ fontSize: '20px', color: '#cec36f' }}>v10 — CI/CD pipeline active with ArgoCD!</span>
+              <span style={{ fontSize: '20px', color: '#cec36f' }}>v11 — CI/CD pipeline active with ArgoCD!</span>
             </div>
 
             <form onSubmit={handleSubmit} className="login-form">
