@@ -48,10 +48,14 @@ pipeline {
             }
         }
 
-        stage('Build images') {
+        // Each branch only runs when its own directory actually changed, so an
+        // unrelated commit (e.g. backend-only) doesn't rebuild/repush/redeploy
+        // the other two images and churn pods that didn't need to move.
+        stage('Build & Push') {
             when { expression { currentBuild.result == null } }
             parallel {
                 stage('Backend') {
+                    when { changeset "urbansync-v2/backend/**"; beforeAgent true }
                     steps {
                         dir('urbansync-v2/backend') {
                             sh '''
@@ -59,11 +63,15 @@ pipeline {
                                     -t "${BACKEND_IMAGE}:${GIT_SHA}" \
                                     -t "${BACKEND_IMAGE}:latest" \
                                     .
+                                docker push "${BACKEND_IMAGE}:${GIT_SHA}"
+                                docker push "${BACKEND_IMAGE}:latest"
                             '''
                         }
+                        script { env.BACKEND_CHANGED = 'true' }
                     }
                 }
                 stage('Frontend') {
+                    when { changeset "urbansync-v2/frontend/**"; beforeAgent true }
                     steps {
                         dir('urbansync-v2/frontend') {
                             sh '''
@@ -71,11 +79,15 @@ pipeline {
                                     -t "${FRONTEND_IMAGE}:${GIT_SHA}" \
                                     -t "${FRONTEND_IMAGE}:latest" \
                                     .
+                                docker push "${FRONTEND_IMAGE}:${GIT_SHA}"
+                                docker push "${FRONTEND_IMAGE}:latest"
                             '''
                         }
+                        script { env.FRONTEND_CHANGED = 'true' }
                     }
                 }
                 stage('Receipt Annotator') {
+                    when { changeset "urbansync-v2/knative/receipt-annotator/**"; beforeAgent true }
                     steps {
                         dir('urbansync-v2/knative/receipt-annotator') {
                             sh '''
@@ -83,24 +95,13 @@ pipeline {
                                     -t "${ANNOTATOR_IMAGE}:${GIT_SHA}" \
                                     -t "${ANNOTATOR_IMAGE}:latest" \
                                     .
+                                docker push "${ANNOTATOR_IMAGE}:${GIT_SHA}"
+                                docker push "${ANNOTATOR_IMAGE}:latest"
                             '''
                         }
+                        script { env.ANNOTATOR_CHANGED = 'true' }
                     }
                 }
-            }
-        }
-
-        stage('Push to local registry') {
-            when { expression { currentBuild.result == null } }
-            steps {
-                sh '''
-                    docker push "${BACKEND_IMAGE}:${GIT_SHA}"
-                    docker push "${BACKEND_IMAGE}:latest"
-                    docker push "${FRONTEND_IMAGE}:${GIT_SHA}"
-                    docker push "${FRONTEND_IMAGE}:latest"
-                    docker push "${ANNOTATOR_IMAGE}:${GIT_SHA}"
-                    docker push "${ANNOTATOR_IMAGE}:latest"
-                '''
             }
         }
 
@@ -116,17 +117,21 @@ pipeline {
                         git config user.email "jenkins@urbansync.local"
                         git config user.name  "Jenkins CI"
 
-                        sed -i "s|localhost:5000/urbansync-frontend:.*|localhost:5000/urbansync-frontend:${GIT_SHA}|g" \
-                            urbansync-v2/k8s/base/frontend/deployment.yaml
-                        sed -i "s|localhost:5000/urbansync-backend:.*|localhost:5000/urbansync-backend:${GIT_SHA}|g" \
-                            urbansync-v2/k8s/base/backend/deployment.yaml
-                        sed -i "s|localhost:5000/urbansync-receipt-annotator:.*|localhost:5000/urbansync-receipt-annotator:${GIT_SHA}|g" \
-                            urbansync-v2/k8s/base/knative/kservice.yaml
-
-                        git add \
-                            urbansync-v2/k8s/base/frontend/deployment.yaml \
-                            urbansync-v2/k8s/base/backend/deployment.yaml \
-                            urbansync-v2/k8s/base/knative/kservice.yaml
+                        if [ "${BACKEND_CHANGED}" = "true" ]; then
+                            sed -i "s|localhost:5000/urbansync-backend:.*|localhost:5000/urbansync-backend:${GIT_SHA}|g" \
+                                urbansync-v2/k8s/base/backend/deployment.yaml
+                            git add urbansync-v2/k8s/base/backend/deployment.yaml
+                        fi
+                        if [ "${FRONTEND_CHANGED}" = "true" ]; then
+                            sed -i "s|localhost:5000/urbansync-frontend:.*|localhost:5000/urbansync-frontend:${GIT_SHA}|g" \
+                                urbansync-v2/k8s/base/frontend/deployment.yaml
+                            git add urbansync-v2/k8s/base/frontend/deployment.yaml
+                        fi
+                        if [ "${ANNOTATOR_CHANGED}" = "true" ]; then
+                            sed -i "s|localhost:5000/urbansync-receipt-annotator:.*|localhost:5000/urbansync-receipt-annotator:${GIT_SHA}|g" \
+                                urbansync-v2/k8s/base/knative/kservice.yaml
+                            git add urbansync-v2/k8s/base/knative/kservice.yaml
+                        fi
 
                         if git diff --cached --quiet; then
                             echo "No manifest changes — already up to date."
@@ -144,7 +149,7 @@ pipeline {
 
     post {
         success {
-            echo "Built and pushed ${BACKEND_IMAGE}:${GIT_SHA}, ${FRONTEND_IMAGE}:${GIT_SHA}, and ${ANNOTATOR_IMAGE}:${GIT_SHA}. Manifests updated — ArgoCD will sync the cluster."
+            echo "Build complete (only changed components were rebuilt). Manifests updated where needed — ArgoCD will sync the cluster."
         }
         always {
             cleanWs()
