@@ -190,6 +190,35 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
 
+    # CPU requests were at 93% (1870m/2000m) on this 2-vCPU node, entirely from infra —
+    # not enough headroom left to give the actual app workloads (mongodb/thingsboard/etc.)
+    # any real CPU request. Free more by trimming components where redundancy/default
+    # sizing doesn't make sense on a single-node VM. Azure-only — Docker Desktop isn't
+    # CPU-constrained and likely doesn't even run calico-node.
+    - name: "4b.5g | Μείωση CoreDNS replicas σε 1 (μονός κόμβος, redundancy άσκοπη)"
+      ansible.builtin.command:
+        cmd: kubectl scale deployment/coredns -n kube-system --replicas=1
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4b.5h | Μείωση CPU request calico-node (250m -> 100m)"
+      ansible.builtin.command:
+        cmd: kubectl set resources daemonset/calico-node -n kube-system --requests=cpu=100m
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4b.5i | Μείωση CPU request ingress-nginx-controller (100m -> 50m)"
+      ansible.builtin.command:
+        cmd: kubectl set resources deployment/ingress-nginx-controller -n ingress-nginx --requests=cpu=50m
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
     # ---------------------------------------------------------------------------
     # BLOCK 4d — Εγκατάσταση Secrets Store CSI Driver + Azure Key Vault provider
     # ---------------------------------------------------------------------------
