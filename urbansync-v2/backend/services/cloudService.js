@@ -1,4 +1,4 @@
-const minioClient = require('../config/minio.config');
+const {minioClient} = require('../config/minio.config');
 const rabbitmqConsumer = require('./rabbitmq-consumer');
 // ── Models now live at ../models/ (one level up from services/) ───────────
 const Notification = require('../models/notification');

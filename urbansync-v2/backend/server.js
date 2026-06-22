@@ -31,8 +31,9 @@ const storage = multer.diskStorage({
 const upload = multer({storage:storage});
 
 // MinIO storage configuration for direct cloud uploads
+const {s3Client} = require('./config/minio.config.js');
 const minioStorage = multerS3({
-    s3: cloudService.minioClient,
+    s3: s3Client,
     bucket: process.env.MINIO_BUCKET || 'receipts',
     metadata: function (req, file, cb) {
         cb(null, { fieldName: file.fieldname });
