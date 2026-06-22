@@ -17,11 +17,21 @@ spec:
       containers:
         - name: thingsboard
           image: thingsboard/tb-postgres:latest
+          env:
+            - name: JAVA_OPTS
+              value: "-Xms256m -Xmx768m"
           ports:
             - containerPort: 9090   # HTTP UI
             - containerPort: 1883   # MQTT
             - containerPort: 5683   # CoAP UDP
               protocol: UDP
+          resources:
+            requests:
+              cpu: "150m"
+              memory: "768Mi"
+            limits:
+              cpu: "600m"
+              memory: "1536Mi"
           volumeMounts:
             - name: thingsboard-data
               mountPath: /data
