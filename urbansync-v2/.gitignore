@@ -20,6 +20,7 @@ k8s/secrets.yaml
 infrastructure/opentofu/terraform.tfvars
 infrastructure/opentofu/.terraform/
 infrastructure/opentofu/*.tfstate
+infrastructure/opentofu/tfplan
 infrastructure/opentofu/*.tfstate.backup
 infrastructure/opentofu/.terraform.lock.hcl
 

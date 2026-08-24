@@ -786,12 +786,13 @@ cd urbansync-v2/infrastructure/opentofu
 
 # Review the variables
 cat terraform.tfvars
-# location            = "swedencentral"
-# resource_group_name = "gas-receipts-rg"
+# location            = "denmarkeast"      <- student subs are region-restricted, see below
+# resource_group_name = "urbansync-rg"
 # admin_username      = "azureuser"
+# keyvault_name       = "urbansync-kv-st01" <- must be globally unique
 
-# Login to Azure
-az login
+# Login to Azure (device code: WSL2 has no browser)
+az login --use-device-code
 
 # Plan the infrastructure changes
 tofu plan
