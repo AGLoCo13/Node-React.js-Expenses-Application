@@ -169,15 +169,31 @@ Step 4 'Build + push app images at the tags the manifests pin'
         $tag = Get-PinnedTag $t.File $t.Name
         $ref = "localhost:5000/$($t.Name):$tag"
         Write-Host "    building $ref"
-        docker build -t $ref -t "localhost:5000/$($t.Name):latest" $t.Ctx
+        # --provenance=false --sbom=false: Docker Desktop's buildx adds
+        # provenance attestations by default, which turn the result into a
+        # manifest list containing an unknown/unknown platform entry. The
+        # kubelet's containerd can fail to resolve a platform in that index
+        # ("no match for platform in manifest"), giving ImagePullBackOff for an
+        # image that pushed fine. Local dev needs neither attestation.
+        docker build --provenance=false --sbom=false `
+            -t $ref -t "localhost:5000/$($t.Name):latest" $t.Ctx
         if ($LASTEXITCODE -ne 0) { Die "docker build failed for $($t.Name)" }
         # Check each push separately: a single check after both would only see
         # the :latest result, and it is the pinned SHA tag the manifests need.
-        docker push $ref | Out-Null
+        # Push output is left visible on purpose - a silenced push makes a
+        # later ImagePullBackOff much harder to diagnose.
+        docker push $ref
         if ($LASTEXITCODE -ne 0) { Die "docker push failed for $ref" }
-        docker push "localhost:5000/$($t.Name):latest" | Out-Null
+        docker push "localhost:5000/$($t.Name):latest"
         if ($LASTEXITCODE -ne 0) { Die "docker push failed for $($t.Name):latest" }
-        Ok "$ref pushed"
+
+        # Confirm the tag really landed in the registry rather than trusting
+        # the exit code alone.
+        try {
+            $tags = Invoke-RestMethod "http://localhost:5000/v2/$($t.Name)/tags/list" -TimeoutSec 5
+            if ($tags.tags -contains $tag) { Ok "$ref pushed and present in registry" }
+            else { Warn "$ref pushed but registry lists only: $($tags.tags -join ', ')" }
+        } catch { Warn "could not query registry catalog for $($t.Name): $_" }
     }
     Warn 'The frontend build is the slow one (CRA webpack) - 5-10 min is normal.'
 } else { Warn 'skipping image build (-SkipBuild)' }
@@ -219,10 +235,14 @@ else {
     # patch above). None of these mc values contain spaces, so no quoting is
     # needed in the first place.
     $mcAlias = 'mc alias set myminio http://localhost:9000 admin password123'
+    # NOTE: no `mc admin service restart` here. That subcommand renders a
+    # progress UI and needs a controlling terminal; under `kubectl exec` without
+    # -t it dies with "could not open a new TTY: open /dev/tty: no such device".
+    # Restarting the pod with kubectl achieves the same thing and always works.
     $mcSetup = "$mcAlias && mc mb --ignore-existing myminio/receipts && " +
                'mc admin config set myminio notify_webhook:receipts_knative ' +
                'endpoint=http://receipt-annotator.urbansync.svc.cluster.local ' +
-               'queue_limit=100 enable=on && mc admin service restart myminio'
+               'queue_limit=100 enable=on'
     $mcEvent = "$mcAlias && " +
                'mc event add myminio/receipts arn:minio:sqs::receipts_knative:webhook ' +
                '--event s3:ObjectCreated:Put --ignore-existing && ' +
@@ -231,10 +251,17 @@ else {
     kubectl exec -n urbansync statefulset/minio -- sh -c $mcSetup
     if ($LASTEXITCODE -ne 0) { Warn 'webhook config failed - see README section 14' }
     else {
-        Start-Sleep -Seconds 6
-        kubectl exec -n urbansync statefulset/minio -- sh -c $mcEvent
-        if ($LASTEXITCODE -ne 0) { Warn 'event subscription failed - re-run step 6 from SETUP-LOCAL-K8S.md' }
-        else { Ok 'MinIO -> Knative webhook configured' }
+        # The notify_webhook config only takes effect after a MinIO restart.
+        Write-Host '    restarting minio to load the webhook config...'
+        kubectl delete pod minio-0 -n urbansync --wait=false | Out-Null
+        Start-Sleep -Seconds 5
+        kubectl wait --for=condition=ready pod -l app=minio -n urbansync --timeout=180s
+        if ($LASTEXITCODE -ne 0) { Warn 'minio did not come back up - check kubectl get pods -n urbansync' }
+        else {
+            kubectl exec -n urbansync statefulset/minio -- sh -c $mcEvent
+            if ($LASTEXITCODE -ne 0) { Warn 'event subscription failed - re-run step 6 from SETUP-LOCAL-K8S.md' }
+            else { Ok 'MinIO -> Knative webhook configured' }
+        }
     }
 }
 

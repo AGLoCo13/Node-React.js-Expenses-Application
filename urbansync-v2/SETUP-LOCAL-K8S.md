@@ -146,15 +146,36 @@ Build them by hand once:
 
 ```powershell
 cd urbansync-v2
-docker build -t localhost:5000/urbansync-backend:50515cd1 .\backend
+docker build --provenance=false --sbom=false -t localhost:5000/urbansync-backend:50515cd1 .\backend
 docker push  localhost:5000/urbansync-backend:50515cd1
 
-docker build -t localhost:5000/urbansync-frontend:50aa0b89 .\frontend
+docker build --provenance=false --sbom=false -t localhost:5000/urbansync-frontend:50aa0b89 .\frontend
 docker push  localhost:5000/urbansync-frontend:50aa0b89
 
-docker build -t localhost:5000/urbansync-receipt-annotator:75187658 .\knative\receipt-annotator
+docker build --provenance=false --sbom=false -t localhost:5000/urbansync-receipt-annotator:75187658 .\knative\receipt-annotator
 docker push  localhost:5000/urbansync-receipt-annotator:75187658
 ```
+
+`--provenance=false --sbom=false` matters. Docker Desktop's buildx attaches
+provenance attestations by default, which makes the result a manifest list with
+an extra `unknown/unknown` platform entry. The kubelet's containerd can fail to
+resolve a platform in that index and report `ImagePullBackOff` for an image that
+pushed perfectly well. Local dev needs neither attestation.
+
+Verify what actually reached the registry — a successful `docker push` exit code
+is weaker evidence than the catalog:
+
+```powershell
+Invoke-RestMethod http://localhost:5000/v2/_catalog
+Invoke-RestMethod http://localhost:5000/v2/urbansync-frontend/tags/list
+```
+
+**A build alone is never enough.** `docker build` writes to the docker daemon's
+image store; Docker Desktop's Kubernetes reads from a separate containerd
+namespace (`k8s.io`). The two do not share images, so `imagePullPolicy:
+IfNotPresent` does not spare you — the kubelet always has to pull from
+`localhost:5000`, which is why the registry and the `insecure-registries`
+setting are both mandatory.
 
 If the tags in the manifests have moved on since, read the current ones out
 first — `bootstrap-local.ps1` does exactly this, so it never goes stale:
@@ -194,12 +215,20 @@ Note the deliberate absence of quotes around the `mc` values — none of them
 contain spaces, and quoting them would hit the same PowerShell native-argument
 trap as step 3.
 
+Also note there is no `mc admin service restart`. That subcommand renders a
+progress UI and needs a controlling terminal, so under `kubectl exec` without
+`-t` it fails with `could not open a new TTY: open /dev/tty: no such device or
+address` — after having already written the config. Restart the pod with
+kubectl instead; same effect, no TTY.
+
 ```powershell
 $alias = 'mc alias set myminio http://localhost:9000 admin password123'
 
-kubectl exec -n urbansync statefulset/minio -- sh -c "$alias && mc mb --ignore-existing myminio/receipts && mc admin config set myminio notify_webhook:receipts_knative endpoint=http://receipt-annotator.urbansync.svc.cluster.local queue_limit=100 enable=on && mc admin service restart myminio"
+kubectl exec -n urbansync statefulset/minio -- sh -c "$alias && mc mb --ignore-existing myminio/receipts && mc admin config set myminio notify_webhook:receipts_knative endpoint=http://receipt-annotator.urbansync.svc.cluster.local queue_limit=100 enable=on"
 
-Start-Sleep -Seconds 6
+# notify_webhook only takes effect after a restart
+kubectl delete pod minio-0 -n urbansync
+kubectl wait --for=condition=ready pod -l app=minio -n urbansync --timeout=180s
 
 kubectl exec -n urbansync statefulset/minio -- sh -c "$alias && mc event add myminio/receipts arn:minio:sqs::receipts_knative:webhook --event s3:ObjectCreated:Put --ignore-existing && mc event list myminio/receipts"
 ```
@@ -308,7 +337,11 @@ the `prod` overlay, which uses a CSI SecretProviderClass instead.
 
 | Symptom | Cause / fix |
 |---|---|
-| `ImagePullBackOff` | Step 4. Check `curl http://localhost:5000/v2/_catalog` for what actually exists |
+| `ImagePullBackOff`, `server gave HTTP response to HTTPS client` | `insecure-registries: ["localhost:5000"]` missing from Docker Engine settings |
+| `ImagePullBackOff`, `no match for platform in manifest` | buildx attestations. Rebuild with `--provenance=false --sbom=false`, step 4 |
+| `ImagePullBackOff`, image not in `Invoke-RestMethod http://localhost:5000/v2/_catalog` | The push never landed. A build alone does not reach the cluster — step 4 |
+| An old pod still Running next to a failing new one | Normal: the Deployment keeps the working ReplicaSet until the new one goes ready. The app you see is the old build |
+| `could not open a new TTY` from `mc` | `mc admin service restart` needs a terminal. Restart the pod with kubectl instead, step 6 |
 | Pod `CrashLoopBackOff`, logs mention Mongo auth | `mongo-uri` in the Secret must match `mongo-user`/`mongo-pass`. All three come from the same file |
 | KService never Ready | Usually the `urbansync-config` ConfigMap or a bad `gemini-api-key`. `kubectl get ksvc -n urbansync` |
 | ArgoCD reverts your change | `selfHeal: true`, by design. Commit and push instead |
