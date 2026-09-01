@@ -4,7 +4,7 @@ echo Importing MongoDB Collections
 echo ========================================
 echo.
 
-cd "JSON DB Collections"
+cd /d "%~dp0..\JSON DB Collections"
 
 echo Importing users...
 mongoimport --db commons-db --collection users --file users.json --jsonArray

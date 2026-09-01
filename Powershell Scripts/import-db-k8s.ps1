@@ -6,7 +6,7 @@ $collections = @("users","profiles","buildings","apartments","expenses","consump
 $dbName      = "commons-db"
 $user        = "admin"
 $pass        = "admin123"
-$jsonDir     = Join-Path $PSScriptRoot "JSON DB Collections"
+$jsonDir     = Join-Path (Split-Path $PSScriptRoot -Parent) "JSON DB Collections"
 
 Write-Host "Starting port-forward to MongoDB pod..."
 $pf = Start-Job { kubectl port-forward svc/mongodb 27017:27017 -n urbansync }

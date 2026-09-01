@@ -7,8 +7,8 @@
 #
 #  Use this instead of import-db-k8s.ps1 when `mongoimport` is not on PATH.
 #
-#  Run from the repo root:
-#      .\seed-db-in-pod.ps1
+#  Run from anywhere (path-independent):
+#      .\Powershell Scripts\seed-db-in-pod.ps1
 # =============================================================================
 
 [CmdletBinding()]
@@ -29,8 +29,8 @@ function Ok   { param($t) Write-Host "    ok  $t"  -ForegroundColor Green }
 function Warn { param($t) Write-Host "    !!  $t"  -ForegroundColor Yellow }
 function Die  { param($t) Write-Host "`nFAILED: $t" -ForegroundColor Red; exit 1 }
 
-$jsonDir = Join-Path $PSScriptRoot 'JSON DB Collections'
-if (-not (Test-Path $jsonDir)) { Die "cannot find '$jsonDir' - run this from the repo root" }
+$jsonDir = Join-Path (Split-Path $PSScriptRoot -Parent) 'JSON DB Collections'
+if (-not (Test-Path $jsonDir)) { Die "cannot find '$jsonDir'" }
 
 Write-Host "`n=== Seeding $Database in $Namespace/$Pod ===" -ForegroundColor Cyan
 
@@ -49,7 +49,7 @@ if ($LASTEXITCODE -ne 0) {
 mongoimport is not inside the mongo container either.
 Install MongoDB Database Tools on Windows instead:
     winget install MongoDB.DatabaseTools
-then open a NEW terminal and run .\import-db-k8s.ps1
+then open a NEW terminal and run .\Powershell Scripts\import-db-k8s.ps1
 '@
 }
 Ok 'mongoimport available inside the pod'

@@ -470,7 +470,7 @@ kubectl exec -n urbansync statefulset/minio -- sh -c "
 
 ```powershell
 # From repo root — port-forwards MongoDB, imports all 7 collections, closes port-forward
-.\import-db-k8s.ps1
+.\Powershell Scripts\import-db-k8s.ps1
 ```
 
 ### Step 12 — Start Jenkins (CI/CD)
@@ -837,7 +837,7 @@ ansible-playbook -i ../../../ansible-test/hosts.yml playbooks/deploy.yml
 
 | Service | Port-Forward Command | Access URL | Notes |
 |---|---|---|---|
-| **Application** | `.\start-portforward.ps1` | http://localhost | Full app via Nginx Ingress |
+| **Application** | `.\urbansync-v2\k8s\start-portforward.ps1` | http://localhost | Full app via Nginx Ingress |
 | **RabbitMQ Management** | `kubectl port-forward -n urbansync svc/rabbitmq 15672:15672` | http://localhost:15672 | Queue/exchange management |
 | **MinIO Console** | `kubectl port-forward -n urbansync svc/minio 9001:9001` | http://localhost:9001 | Bucket browser |
 | **MinIO API** | `kubectl port-forward -n urbansync svc/minio 9000:9000` | http://localhost:9000 | S3-compatible API |
@@ -873,8 +873,8 @@ ansible-playbook -i ../../../ansible-test/hosts.yml playbooks/deploy.yml
 | **ThingsBoard** | `tenant@thingsboard.org` | `tenant` | IoT platform |
 | **Node-RED** | — | — | No authentication by default |
 
-> **After `.\import-db-k8s.ps1`:** application users are populated. Other service credentials
-> are set via `k8s/secrets.yaml`.
+> **After `.\Powershell Scripts\import-db-k8s.ps1`:** application users are populated. Other service credentials
+> are set via `k8s/overlays/local/plain-secrets.yaml`.
 
 ---
 

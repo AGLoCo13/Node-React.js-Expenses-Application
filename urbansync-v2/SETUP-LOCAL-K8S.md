@@ -6,7 +6,7 @@ This file supersedes `SETUP.md`, which drifted out of sync with the manifests
 (see [What changed](#what-changed-vs-setupmd)). The 15-section `README.md` is
 still the reference for architecture, flows and troubleshooting.
 
-**Shortcut:** `.\urbansync-v2\bootstrap-local.ps1` runs steps 1–10 unattended.
+**Shortcut:** `.\Powershell Scripts\bootstrap-local.ps1` runs steps 1–10 unattended.
 Read [Before you start](#before-you-start) first — three files need your tokens.
 
 ---
@@ -284,7 +284,7 @@ and ArgoCD rolls the deployment.
 ### 9 — Seed MongoDB
 
 ```powershell
-.\import-db-k8s.ps1     # from repo root
+.\Powershell Scripts\import-db-k8s.ps1     # from repo root
 ```
 
 Port-forwards the MongoDB pod, imports all 7 collections into `commons-db` with

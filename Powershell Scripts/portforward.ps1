@@ -10,11 +10,11 @@
 #  Kubernetes, so they are already on localhost and never appear here.
 #
 #  Usage:
-#      .\portforward.ps1                 # app only - what you need to use the app
-#      .\portforward.ps1 -All            # app + every admin UI
-#      .\portforward.ps1 -Only argocd,minio
-#      .\portforward.ps1 -Status         # what is running
-#      .\portforward.ps1 -Stop           # stop everything
+#      .\Powershell Scripts\portforward.ps1                 # app only - what you need to use the app
+#      .\Powershell Scripts\portforward.ps1 -All            # app + every admin UI
+#      .\Powershell Scripts\portforward.ps1 -Only argocd,minio
+#      .\Powershell Scripts\portforward.ps1 -Status         # what is running
+#      .\Powershell Scripts\portforward.ps1 -Stop           # stop everything
 #
 #  Forwards run as background jobs and die when you close the terminal.
 # =============================================================================

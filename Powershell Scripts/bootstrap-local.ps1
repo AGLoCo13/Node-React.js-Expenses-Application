@@ -4,8 +4,8 @@
 #  Brings the full local stack up on Docker Desktop for Windows:
 #    registry -> ingress -> Knative -> images -> K8s -> ArgoCD -> Jenkins -> seed
 #
-#  Run from the repo root:
-#      .\urbansync-v2\bootstrap-local.ps1
+#  Run from anywhere (path-independent):
+#      .\Powershell Scripts\bootstrap-local.ps1
 #
 #  Re-runnable: every step is idempotent, so you can rerun after a failure.
 #
@@ -37,9 +37,10 @@ if ($PSVersionTable.PSVersion.Major -ge 7) { $PSNativeCommandUseErrorActionPrefe
 $KNATIVE = 'knative-v1.14.0'
 $INGRESS = 'controller-v1.10.1'
 
-# Resolve repo root from this script's location (script lives in urbansync-v2/)
-$V2   = $PSScriptRoot
-$ROOT = Split-Path $V2 -Parent
+# Resolve repo root and the urbansync-v2 folder from this script's location
+# (script lives in the sibling 'Powershell Scripts' folder)
+$ROOT = Split-Path $PSScriptRoot -Parent
+$V2   = Join-Path $ROOT 'urbansync-v2'
 
 function Step { param($n, $t) Write-Host "`n=== [$n] $t ===" -ForegroundColor Cyan }
 function Ok   { param($t) Write-Host "    ok  $t" -ForegroundColor Green }
@@ -310,13 +311,13 @@ if (-not $SkipSeed) {
 Step 9 'Seed MongoDB'
     if (-not (Get-Command mongoimport -ErrorAction SilentlyContinue)) {
         Warn 'mongoimport not on PATH - skipping seed.'
-        Warn 'Install MongoDB Database Tools, then run: .\import-db-k8s.ps1'
+        Warn 'Install MongoDB Database Tools, then run: .\Powershell Scripts\import-db-k8s.ps1'
     } else {
         kubectl wait --for=condition=ready pod -l app=mongodb -n urbansync --timeout=180s
         if ($LASTEXITCODE -ne 0) { Die 'mongodb pod never became ready - cannot seed' }
-        Push-Location $ROOT
+        Push-Location $PSScriptRoot
         try { .\import-db-k8s.ps1; Ok 'database seeded' }
-        catch { Warn "seed failed: $_"; Warn 'retry later with: .\import-db-k8s.ps1' }
+        catch { Warn "seed failed: $_"; Warn 'retry later with: .\Powershell Scripts\import-db-k8s.ps1' }
         finally { Pop-Location }
     }
 } else { Warn 'skipping seed (-SkipSeed)' }

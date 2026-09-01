@@ -1,3 +1,7 @@
+> **Superseded.** This file predates the Kustomize `base/`+`overlays/` restructuring and the script reorganization into `Powershell Scripts/`. Use [`SETUP-LOCAL-K8S.md`](./SETUP-LOCAL-K8S.md) instead — commands here may reference paths that no longer exist.
+
+---
+
 # UrbanSync v2 — Full Local Setup Guide
 
 Complete sequence for bringing the full stack up from scratch on a Windows machine
