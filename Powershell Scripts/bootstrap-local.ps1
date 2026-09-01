@@ -284,7 +284,7 @@ Step 7 'ArgoCD'
     kubectl apply -f (Join-Path $V2 'infrastructure\argocd\application-local.yaml')
     if ($LASTEXITCODE -ne 0) { Die 'argocd Application apply failed' }
     Ok 'ArgoCD installed and Application created'
-    Warn 'ArgoCD syncs from GitHub dev-combined - local uncommitted changes are NOT deployed.'
+    Warn 'ArgoCD syncs from GitHub main - local uncommitted changes are NOT deployed.'
 } else { Warn 'skipping ArgoCD (-SkipArgo)' }
 
 # -----------------------------------------------------------------------------

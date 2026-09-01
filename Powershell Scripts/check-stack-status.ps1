@@ -45,4 +45,19 @@ try {
 Write-Host "`n===== BACKEND POD RESTART COUNT (flags crash loops) =====" -ForegroundColor Cyan
 kubectl get pods -n urbansync -l app=urbansync-backend
 
+Write-Host "`n===== GEMINI_API_KEY SANITY CHECK (inside the live backend pod) =====" -ForegroundColor Cyan
+$backendPod = kubectl get pods -n urbansync -l app=urbansync-backend -o jsonpath='{.items[0].metadata.name}' 2>$null
+if ($backendPod) {
+    Write-Host "pod: $backendPod"
+    kubectl exec -n urbansync $backendPod -- sh -c 'echo "length: ${#GEMINI_API_KEY}"'
+    kubectl exec -n urbansync $backendPod -- sh -c 'echo "prefix: $(echo $GEMINI_API_KEY | cut -c1-6)"'
+} else {
+    Write-Host "No backend pod found."
+}
+
+Write-Host "`n===== BACKEND LOGS - AI Extraction errors (real Gemini error hides here) =====" -ForegroundColor Cyan
+if ($backendPod) {
+    kubectl logs $backendPod -n urbansync --tail=200 | Select-String -Pattern "AI Extraction Error", "GoogleGenerativeAI", "gemini", "429", "401", "403", "API key" -Context 0,3
+}
+
 Write-Host "`nDone. Paste this whole block back."
