@@ -38,4 +38,4 @@ kubectl apply -f (Join-Path $V2 "k8s/overlays/local/plain-secrets.yaml")
 kubectl rollout restart deployment/urbansync-backend -n urbansync
 kubectl delete pod -n urbansync -l serving.knative.dev/service=receipt-annotator --ignore-not-found
 
-Write-Host "`nDone. The key was written to disk and applied — it was never sent anywhere else."
+Write-Host "`nDone. The key was written to disk and applied  -  it was never sent anywhere else."

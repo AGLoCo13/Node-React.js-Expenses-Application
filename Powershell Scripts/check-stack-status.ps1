@@ -1,6 +1,6 @@
 # check-stack-status.ps1
 # One-shot diagnostic dump of the whole local stack. Run it and paste the
-# full output back — it answers "what works / what doesn't" in one go.
+# full output back  -  it answers "what works / what doesn't" in one go.
 #
 # Usage:  cd urbansync-v2 ; .\check-stack-status.ps1 | Tee-Object status.txt
 

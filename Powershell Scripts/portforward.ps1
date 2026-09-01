@@ -1,5 +1,5 @@
 # =============================================================================
-#  portforward.ps1 — manage every port-forward this stack needs, in one place
+#  portforward.ps1  -  manage every port-forward this stack needs, in one place
 #
 #  Port-forwards are ONLY for reaching things from Windows. Nothing inside the
 #  cluster needs them: backend talks to mongodb:27017, rabbitmq:5672 and

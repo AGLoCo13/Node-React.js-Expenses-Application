@@ -1,12 +1,12 @@
 # cleanup-dead-files.ps1
 # NOTHING in here runs automatically. Every action line is commented out on
-# purpose — read the reasoning, uncomment only what you agree with, then run
+# purpose  -  read the reasoning, uncomment only what you agree with, then run
 # it locally so any deletion lands in a normal, reviewable commit.
 #
 # Status as of the last audit: the first round of dead files (root
 # package.json/package-lock.json, root docker-compose.yml, terraform.tfstate,
 # git-cleanup.bat, ansible-test/, k8s/backend+frontend/deployment.yaml,
-# k8s/README.md) is already gone — you deleted those yourself. What's left:
+# k8s/README.md) is already gone  -  you deleted those yourself. What's left:
 
 Set-Location (Split-Path $PSScriptRoot -Parent)   # repo root, regardless of where this is run from
 
@@ -19,7 +19,7 @@ Set-Location (Split-Path $PSScriptRoot -Parent)   # repo root, regardless of whe
 # --- SUPERSEDED DOC, kept for now with a deprecation banner instead of deleted ---
 # urbansync-v2/SETUP.md is superseded by urbansync-v2/SETUP-LOCAL-K8S.md but
 # is still linked from README.md and PERFECT-10-ROADMAP.md. A "superseded"
-# banner was added to the top of the file rather than deleting it outright —
+# banner was added to the top of the file rather than deleting it outright  - 
 # delete it once you've confirmed nothing external still links to it:
 # git rm urbansync-v2/SETUP.md
 # (then remove the two links to it in README.md and PERFECT-10-ROADMAP.md)
