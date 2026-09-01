@@ -9,7 +9,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
-    targetRevision: dev-combined
+    targetRevision: main
     path: urbansync-v2/k8s/overlays/local
   destination:
     server: https://kubernetes.default.svc
