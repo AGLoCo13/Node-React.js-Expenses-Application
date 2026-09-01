@@ -102,6 +102,17 @@ function CalculateExpenses() {
 
     const calculatedApartmentExpenses = {};
 
+    // Guard: an apartment without the ei heating coefficient silently zeroes
+    // the heating distribution for the WHOLE building (sums become 0).
+    // Surface it loudly instead of rendering a quiet 0.00.
+    const missingEi = data.apartments.filter(a => a.ei == null);
+    if (missingEi.length > 0) {
+      console.warn(
+        '[CalculateExpenses] Apartments missing the ei coefficient — heating computes as 0 for everyone:',
+        missingEi.map(a => a.name).join(', ')
+      );
+    }
+
     // **ΘΕΡΜΑΝΣΗ - Presidential Decree 1985**
     // Formula: [(ei × Wi) / Σ(ei × Wi)] × 70% × P + [(fi × ei) / Σ(fi × ei)] × 30% × P
     
@@ -388,7 +399,7 @@ function CalculateExpenses() {
                         {apartment.name}
                       </h3>
                       <p style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0' }}>
-                        Floor {apartment.floor} • {apartment.square_meters}m² • ei: {apartment.ei} • fi: {apartment.fi}
+                        Floor {apartment.floor} • {apartment.square_meters}m² • ei: {apartment.ei ?? '—'} • fi: {apartment.fi ?? '—'}
                       </p>
                     </div>
                   </div>
