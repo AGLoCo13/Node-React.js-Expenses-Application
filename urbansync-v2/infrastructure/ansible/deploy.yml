@@ -186,6 +186,23 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
 
+    # Το Knative αναλύει μόνο του τα image tags σε digests, ΜΕΣΑ από το pod του
+    # controller. Εκεί το "localhost:5000" είναι το loopback του pod, όχι το
+    # registry του κόμβου, οπότε κάθε revision σκάει με ContainerMissing:
+    #   failed to resolve image to digest: dial tcp [::1]:5000: connection refused
+    # Το certs.d fix (setup-microk8s.yml) αφορά ΜΟΝΟ το kubelet, που τρέχει στον
+    # κόμβο — δεν βοηθάει διεργασία μέσα σε pod.
+    - name: "4b.5e2 | Knative: skip tag->digest resolution για το τοπικό registry"
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch configmap/config-deployment
+          --namespace knative-serving
+          --type merge
+          --patch '{"data":{"registries-skipping-tag-resolving":"localhost:5000,kind.local,ko.local,dev.local"}}'
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
     # The upstream Knative/Kourier manifests request 300m+200m+200m CPU by default.
     # On a 2-vCPU VM that's enough alone to starve the CSI driver pods of room to
     # schedule (saw them stuck Pending for 4 days). Re-applying the upstream YAML
