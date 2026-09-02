@@ -143,7 +143,7 @@ function streamToBuffer(bucket, key) {
 
 // ── Gemini AI extraction ──────────────────────────────────────────────────────
 async function extractReceiptData(imageBuffer, mimeType) {
-    const model = getGenAI().getGenerativeModel({ model: 'gemini-1.5-pro' });
+    const model = getGenAI().getGenerativeModel({ model: 'gemini-3.6-flash' });
 
     const prompt = `You are an expert accounting AI for a building management system.
 Analyze this receipt and extract the details.

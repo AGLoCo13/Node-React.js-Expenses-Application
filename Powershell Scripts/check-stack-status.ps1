@@ -49,8 +49,14 @@ Write-Host "`n===== GEMINI_API_KEY SANITY CHECK (inside the live backend pod) ==
 $backendPod = kubectl get pods -n urbansync -l app=urbansync-backend -o jsonpath='{.items[0].metadata.name}' 2>$null
 if ($backendPod) {
     Write-Host "pod: $backendPod"
-    kubectl exec -n urbansync $backendPod -- sh -c 'echo "length: ${#GEMINI_API_KEY}"'
-    kubectl exec -n urbansync $backendPod -- sh -c 'echo "prefix: $(echo $GEMINI_API_KEY | cut -c1-6)"'
+    $geminiVal = kubectl exec -n urbansync $backendPod -- printenv GEMINI_API_KEY 2>$null
+    if ($geminiVal) {
+        Write-Host "length: $($geminiVal.Length)"
+        Write-Host "prefix: $($geminiVal.Substring(0, [Math]::Min(6, $geminiVal.Length)))"
+    } else {
+        Write-Host "length: 0 (GEMINI_API_KEY not set in pod env)"
+    }
+    Remove-Variable geminiVal -ErrorAction SilentlyContinue
 } else {
     Write-Host "No backend pod found."
 }

@@ -6,7 +6,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 async function extractReceiptData(imageBuffer, mimeType) {
     try {
         // Χρησιμοποιούμε το γρήγορο μοντέλο
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
 
         // Το αυστηρό System Prompt
         const prompt = `You are an expert accounting AI for a building management system.
