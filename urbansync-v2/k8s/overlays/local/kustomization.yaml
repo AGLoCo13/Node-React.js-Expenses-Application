@@ -2,3 +2,15 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
+
+# Local dev decoupling: prod (Azure VM) runs the SHA tags that Jenkins pins in
+# base/, but those SHAs only exist in the VM's registry. Locally we always run
+# :latest, which bootstrap-local.ps1 builds and pushes; combined with
+# imagePullPolicy: Always, a pod restart picks up the newest local build.
+images:
+  - name: localhost:5000/urbansync-backend
+    newTag: latest
+  - name: localhost:5000/urbansync-frontend
+    newTag: latest
+  - name: localhost:5000/urbansync-receipt-annotator
+    newTag: latest
