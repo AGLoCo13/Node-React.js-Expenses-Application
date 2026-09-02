@@ -16,9 +16,23 @@ location = "West Europe"
 
 # -----------------------------------------------------------------------------
 # Resource Group Name
-# Το όνομα του Resource Group στο Azure
+# Το όνομα του Resource Group στο Azure.
+# Όλοι οι υπόλοιποι πόροι ονομάζονται με βάση αυτό (urbansync-rg-vm κ.λπ.)
 # -----------------------------------------------------------------------------
-resource_group_name = "gas-receipts-rg"
+resource_group_name = "urbansync-rg"
+
+# -----------------------------------------------------------------------------
+# Key Vault Name  (ΥΠΟΧΡΕΩΤΙΚΟ — δεν έχει default)
+# Πρέπει να είναι ΜΟΝΑΔΙΚΟ ΠΑΓΚΟΣΜΙΩΣ, 3-24 χαρακτήρες.
+# Προσοχή: ένα διαγραμμένο Key Vault κρατάει το όνομά του δεσμευμένο (soft
+# delete), οπότε μη χρησιμοποιήσεις όνομα που υπήρξε στο παρελθόν.
+# Πρότεινε κάτι σαν "urbansync-kv-ab12".
+#
+# Η ίδια τιμή πρέπει να μπει και σε:
+#   - k8s/overlays/prod/secret-provider-class.yaml  (keyvaultName)
+#   - infrastructure/ansible/vars/secrets.enc.yml   (azure_keyvault_name)
+# -----------------------------------------------------------------------------
+keyvault_name = "urbansync-kv-CHANGEME"
 
 # -----------------------------------------------------------------------------
 # Admin Username

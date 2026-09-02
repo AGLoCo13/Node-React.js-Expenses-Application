@@ -1,9 +1,9 @@
 # =============================================================================
-# main.tf — OpenTofu Infrastructure for Gas Receipts OCR System
+# main.tf — OpenTofu Infrastructure for UrbanSync v2
 # =============================================================================
 # Αρχείο: main.tf
-# Σκοπός: Ορισμός του Azure provider (AzureRM) και όλων των πόρων
-#         για το Βήμα 2: Δίκτυο και Virtual Machine.
+# Σκοπός: Ορισμός του Azure provider (AzureRM) και όλων των πόρων:
+#         δίκτυο, Virtual Machine, Managed Identity και Key Vault.
 # =============================================================================
 
 terraform {
@@ -27,6 +27,24 @@ provider "azurerm" {
   features {}
 }
 
+# -----------------------------------------------------------------------------
+# Το tenant των credentials που τρέχουν το tofu.
+# Χρησιμοποιείται από το Key Vault και εμφανίζεται ως output — η ίδια τιμή
+# πρέπει να μπει στο k8s/overlays/prod/secret-provider-class.yaml (tenantId).
+# -----------------------------------------------------------------------------
+data "azurerm_client_config" "current" {}
+
+# -----------------------------------------------------------------------------
+# Κοινά tags για όλους τους πόρους
+# -----------------------------------------------------------------------------
+locals {
+  tags = {
+    project     = "urbansync"
+    environment = "dev"
+    managed_by  = "opentofu"
+  }
+}
+
 # =============================================================================
 # RESOURCE GROUP
 # =============================================================================
@@ -34,11 +52,7 @@ resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.location
 
-  tags = {
-    project     = "gas-receipts-ocr"
-    environment = "dev"
-    managed_by  = "opentofu"
-  }
+  tags = local.tags
 }
 
 # =============================================================================
@@ -52,10 +66,7 @@ resource "azurerm_virtual_network" "main" {
   resource_group_name = azurerm_resource_group.main.name
   address_space       = ["10.0.0.0/16"]
 
-  tags = {
-    project    = "gas-receipts-ocr"
-    managed_by = "opentofu"
-  }
+  tags = local.tags
 }
 
 # Subnet
@@ -76,10 +87,7 @@ resource "azurerm_public_ip" "main" {
   allocation_method   = "Static"
   sku                 = "Standard"
 
-  tags = {
-    project    = "gas-receipts-ocr"
-    managed_by = "opentofu"
-  }
+  tags = local.tags
 }
 
 # =============================================================================
@@ -111,15 +119,12 @@ resource "azurerm_network_security_group" "main" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    destination_port_ranges    = ["80", "8080"]  # Προσοχή: Εδώ είναι ranges στον πληθυντικό
+    destination_port_ranges    = ["80", "8080"] # Προσοχή: Εδώ είναι ranges στον πληθυντικό
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
 
-  tags = {
-    project    = "gas-receipts-ocr"
-    managed_by = "opentofu"
-  }
+  tags = local.tags
 }
 
 # =============================================================================
@@ -137,10 +142,7 @@ resource "azurerm_network_interface" "main" {
     public_ip_address_id          = azurerm_public_ip.main.id
   }
 
-  tags = {
-    project    = "gas-receipts-ocr"
-    managed_by = "opentofu"
-  }
+  tags = local.tags
 }
 
 # Σύνδεση NSG με το Network Interface
@@ -163,6 +165,14 @@ resource "azurerm_linux_virtual_machine" "main" {
     azurerm_network_interface.main.id,
   ]
 
+  # System-assigned Managed Identity.
+  # Το Ansible (deploy.yml task 4d.5c) κάνει `az login --identity` με αυτήν,
+  # και ο Key Vault CSI driver τη χρησιμοποιεί για να διαβάσει τα secrets
+  # (useVMManagedIdentity: "true" στο secret-provider-class.yaml).
+  identity {
+    type = "SystemAssigned"
+  }
+
   # Αυθεντικοποίηση μέσω SSH key (όχι κωδικός)
   admin_ssh_key {
     username   = var.admin_username
@@ -172,6 +182,9 @@ resource "azurerm_linux_virtual_machine" "main" {
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"
+    # Χωρίς disk_size_gb — κρατάμε το default του image (30 GB).
+    # Ο δίσκος μπορεί να μεγαλώσει αργότερα (disk_size_gb = 64 + tofu apply,
+    # απαιτεί stop/deallocate αλλά όχι rebuild). Δεν μπορεί να μικρύνει.
   }
 
   # Ubuntu 22.04 LTS
@@ -182,8 +195,46 @@ resource "azurerm_linux_virtual_machine" "main" {
     version   = "latest"
   }
 
-  tags = {
-    project    = "gas-receipts-ocr"
-    managed_by = "opentofu"
-  }
+  tags = local.tags
+}
+
+# =============================================================================
+# AZURE KEY VAULT
+# =============================================================================
+# Το prod overlay διαβάζει τα secrets από εδώ μέσω του Secrets Store CSI Driver.
+# Το Ansible (deploy.yml task 4d.6) τα γράφει με `az keyvault secret set`.
+# =============================================================================
+resource "azurerm_key_vault" "main" {
+  name                = var.keyvault_name
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tenant_id           = data.azurerm_client_config.current.tenant_id
+  sku_name            = "standard"
+
+  # RBAC αντί για access policies — η πρόσβαση δίνεται από το role assignment
+  # παρακάτω. Χωρίς αυτό, το role assignment αγνοείται εντελώς.
+  rbac_authorization_enabled = true
+
+  # 7 είναι το ελάχιστο που δέχεται το Azure. Το default (90) κρατάει το όνομα
+  # δεσμευμένο παγκοσμίως για 90 μέρες μετά από κάθε destroy, μπλοκάροντας
+  # οποιοδήποτε rebuild με το ίδιο όνομα.
+  soft_delete_retention_days = 7
+  purge_protection_enabled   = false
+
+  tags = local.tags
+}
+
+# -----------------------------------------------------------------------------
+# Role Assignment — VM Managed Identity → Key Vault
+# "Key Vault Secrets Officer" καλύπτει και το write (Ansible) και το read (CSI),
+# οπότε ένα role assignment αρκεί.
+#
+# ΠΡΟΣΟΧΗ: Η δημιουργία role assignment απαιτεί "Owner" ή
+# "User Access Administrator" στο subscription. Με μόνο "Contributor" αυτό
+# αποτυγχάνει — δες το README για το χειροκίνητο workaround.
+# -----------------------------------------------------------------------------
+resource "azurerm_role_assignment" "vm_keyvault_secrets" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = azurerm_linux_virtual_machine.main.identity[0].principal_id
 }

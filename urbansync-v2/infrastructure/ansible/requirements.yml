@@ -2,7 +2,10 @@
 collections:
   - name: community.sops
     version: ">=1.6.0"
+  # Upper bound is deliberate: community.docker >=4 requires ansible-core >=2.17,
+  # but Ubuntu 24.04 ships ansible-core 2.16.3. Without the cap, the bundled 5.x
+  # is picked up and docker_compose_v2 (deploy.yml tasks 3 and 5b) fails at runtime.
   - name: community.docker
-    version: ">=3.0.0"
+    version: ">=3.0.0,<4.0.0"
   - name: ansible.posix
     version: ">=1.5.0"

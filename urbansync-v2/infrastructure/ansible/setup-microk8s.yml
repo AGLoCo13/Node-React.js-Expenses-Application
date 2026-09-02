@@ -81,6 +81,36 @@
         replace: "SystemdCgroup = true"
       notify: restart containerd
 
+    # ΚΡΙΣΙΜΟ: ο handler "restart containerd" κανονικά τρέχει στο ΤΕΛΟΣ του play,
+    # δηλαδή ΜΕΤΑ το kubeadm init. Χωρίς αυτό το flush, το init τρέχει πάνω σε
+    # containerd που δεν έχει φορτώσει το SystemdCgroup=true, ενώ το kubelet
+    # (k8s 1.29) χρησιμοποιεί systemd cgroup driver. Το mismatch κάνει τα
+    # control-plane static pods να κάνουν restart συνέχεια και ο API server
+    # πέφτει ("connection refused" στο 6443 όταν εφαρμόζεται το Calico).
+    # Επιπλέον: αν το play αποτύχει, οι handlers ΔΕΝ τρέχουν ποτέ.
+    - name: Create certs.d dir for the local registry
+      file:
+        path: /etc/containerd/certs.d/localhost:5000
+        state: directory
+        mode: "0755"
+
+    # Το containerd 2.x έχει ήδη config_path = '/etc/containerd/certs.d:...'
+    # στο default config, οπότε αρκεί να υπάρχει αυτό το αρχείο.
+    - name: Trust localhost:5000 over plain HTTP
+      copy:
+        dest: /etc/containerd/certs.d/localhost:5000/hosts.toml
+        mode: "0644"
+        content: |
+          server = "http://localhost:5000"
+
+          [host."http://localhost:5000"]
+            capabilities = ["pull", "resolve"]
+            skip_verify = true
+      notify: restart containerd
+
+    - name: Apply containerd config before kubeadm init (flush handlers)
+      ansible.builtin.meta: flush_handlers
+
     # -------------------------------------------------------------------------
     # 3. Εγκατάσταση Εργαλείων K8s (kubeadm, kubelet, kubectl)
     # -------------------------------------------------------------------------
@@ -142,15 +172,49 @@
     # -------------------------------------------------------------------------
     # 6. Εγκατάσταση Δικτύου (Calico) & Untaint
     # -------------------------------------------------------------------------
+    # Το kubeadm init μπορεί να επιστρέψει ενώ ο API server ακόμα σταθεροποιείται.
+    # Χωρίς αυτή την αναμονή, το Calico apply σκάει με "connection refused".
+    - name: Wait for the API server to report ready
+      become: false
+      ansible.builtin.command:
+        cmd: kubectl get --raw /readyz
+      register: apiserver_ready
+      until: apiserver_ready.rc == 0
+      retries: 30
+      delay: 10
+      changed_when: false
+
+    # ΧΩΡΙΣ guard "when: not kubeadm_conf.stat.exists": μετά από αποτυχημένο run
+    # το admin.conf ΥΠΑΡΧΕΙ ήδη, οπότε το retry θα προσπερνούσε σιωπηλά το Calico
+    # — ακριβώς τότε που το χρειάζεσαι. Το kubectl apply είναι ούτως ή άλλως idempotent.
     - name: Install Calico Pod Network
       become: false
       command: kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.27.0/manifests/calico.yaml
-      when: not kubeadm_conf.stat.exists
+
+    # -------------------------------------------------------------------------
+    # 7. StorageClass — το σκέτο kubeadm ΔΕΝ έχει provisioner ούτε default class.
+    #    Τα PVC στο k8s/base/*/pvc.yaml δεν ορίζουν storageClassName, άρα
+    #    βασίζονται σε default. Χωρίς αυτό μένουν Pending για πάντα και τα
+    #    mongodb/rabbitmq/minio/thingsboard/nodered δεν προγραμματίζονται καν.
+    # -------------------------------------------------------------------------
+    - name: Install local-path-provisioner (single-node storage)
+      become: false
+      command: >
+        kubectl apply -f
+        https://raw.githubusercontent.com/rancher/local-path-provisioner/v0.0.30/deploy/local-path-storage.yaml
+      changed_when: false
+
+    - name: Make local-path the default StorageClass
+      become: false
+      command: >
+        kubectl patch storageclass local-path
+        -p '{"metadata":{"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+      changed_when: false
 
     - name: Untaint the master node (allow pods on control-plane)
       become: false
       command: kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-      when: not kubeadm_conf.stat.exists
+      changed_when: false
       ignore_errors: yes
 
   handlers:
