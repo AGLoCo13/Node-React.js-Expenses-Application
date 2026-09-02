@@ -20,6 +20,21 @@ pipeline {
         disableConcurrentBuilds()
     }
 
+    parameters {
+        // Bootstrap / recovery switch. The per-component stages below are gated on
+        // `changeset`, which is EMPTY on the first build of a job (no previous build
+        // to diff against) -- so a fresh Jenkins would skip every image stage and
+        // leave the registry empty, pinning the app at ImagePullBackOff forever.
+        // Also useful any time the registry is wiped or the VM is rebuilt.
+        // NOTE: Jenkins only registers parameters after the job has run once, so the
+        // sequence on a brand-new job is: Build Now (no-op) -> Build with Parameters.
+        booleanParam(
+            name: 'FORCE_BUILD',
+            defaultValue: false,
+            description: 'Build and push ALL images regardless of changeset (bootstrap/recovery)'
+        )
+    }
+
     environment {
         REGISTRY        = 'localhost:5000'
         BACKEND_IMAGE   = "${REGISTRY}/urbansync-backend"
@@ -55,7 +70,13 @@ pipeline {
             when { expression { currentBuild.result == null } }
             parallel {
                 stage('Backend') {
-                    when { changeset "urbansync-v2/backend/**"; beforeAgent true }
+                    when {
+                        anyOf {
+                            expression { params.FORCE_BUILD }
+                            changeset "urbansync-v2/backend/**"
+                        }
+                        beforeAgent true
+                    }
                     steps {
                         dir('urbansync-v2/backend') {
                             sh '''
@@ -71,7 +92,13 @@ pipeline {
                     }
                 }
                 stage('Frontend') {
-                    when { changeset "urbansync-v2/frontend/**"; beforeAgent true }
+                    when {
+                        anyOf {
+                            expression { params.FORCE_BUILD }
+                            changeset "urbansync-v2/frontend/**"
+                        }
+                        beforeAgent true
+                    }
                     steps {
                         dir('urbansync-v2/frontend') {
                             sh '''
@@ -87,7 +114,13 @@ pipeline {
                     }
                 }
                 stage('Receipt Annotator') {
-                    when { changeset "urbansync-v2/knative/receipt-annotator/**"; beforeAgent true }
+                    when {
+                        anyOf {
+                            expression { params.FORCE_BUILD }
+                            changeset "urbansync-v2/knative/receipt-annotator/**"
+                        }
+                        beforeAgent true
+                    }
                     steps {
                         dir('urbansync-v2/knative/receipt-annotator') {
                             sh '''

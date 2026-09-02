@@ -29,6 +29,17 @@
     # Χρήστης που τρέχει τις εντολές (non-root για kubectl)
     deploy_user: azureuser
 
+    # Collections που φορτώνει το BLOCK 4e (μόνο με -e seed_db=true).
+    # Η σειρά δεν παίζει ρόλο — δεν υπάρχουν foreign keys στη Mongo.
+    seed_collections:
+      - users
+      - profiles
+      - buildings
+      - apartments
+      - expenses
+      - consumptions
+      - payments
+
   # ---------------------------------------------------------------------------
   # BLOCK 1 — Δημιουργία φακέλου προορισμού
   # ---------------------------------------------------------------------------
@@ -211,9 +222,35 @@
       changed_when: false
       when: deploy_env | default('prod') == 'prod'
 
-    - name: "4b.5i | Μείωση CPU request ingress-nginx-controller (100m -> 50m)"
+    # Το baremetal manifest (όχι το cloud): ο κόμβος είναι σκέτο kubeadm χωρίς
+    # cloud-controller-manager, οπότε ένα Service type=LoadBalancer θα έμενε
+    # για πάντα σε <pending> και το http://<public-ip> δεν θα έφτανε ποτέ στο cluster.
+    - name: "4b.5i | Εγκατάσταση nginx ingress controller"
       ansible.builtin.command:
-        cmd: kubectl set resources deployment/ingress-nginx-controller -n ingress-nginx --requests=cpu=50m
+        cmd: >
+          kubectl apply -f
+          https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.10.1/deploy/static/provider/baremetal/deploy.yaml
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    # Ένα patch, ένα rollout: hostNetwork ώστε ο controller να δεσμεύσει
+    # απευθείας το :80/:443 του κόμβου (το NSG επιτρέπει ήδη 80), και ταυτόχρονα
+    # το CPU request trim (100m -> 50m) για τον μικρό κόμβο.
+    - name: "4b.5i2 | hostNetwork + CPU request στον ingress-nginx-controller"
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch deployment ingress-nginx-controller -n ingress-nginx
+          -p '{"spec":{"template":{"spec":{"hostNetwork":true,"dnsPolicy":"ClusterFirstWithHostNet","containers":[{"name":"controller","resources":{"requests":{"cpu":"50m"}}}]}}}}'
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: deploy_env | default('prod') == 'prod'
+
+    - name: "4b.5i3 | Αναμονή ingress-nginx-controller"
+      ansible.builtin.command:
+        cmd: kubectl rollout status deployment/ingress-nginx-controller -n ingress-nginx --timeout=180s
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false
@@ -329,6 +366,64 @@
     - name: "4c | Αποτέλεσμα k8s overlay"
       ansible.builtin.debug:
         msg: "{{ k8s_result.stdout_lines }}"
+
+    # ---------------------------------------------------------------------------
+    # BLOCK 4e — Seed MongoDB  (OPT-IN:  ansible-playbook ... -e seed_db=true)
+    # ---------------------------------------------------------------------------
+    # ΠΡΟΣΟΧΗ: το mongoimport τρέχει με --drop, δηλαδή ΣΒΗΝΕΙ και ξαναφορτώνει τις
+    # 7 collections. Γι' αυτό είναι opt-in — ένα σκέτο deploy.yml δεν τ' αγγίζει.
+    #
+    # Τα JSON βρίσκονται στη ΡΙΖΑ του repo ("JSON DB Collections/"), ΕΚΤΟΣ του
+    # urbansync-v2/, οπότε το task 2 δεν τα συγχρονίζει — τα στέλνουμε ξεχωριστά.
+    - name: "4e.1 | Συγχρονισμός seed JSON στο VM"
+      ansible.posix.synchronize:
+        src: "{{ local_src }}/JSON DB Collections/"
+        dest: "{{ deploy_dest }}/seed-data/"
+      when: seed_db | default(false) | bool
+
+    - name: "4e.2 | Αναμονή MongoDB pod"
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=ready pod -l app=mongodb -n urbansync --timeout=300s
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: seed_db | default(false) | bool
+
+    - name: "4e.3 | Αντιγραφή seed JSON μέσα στο pod"
+      ansible.builtin.command:
+        cmd: kubectl cp "{{ deploy_dest }}/seed-data/{{ item }}.json" urbansync/mongodb-0:/tmp/{{ item }}.json
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      loop: "{{ seed_collections }}"
+      when: seed_db | default(false) | bool
+
+    # Το mongoimport υπάρχει ήδη μέσα στο mongo image — δεν χρειάζεται
+    # port-forward ούτε MongoDB Database Tools στον host (σε αντίθεση με το
+    # import-db-k8s.ps1 που είναι γραμμένο για Docker Desktop από Windows).
+    - name: "4e.4 | mongoimport (--drop) μέσα στο pod"
+      # Τα credentials τα διαβάζει το sh ΜΕΣΑ στο pod από το ίδιο του το env,
+      # οπότε δεν εμφανίζονται ποτέ στην command line ούτε στο output — άρα
+      # δεν χρειάζεται no_log και τα σφάλματα παραμένουν ορατά.
+      ansible.builtin.command:
+        cmd: >
+          kubectl exec -n urbansync mongodb-0 -- sh -c
+          'mongoimport --db commons-db --authenticationDatabase admin
+          -u "$MONGO_INITDB_ROOT_USERNAME" -p "$MONGO_INITDB_ROOT_PASSWORD"
+          --collection {{ item }} --file /tmp/{{ item }}.json --drop'
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: true
+      loop: "{{ seed_collections }}"
+      when: seed_db | default(false) | bool
+
+    - name: "4e.5 | Καθαρισμός προσωρινών αρχείων"
+      ansible.builtin.command:
+        cmd: kubectl exec -n urbansync mongodb-0 -- sh -c "rm -f /tmp/*.json"
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      when: seed_db | default(false) | bool
 
     # ---------------------------------------------------------------------------
     # BLOCK 5 — Εκκίνηση Jenkins
