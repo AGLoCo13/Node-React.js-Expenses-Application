@@ -30,7 +30,7 @@ spec:
       timeoutSeconds: 60
       containers:
         - image: localhost:5000/urbansync-receipt-annotator:75187658
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
