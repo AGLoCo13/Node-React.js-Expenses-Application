@@ -38,6 +38,9 @@ jobs:
             scriptPath('urbansync-v2/Jenkinsfile')
           }
         }
+        parameters {
+          booleanParam('FORCE_BUILD', false, 'Build and push ALL images regardless of changeset (bootstrap/recovery)')
+        }
         triggers {
           scm('H/2 * * * *')
         }
