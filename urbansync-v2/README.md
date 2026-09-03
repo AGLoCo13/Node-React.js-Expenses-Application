@@ -100,20 +100,32 @@ Outside cluster:
 ### IoT Telemetry Flow (Flow A)
 
 ```
-Node-RED (MQTT every 10 s)
-    │  topic: v1/devices/me/telemetry
+Node-RED  (4 simulated devices, HTTP telemetry every 5 s)
+    │  POST /api/v1/<device-token>/telemetry   {temperature} | {fuel}
     ▼
 ThingsBoard  (stores, displays, evaluates Rule Engine)
-    │  if fuel_usage < 200 → trigger alarm
+    │  device-profile alarm rules: High Temperature (>28 °C), Low Fuel (<20 %)
+    │  root rule chain: Save Timeseries → filters → RabbitMQ node
     ▼
 RabbitMQ  queue: building-alarms
-    │  amqplib consumer in backend
+    │  amqplib consumer in backend (Retry + Circuit Breaker)
     ▼
 MongoDB   collection: notifications
     │
     ▼
 Admin Dashboard  (polling /api/notifications)
 ```
+
+**IoT as code.** Nothing in this flow is clicked together by hand any more. `k8s/base/iot/`
+holds the Node-RED flow (`nodered/flows.json`, seeded into the pod's `/data` on every start by an
+initContainer — the editor is read-only in spirit: edit git, not the UI), the ThingsBoard root rule
+chain and the two dashboards (`thingsboard/`), and a Kubernetes Job (`thingsboard-provision`) that
+runs `provision.js` after every ArgoCD sync: it waits for ThingsBoard, creates/updates the device
+profiles with their alarm rules, the 4 devices with fixed access tokens (Secret `iot-credentials`),
+imports the rule chain (RabbitMQ credentials injected from `urbansync-secrets` at import time — the
+JSON in git has only `${RABBITMQ_USER}` placeholders) and the dashboards (`__DEVICE_ID:<name>__`
+placeholders resolved to the real device ids). It is idempotent and never deletes anything. Job
+logs: `kubectl logs -n urbansync job/thingsboard-provision`.
 
 ### Receipt Upload & AI Annotation Flow (Flow B)
 

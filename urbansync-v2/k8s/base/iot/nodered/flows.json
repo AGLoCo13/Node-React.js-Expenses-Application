@@ -1,0 +1,311 @@
+[
+ {
+  "id": "sb-sim",
+  "type": "tab",
+  "label": "Smart Building Simulation",
+  "disabled": false,
+  "info": "Managed by GitOps: this flow is rendered from k8s/base/iot/nodered/flows.json into a ConfigMap and copied into /data/flows.json\non every pod start. UI edits are lost on restart on purpose - change the file in git instead.\n\nDevice access tokens come from the Secret iot-credentials via ${TB_TOKEN_*} environment variables;\nTB_HOST defaults to http://thingsboard:9090 (in-cluster service)."
+ },
+ {
+  "id": "cmt",
+  "type": "comment",
+  "z": "sb-sim",
+  "name": "4 simulated devices -> ThingsBoard HTTP telemetry every 5s. Ap2 runs hot (>28C triggers High Temperature), the fuel tank drains 100->0 (<20% triggers Low Fuel).",
+  "x": 420,
+  "y": 40,
+  "wires": []
+ },
+ {
+  "id": "inj-1",
+  "type": "inject",
+  "z": "sb-sim",
+  "name": "Ap1 Thermostat (every 5s)",
+  "props": [
+   {
+    "p": "payload"
+   }
+  ],
+  "repeat": "5",
+  "crontab": "",
+  "once": false,
+  "onceDelay": 0.1,
+  "topic": "",
+  "payload": "",
+  "payloadType": "date",
+  "x": 150,
+  "y": 120,
+  "wires": [
+   [
+    "gen-1"
+   ]
+  ]
+ },
+ {
+  "id": "gen-1",
+  "type": "function",
+  "z": "sb-sim",
+  "name": "Data gen - Ap1 Thermostat",
+  "func": "// normal apartment: 20-25 C\nmsg.payload = { temperature: +(20 + Math.random() * 5).toFixed(1) };\n// token + host from the container env (Secret iot-credentials / TB_HOST)\nconst host = env.get('TB_HOST') || 'http://thingsboard:9090';\nmsg.url = host + '/api/v1/' + env.get('TB_TOKEN_AP1') + '/telemetry';\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 400,
+  "y": 120,
+  "wires": [
+   [
+    "http-1"
+   ]
+  ]
+ },
+ {
+  "id": "http-1",
+  "type": "http request",
+  "z": "sb-sim",
+  "name": "POST telemetry Ap1 Thermostat",
+  "method": "POST",
+  "ret": "txt",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 680,
+  "y": 120,
+  "wires": [
+   [
+    "dbg"
+   ]
+  ]
+ },
+ {
+  "id": "inj-2",
+  "type": "inject",
+  "z": "sb-sim",
+  "name": "Ap2 Thermostat (every 5s)",
+  "props": [
+   {
+    "p": "payload"
+   }
+  ],
+  "repeat": "5",
+  "crontab": "",
+  "once": false,
+  "onceDelay": 0.1,
+  "topic": "",
+  "payload": "",
+  "payloadType": "date",
+  "x": 150,
+  "y": 200,
+  "wires": [
+   [
+    "gen-2"
+   ]
+  ]
+ },
+ {
+  "id": "gen-2",
+  "type": "function",
+  "z": "sb-sim",
+  "name": "Data gen - Ap2 Thermostat",
+  "func": "// hot apartment: 26-31 C -> crosses the 28 C High Temperature rule\nmsg.payload = { temperature: +(26 + Math.random() * 5).toFixed(1) };\n// token + host from the container env (Secret iot-credentials / TB_HOST)\nconst host = env.get('TB_HOST') || 'http://thingsboard:9090';\nmsg.url = host + '/api/v1/' + env.get('TB_TOKEN_AP2') + '/telemetry';\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 400,
+  "y": 200,
+  "wires": [
+   [
+    "http-2"
+   ]
+  ]
+ },
+ {
+  "id": "http-2",
+  "type": "http request",
+  "z": "sb-sim",
+  "name": "POST telemetry Ap2 Thermostat",
+  "method": "POST",
+  "ret": "txt",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 680,
+  "y": 200,
+  "wires": [
+   [
+    "dbg"
+   ]
+  ]
+ },
+ {
+  "id": "inj-3",
+  "type": "inject",
+  "z": "sb-sim",
+  "name": "Ap3 Thermostat (every 5s)",
+  "props": [
+   {
+    "p": "payload"
+   }
+  ],
+  "repeat": "5",
+  "crontab": "",
+  "once": false,
+  "onceDelay": 0.1,
+  "topic": "",
+  "payload": "",
+  "payloadType": "date",
+  "x": 150,
+  "y": 280,
+  "wires": [
+   [
+    "gen-3"
+   ]
+  ]
+ },
+ {
+  "id": "gen-3",
+  "type": "function",
+  "z": "sb-sim",
+  "name": "Data gen - Ap3 Thermostat",
+  "func": "// normal apartment: 19-24 C\nmsg.payload = { temperature: +(19 + Math.random() * 5).toFixed(1) };\n// token + host from the container env (Secret iot-credentials / TB_HOST)\nconst host = env.get('TB_HOST') || 'http://thingsboard:9090';\nmsg.url = host + '/api/v1/' + env.get('TB_TOKEN_AP3') + '/telemetry';\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 400,
+  "y": 280,
+  "wires": [
+   [
+    "http-3"
+   ]
+  ]
+ },
+ {
+  "id": "http-3",
+  "type": "http request",
+  "z": "sb-sim",
+  "name": "POST telemetry Ap3 Thermostat",
+  "method": "POST",
+  "ret": "txt",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 680,
+  "y": 280,
+  "wires": [
+   [
+    "dbg"
+   ]
+  ]
+ },
+ {
+  "id": "inj-4",
+  "type": "inject",
+  "z": "sb-sim",
+  "name": "Fuel Tank (every 5s)",
+  "props": [
+   {
+    "p": "payload"
+   }
+  ],
+  "repeat": "5",
+  "crontab": "",
+  "once": true,
+  "onceDelay": 0.1,
+  "topic": "",
+  "payload": "",
+  "payloadType": "date",
+  "x": 150,
+  "y": 360,
+  "wires": [
+   [
+    "gen-4"
+   ]
+  ]
+ },
+ {
+  "id": "gen-4",
+  "type": "function",
+  "z": "sb-sim",
+  "name": "Data gen - Fuel Tank",
+  "func": "// heating-oil tank: starts full, burns 5% per tick, refilled when empty\nlet fuel = flow.get('fuelLevel');\nif (fuel === undefined || fuel === null) fuel = 100;\nfuel -= 5;\nif (fuel < 0) fuel = 100;\nflow.set('fuelLevel', fuel);\nmsg.payload = { fuel: fuel };\n// token + host from the container env (Secret iot-credentials / TB_HOST)\nconst host = env.get('TB_HOST') || 'http://thingsboard:9090';\nmsg.url = host + '/api/v1/' + env.get('TB_TOKEN_FUEL') + '/telemetry';\nreturn msg;",
+  "outputs": 1,
+  "timeout": 0,
+  "noerr": 0,
+  "initialize": "",
+  "finalize": "",
+  "libs": [],
+  "x": 400,
+  "y": 360,
+  "wires": [
+   [
+    "http-4"
+   ]
+  ]
+ },
+ {
+  "id": "http-4",
+  "type": "http request",
+  "z": "sb-sim",
+  "name": "POST telemetry Fuel Tank",
+  "method": "POST",
+  "ret": "txt",
+  "paytoqs": "ignore",
+  "url": "",
+  "tls": "",
+  "persist": false,
+  "proxy": "",
+  "insecureHTTPParser": false,
+  "authType": "",
+  "senderr": false,
+  "headers": [],
+  "x": 680,
+  "y": 360,
+  "wires": [
+   [
+    "dbg"
+   ]
+  ]
+ },
+ {
+  "id": "dbg",
+  "type": "debug",
+  "z": "sb-sim",
+  "name": "TB response (status)",
+  "active": true,
+  "tosidebar": true,
+  "console": false,
+  "tostatus": true,
+  "complete": "statusCode",
+  "targetType": "msg",
+  "statusVal": "statusCode",
+  "statusType": "msg",
+  "x": 940,
+  "y": 240,
+  "wires": []
+ }
+]

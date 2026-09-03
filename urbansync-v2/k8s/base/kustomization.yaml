@@ -25,3 +25,4 @@ resources:
   - nodered/pvc.yaml
   - knative/kservice.yaml
   - metrics-server.yaml
+  - iot                      # Node-RED flows + ThingsBoard provisioning as code

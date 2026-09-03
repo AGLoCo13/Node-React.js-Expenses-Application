@@ -1,0 +1,79 @@
+# ThingsBoard provisioning Job — makes the IoT layer declarative (see thingsboard/provision.js).
+#
+# Runs after every ArgoCD sync (PostSync hook, recreated each time) and is idempotent:
+# device profiles + alarm rules, the 4 simulated devices with fixed tokens, the root
+# rule chain (Low Fuel / High Temp -> RabbitMQ) and the dashboards are created or
+# updated from the files in k8s/base/iot/thingsboard/. Nothing is deleted.
+#
+# Without ArgoCD (plain kubectl apply -k) the hook annotations are ignored and the Job
+# runs once; to re-run it: kubectl delete job thingsboard-provision -n urbansync && kubectl apply -k ...
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: thingsboard-provision
+  namespace: urbansync
+  labels:
+    app: thingsboard-provision
+    urbansync/component: iot
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 86400      # keep logs for a day, then clean up
+  template:
+    metadata:
+      labels:
+        app: thingsboard-provision
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: provision
+          image: node:20-alpine
+          command: ["node", "/provision/provision.js"]
+          env:
+            - name: TB_URL
+              value: "http://thingsboard:9090"
+            - name: WAIT_TIMEOUT_SEC
+              value: "1500"           # first boot of tb-postgres with demo data can take several minutes
+            - name: TB_USERNAME
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-username } }
+            - name: TB_PASSWORD
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-password } }
+            - name: TB_TOKEN_AP1
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-ap1 } }
+            - name: TB_TOKEN_AP2
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-ap2 } }
+            - name: TB_TOKEN_AP3
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-ap3 } }
+            - name: TB_TOKEN_FUEL
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-fuel } }
+            # injected into the RabbitMQ rule node at import time (the JSON in git has ${...})
+            - name: RABBITMQ_USER
+              valueFrom: { secretKeyRef: { name: urbansync-secrets, key: rabbitmq-user } }
+            - name: RABBITMQ_PASS
+              valueFrom: { secretKeyRef: { name: urbansync-secrets, key: rabbitmq-pass } }
+          volumeMounts:
+            - name: assets
+              mountPath: /provision
+              readOnly: true
+          resources:
+            requests:
+              cpu: "20m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "192Mi"
+      volumes:
+        - name: assets
+          configMap:
+            name: thingsboard-provision
+            items:
+              - key: provision.js
+                path: provision.js
+              - key: root-rule-chain.json
+                path: root-rule-chain.json
+              - key: thermostats.json
+                path: dashboards/thermostats.json
+              - key: building-a-status.json
+                path: dashboards/building-a-status.json
