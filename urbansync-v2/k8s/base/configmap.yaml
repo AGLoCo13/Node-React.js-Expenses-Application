@@ -14,7 +14,8 @@ data:
   RECEIPT_ANNOTATOR_URL: "http://receipt-annotator.urbansync.svc.cluster.local"
   RECEIPT_ANNOTATOR_TIMEOUT_MS: "100000"
   # Gemini tuning for receipt extraction (backend direct path + receipt-annotator).
-  # 3.x Flash models think by default (medium) — measured 30-40s/receipt. Change here, not in code.
-  GEMINI_MODEL: "gemini-3.6-flash"
-  GEMINI_THINKING_LEVEL: "low"
+  # 3.x Flash models think by default (medium) — measured 30-40s/receipt with 3.6-flash default,
+  # 13-15s with 3.6-flash/low (3/9). Trying flash-lite/minimal next. Change here, not in code.
+  GEMINI_MODEL: "gemini-3.5-flash-lite"
+  GEMINI_THINKING_LEVEL: "minimal"
   GEMINI_MAX_OUTPUT_TOKENS: "1024"
