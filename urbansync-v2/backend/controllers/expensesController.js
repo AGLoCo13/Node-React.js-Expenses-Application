@@ -1,5 +1,6 @@
 const Expense = require('../models/expenses.js');
 const {extractReceiptData} = require('../services/aiService.js');
+const { extractViaKnative, TIMEOUT_MS: KNATIVE_TIMEOUT_MS } = require('../services/knativeService');
 const cloudService = require('../services/cloudService');
 
 // Create a new expense
@@ -132,10 +133,52 @@ const extractDataFromReceipt = async (req, res) => {
   }
 }
 
+
+// Serverless path — forwards the receipt to the Knative Service `receipt-annotator`.
+// Used by POST /api/expenses/knative-extract (the button in the UI).
+// The legacy extractDataFromReceipt above calls Gemini directly from the backend and
+// stays available on /api/expenses/extract-receipt-data as a documented fallback.
+const extractDataViaKnative = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ message: "No receipt file provided" });
+  }
+
+  try {
+    const { data, elapsedMs, coldStartSuspected } =
+      await extractViaKnative(req.file.buffer, req.file.mimetype, req.file.originalname);
+
+    // Observability headers — visible in the browser's network tab during the demo.
+    res.set('X-Extraction-Backend', 'knative');
+    res.set('X-Extraction-Ms', String(elapsedMs));
+    res.set('X-Extraction-Cold-Start', coldStartSuspected ? 'suspected' : 'no');
+    return res.status(200).json(data);
+  } catch (error) {
+    if (error.circuitOpen) {
+      console.warn('[Knative] circuit OPEN — answering 503');
+      return res.status(503).json({
+        error: 'AI extraction temporarily unavailable',
+        detail: 'receipt-annotator circuit is OPEN; retry shortly',
+        retryAfterSeconds: 30,
+      });
+    }
+    if (error.timeout) {
+      console.error('[Knative] timeout:', error.message);
+      return res.status(504).json({ error: 'AI extraction timed out', detail: error.message,
+                                    timeoutMs: KNATIVE_TIMEOUT_MS });
+    }
+    if (error.status && error.status < 500) {
+      return res.status(error.status).json({ error: 'receipt-annotator rejected the request', detail: error.detail });
+    }
+    console.error('[Knative] extraction failed upstream:', error.message, error.detail || '');
+    return res.status(502).json({ error: 'AI extraction failed upstream', detail: error.detail || error.message });
+  }
+}
+
 module.exports = {
   createExpense,
   getAllExpenses,
   updateExpense,
   deleteExpense,
-  extractDataFromReceipt
+  extractDataFromReceipt,
+  extractDataViaKnative
 };

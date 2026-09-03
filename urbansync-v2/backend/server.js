@@ -295,8 +295,9 @@ app.delete('/api/expenses/:id' , expensesController.deleteExpense);
 /* Expenses Endpoint for AI data extraction from receipt — legacy path (kept for backward-compat) */
 app.post('/api/expenses/extract-receipt-data', uploadMemory.single('receipt'), expensesController.extractDataFromReceipt);
 
-/* Knative proxy endpoint — canonical path used by the frontend */
-app.post('/api/expenses/knative-extract', authenticateUser, uploadMemory.single('receipt'), expensesController.extractDataFromReceipt);
+/* Knative proxy endpoint — canonical path used by the frontend. Forwards the file to the
+   receipt-annotator KService (scale-to-zero); see services/knativeService.js. */
+app.post('/api/expenses/knative-extract', authenticateUser, uploadMemory.single('receipt'), expensesController.extractDataViaKnative);
 
 // (duplicate route removed — already defined above with uploadMemory)
 

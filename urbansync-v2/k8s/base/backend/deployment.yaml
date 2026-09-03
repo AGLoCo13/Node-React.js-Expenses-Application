@@ -77,6 +77,16 @@ spec:
                 configMapKeyRef:
                   name: urbansync-config
                   key: MINIO_BUCKET
+            - name: RECEIPT_ANNOTATOR_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: RECEIPT_ANNOTATOR_URL
+            - name: RECEIPT_ANNOTATOR_TIMEOUT_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: RECEIPT_ANNOTATOR_TIMEOUT_MS
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:

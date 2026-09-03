@@ -10,3 +10,6 @@ data:
   MINIO_PORT: "9000"
   MINIO_USE_SSL: "false"
   MINIO_BUCKET: "receipts"
+  # In-cluster URL of the Knative Service (Kourier routes by Host header).
+  RECEIPT_ANNOTATOR_URL: "http://receipt-annotator.urbansync.svc.cluster.local"
+  RECEIPT_ANNOTATOR_TIMEOUT_MS: "60000"
