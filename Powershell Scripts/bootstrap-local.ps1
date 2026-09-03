@@ -222,48 +222,16 @@ if ($LASTEXITCODE -ne 0) { Warn 'frontend did not become ready - usually ImagePu
 kubectl get pods -n urbansync
 
 # -----------------------------------------------------------------------------
-Step 6 'MinIO receipts bucket + Knative webhook'
-# Flow B: a PUT into the receipts bucket fires a webhook at the receipt-annotator
-# KService, which pulls the file and sends it to Gemini. Bucket + notification
-# config live in MinIO's own state, not in any manifest, so this is a one-time
-# imperative step (idempotent - safe to re-run).
-kubectl wait --for=condition=ready pod -l app=minio -n urbansync --timeout=180s
-if ($LASTEXITCODE -ne 0) { Warn 'minio not ready - skipping webhook wiring' }
+Step 6 'MinIO receipts bucket + Knative webhook (declarative)'
+# Flow B is now code: the webhook TARGET is env on the MinIO StatefulSet
+# (k8s/base/minio/statefulset.yaml, MINIO_NOTIFY_WEBHOOK_*_knative) and the bucket +
+# event RULE are created by the Job minio-setup (k8s/base/minio/setup-job.yaml),
+# both applied by step 5 / ArgoCD. Here we only wait for the Job and show its log.
+kubectl wait --for=condition=complete job/minio-setup -n urbansync --timeout=300s
+if ($LASTEXITCODE -ne 0) { Warn 'minio-setup job not complete yet - kubectl logs -n urbansync job/minio-setup' }
 else {
-    # Single-line, and deliberately free of double quotes and backslash
-    # continuations: Windows PowerShell mangles embedded double quotes when
-    # passing a string to a native .exe (the same bug that broke the Knative
-    # patch above). None of these mc values contain spaces, so no quoting is
-    # needed in the first place.
-    $mcAlias = 'mc alias set myminio http://localhost:9000 admin password123'
-    # NOTE: no `mc admin service restart` here. That subcommand renders a
-    # progress UI and needs a controlling terminal; under `kubectl exec` without
-    # -t it dies with "could not open a new TTY: open /dev/tty: no such device".
-    # Restarting the pod with kubectl achieves the same thing and always works.
-    $mcSetup = "$mcAlias && mc mb --ignore-existing myminio/receipts && " +
-               'mc admin config set myminio notify_webhook:receipts_knative ' +
-               'endpoint=http://receipt-annotator.urbansync.svc.cluster.local ' +
-               'queue_limit=100 enable=on'
-    $mcEvent = "$mcAlias && " +
-               'mc event add myminio/receipts arn:minio:sqs::receipts_knative:webhook ' +
-               '--event s3:ObjectCreated:Put --ignore-existing && ' +
-               'mc event list myminio/receipts'
-
-    kubectl exec -n urbansync statefulset/minio -- sh -c $mcSetup
-    if ($LASTEXITCODE -ne 0) { Warn 'webhook config failed - see README section 14' }
-    else {
-        # The notify_webhook config only takes effect after a MinIO restart.
-        Write-Host '    restarting minio to load the webhook config...'
-        kubectl delete pod minio-0 -n urbansync --wait=false | Out-Null
-        Start-Sleep -Seconds 5
-        kubectl wait --for=condition=ready pod -l app=minio -n urbansync --timeout=180s
-        if ($LASTEXITCODE -ne 0) { Warn 'minio did not come back up - check kubectl get pods -n urbansync' }
-        else {
-            kubectl exec -n urbansync statefulset/minio -- sh -c $mcEvent
-            if ($LASTEXITCODE -ne 0) { Warn 'event subscription failed - re-run step 6 from SETUP-LOCAL-K8S.md' }
-            else { Ok 'MinIO -> Knative webhook configured' }
-        }
-    }
+    kubectl logs -n urbansync job/minio-setup
+    Ok 'MinIO -> Knative webhook configured (from git)'
 }
 
 # -----------------------------------------------------------------------------

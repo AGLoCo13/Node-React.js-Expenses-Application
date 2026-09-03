@@ -17,6 +17,7 @@ resources:
   - minio/statefulset.yaml
   - minio/service.yaml
   - minio/pvc.yaml
+  - minio/setup-job.yaml     # receipts bucket + webhook event rule (Flow B) as code
   - thingsboard/statefulset.yaml
   - thingsboard/service.yaml
   - thingsboard/pvc.yaml
