@@ -64,6 +64,21 @@ spec:
                 secretKeyRef:
                   name: urbansync-secrets
                   key: gemini-api-key
+            - name: GEMINI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_MODEL
+            - name: GEMINI_THINKING_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_THINKING_LEVEL
+            - name: GEMINI_MAX_OUTPUT_TOKENS
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_MAX_OUTPUT_TOKENS
           resources:
             requests:
               cpu:    "100m"

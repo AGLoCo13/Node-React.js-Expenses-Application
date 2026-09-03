@@ -3,10 +3,52 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 // Αρχικοποίηση με το κλειδί από το .env
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// ── Gemini tuning (all via environment → ConfigMap, no rebuild needed) ───────
+//   GEMINI_MODEL              model id; the previous hardcoded ids (2.0-flash, 1.5-pro)
+//                             were shut down by Google and broke extraction silently.
+//   GEMINI_THINKING_LEVEL     Gemini 3.x Flash "thinks" by default (medium), which cost
+//                             ~30-40s per receipt on 3/9. 'low' or 'minimal' cuts most of
+//                             it; set 'default' to leave the model's own default.
+//   GEMINI_MAX_OUTPUT_TOKENS  upper bound for the answer (4 JSON fields need ~60).
+const GEMINI_MODEL             = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const GEMINI_THINKING_LEVEL    = (process.env.GEMINI_THINKING_LEVEL || 'low').toLowerCase();
+const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 10) || 1024;
+
+function buildGenerationConfig(withThinking) {
+    const cfg = {
+        responseMimeType: 'application/json', // no markdown fences to strip, fewer tokens
+        temperature:      0,                  // extraction, not creativity
+        maxOutputTokens:  GEMINI_MAX_OUTPUT_TOKENS,
+    };
+    if (withThinking && GEMINI_THINKING_LEVEL && GEMINI_THINKING_LEVEL !== 'default') {
+        cfg.thinkingConfig = { thinkingLevel: GEMINI_THINKING_LEVEL };
+    }
+    return cfg;
+}
+
+/**
+ * generateContent with a safety net: if this model rejects thinkingConfig
+ * (HTTP 400 mentioning "thinking"), retry once without it so extraction keeps
+ * working even when GEMINI_THINKING_LEVEL is not valid for the configured model.
+ */
+async function generateWithFallback(genAI, parts) {
+    const attempt = (withThinking) =>
+        genAI.getGenerativeModel({ model: GEMINI_MODEL, generationConfig: buildGenerationConfig(withThinking) })
+             .generateContent(parts);
+    try {
+        return await attempt(true);
+    } catch (err) {
+        if (err?.status === 400 && /thinking/i.test(String(err?.message || ''))) {
+            console.warn(`[gemini] ${GEMINI_MODEL} rejected thinkingConfig(${GEMINI_THINKING_LEVEL}) — retrying without it`);
+            return attempt(false);
+        }
+        throw err;
+    }
+}
+
 async function extractReceiptData(imageBuffer, mimeType) {
     try {
-        // Χρησιμοποιούμε το γρήγορο μοντέλο
-        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+        // Μοντέλο + thinking level από το ConfigMap (βλ. helper παραπάνω)
 
         // Το αυστηρό System Prompt
         const prompt = `You are an expert accounting AI for a building management system.
@@ -34,7 +76,9 @@ async function extractReceiptData(imageBuffer, mimeType) {
         };
 
         // Στέλνουμε το αίτημα στο AI
-        const result = await model.generateContent([prompt, dataPart]);
+        const t0 = Date.now();
+        const result = await generateWithFallback(genAI, [prompt, dataPart]);
+        console.log(`[gemini] ${GEMINI_MODEL} (thinking=${GEMINI_THINKING_LEVEL}) answered in ${Date.now() - t0}ms`);
         const responseText = result.response.text();
         
         // Καθαρίζουμε το κείμενο σε περίπτωση που το AI βάλει ```json
