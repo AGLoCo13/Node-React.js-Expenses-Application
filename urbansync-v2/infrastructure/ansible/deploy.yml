@@ -186,6 +186,22 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
 
+    # Το Knative controller τρέχει ΜΕΣΑ σε pod. Για να «κλειδώσει» ένα image σε digest
+    # κάνει resolve το tag από το registry — αλλά localhost:5000 μέσα στο pod είναι το
+    # ίδιο το pod, όχι ο host. Χωρίς αυτό το patch κάθε Revision μένει
+    # ContainerMissing / "dial tcp [::1]:5000: connection refused" και το backend
+    # απαντά 502 στο knative-extract. Το kubelet (στον host) τραβάει το image κανονικά.
+    - name: "4b.5e2 | Knative: skip tag-to-digest resolution για το τοπικό registry"
+      ansible.builtin.command:
+        cmd: >
+          kubectl patch configmap/config-deployment
+          --namespace knative-serving
+          --type merge
+          --patch '{"data":{"registries-skipping-tag-resolving":"kind.local,ko.local,dev.local,localhost:5000"}}'
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+
     # The upstream Knative/Kourier manifests request 300m+200m+200m CPU by default.
     # On a 2-vCPU VM that's enough alone to starve the CSI driver pods of room to
     # schedule (saw them stuck Pending for 4 days). Re-applying the upstream YAML
