@@ -29,7 +29,7 @@ spec:
       # Time to wait for pod to start before routing traffic (handles cold start)
       timeoutSeconds: 90   # Gemini measured 20-45s on a receipt photo (3/9); backend waits 100s, ingress 120s
       containers:
-        - image: localhost:5000/urbansync-receipt-annotator:efdb6f1b
+        - image: localhost:5000/urbansync-receipt-annotator:31e5671f
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
