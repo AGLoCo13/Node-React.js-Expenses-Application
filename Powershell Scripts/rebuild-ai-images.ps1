@@ -8,6 +8,7 @@
 #   .\rebuild-ai-images.ps1                 # build + push + restart + show startup logs
 #   .\rebuild-ai-images.ps1 -SkipBuild      # only restart + logs
 #   .\rebuild-ai-images.ps1 -Tag efdb6f1b   # override the SHA tag if Jenkins bumped it
+#   .\rebuild-ai-images.ps1 -IncludeFrontend  # frontend changed too (e.g. ExpensesCharge.js)
 #
 # PowerShell 5.1 compatible. No secrets are read or printed.
 
@@ -16,7 +17,8 @@ param(
     [string]$Tag       = '',              # empty = read from k8s/base/backend/deployment.yaml
     [string]$Namespace = 'urbansync',
     [switch]$SkipBuild,
-    [switch]$NoCache
+    [switch]$NoCache,
+    [switch]$IncludeFrontend       # also rebuild/restart urbansync-frontend
 )
 
 $ErrorActionPreference = 'Stop'
@@ -40,6 +42,7 @@ $images = @(
     @{ name = 'urbansync-backend';           ctx = (Join-Path $v2 'backend') },
     @{ name = 'urbansync-receipt-annotator'; ctx = (Join-Path $v2 'knative\receipt-annotator') }
 )
+if ($IncludeFrontend) { $images += @{ name = 'urbansync-frontend'; ctx = (Join-Path $v2 'frontend') } }
 
 if (-not $SkipBuild) {
     foreach ($img in $images) {
@@ -63,6 +66,11 @@ if (-not $SkipBuild) {
 Write-Host "`n=== restart backend ===" -ForegroundColor Yellow
 kubectl rollout restart deployment/urbansync-backend -n $Namespace
 kubectl rollout status  deployment/urbansync-backend -n $Namespace --timeout=180s
+if ($IncludeFrontend) {
+    Write-Host "`n=== restart frontend ===" -ForegroundColor Yellow
+    kubectl rollout restart deployment/urbansync-frontend -n $Namespace
+    kubectl rollout status  deployment/urbansync-frontend -n $Namespace --timeout=180s
+}
 
 Write-Host "`n=== restart knative function (delete pod, scale-to-zero will recreate on demand) ===" -ForegroundColor Yellow
 $kpods = kubectl get pods -n $Namespace -l serving.knative.dev/service=receipt-annotator -o name 2>$null
