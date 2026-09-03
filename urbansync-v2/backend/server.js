@@ -8,6 +8,7 @@ const updateController = require('./controllers/updateController.js');
 const propertyController = require('./controllers/propertyController.js');
 const expensesController = require('./controllers/expensesController');
 const { authenticateUser, authorizeAdmin } = require('./middleware/authMiddleware');
+const { idempotent } = require('./middleware/idempotency'); // Idempotency pattern (Idempotency-Key header)
 const accountManagement = require('./controllers/accountManagement.js');
 const paymentController = require('./controllers/paymentController');
 const rabbitMQConsumer = require('./services/rabbitmq-consumer');
@@ -61,7 +62,9 @@ app.use(express.json());
 
 // CORS origin
 app.use(cors({
-    origin: process.env.CORS_ORIGIN
+    origin: process.env.CORS_ORIGIN,
+    // Let the browser read our observability / idempotency headers when the UI is served cross-origin
+    exposedHeaders: ['Idempotency-Key', 'Idempotency-Replayed', 'X-Extraction-Backend', 'X-Extraction-Ms', 'X-Extraction-Cold-Start']
 }));
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -284,7 +287,11 @@ app.get('/api/apartment/:tenantId' , async (req , res) => {
                         {/*EXPENSES APIS */}
 
 //Create a new expense with MinIO upload (memory buffer → manual MinIO upload in controller)
-app.post('/api/expenses', uploadMemory.single('document') , expensesController.createExpense);
+// Idempotency pattern: the client sends a unique Idempotency-Key per form submission. A retry /
+// double-click with the same key replays the stored 201 instead of creating a second expense
+// (and a second MinIO upload). Order matters: auth first (key is scoped per user), then multer
+// (so the payload hash covers fields + file), then the idempotency check, then the handler.
+app.post('/api/expenses', authenticateUser, uploadMemory.single('document'), idempotent(), expensesController.createExpense);
 //Retrieve all expenses 
 app.get('/api/expenses' , expensesController.getAllExpenses);
 //Update an expense 

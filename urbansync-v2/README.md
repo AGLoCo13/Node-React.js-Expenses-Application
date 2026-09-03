@@ -768,9 +768,24 @@ Wraps transient operations (e.g. initial connection attempts) with configurable 
 
 ### Idempotency
 
-Receipt upload requests include a client-generated `idempotency-key` header. The backend checks
-MongoDB before processing to ensure that duplicate uploads (e.g. from a browser retry) do not
-create duplicate expense records.
+- **Where:** `POST /api/expenses` — `backend/middleware/idempotency.js`, `backend/models/idempotencyRecord.js`
+- **Client side:** the Expenses form generates a UUID v4 per filled-in form (`crypto.randomUUID`) and
+  sends it as the `Idempotency-Key` header; the key is regenerated when the form content changes or
+  after a successful save (`frontend/src/components/ExpensesCharge.js`).
+- **Server side:** the middleware tries to INSERT `(scope, key)` into the `idempotencyrecords`
+  collection, where `scope = method + path + userId`. A **unique compound index** makes the claim
+  atomic, so two racing requests (double-click, browser retry, k6 retry, or two backend replicas)
+  cannot both execute. Outcomes:
+  - first request → handler runs, `201` + body are stored, header `Idempotency-Key` echoed
+  - same key + same payload hash → stored `201` is replayed with `Idempotency-Replayed: true`
+    (no second expense, no second MinIO upload)
+  - same key + different payload → `422 Unprocessable Entity`
+  - same key while the first is still running → `409 Conflict` + `Retry-After: 2`
+  - handler answered `5xx` → the record is deleted so the client may retry
+- **Retention:** records expire via a TTL index (`IDEMPOTENCY_TTL_SECONDS`, default 24 h).
+- **Demo:** `Powershell Scripts\test-idempotency.ps1 -Email <admin>` sends the same expense twice
+  with one key, once with a different payload, once with a new key and once unauthenticated, and
+  shows `201 / 201 replayed (same _id) / 422 / 201 / 401` and exactly +2 rows in the database.
 
 ---
 
