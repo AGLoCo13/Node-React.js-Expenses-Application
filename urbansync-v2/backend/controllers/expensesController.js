@@ -166,6 +166,10 @@ const extractDataViaKnative = async (req, res) => {
       return res.status(504).json({ error: 'AI extraction timed out', detail: error.message,
                                     timeoutMs: KNATIVE_TIMEOUT_MS });
     }
+    if (error.status === 504) {
+      // Knative's own revision timeout (kservice timeoutSeconds) fired before ours.
+      return res.status(504).json({ error: 'AI extraction timed out inside the serverless tier', detail: error.detail });
+    }
     if (error.status && error.status < 500) {
       return res.status(error.status).json({ error: 'receipt-annotator rejected the request', detail: error.detail });
     }

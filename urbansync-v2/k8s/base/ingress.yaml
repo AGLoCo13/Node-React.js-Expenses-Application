@@ -6,11 +6,24 @@ metadata:
   annotations:
     # Allow multipart uploads up to 10 MB (receipt PDFs / images)
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    # /api/expenses/knative-extract legitimately takes 40-60s (Knative cold start +
+    # Gemini). Outermost timeout in the chain: kservice 90s < backend 100s < here 120s.
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "120"
 spec:
   ingressClassName: nginx
   rules:
     - http:
         paths:
+          # API goes straight to the backend: one hop less, and the frontend nginx
+          # (its own 60s proxy_read_timeout) is no longer in the request path.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
           - path: /
             pathType: Prefix
             backend:

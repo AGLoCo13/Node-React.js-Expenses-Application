@@ -161,11 +161,13 @@ Return ONLY a raw JSON object (no markdown, no backticks). Exact keys:
     "type":   <String, ONLY "Heating", "Elevator", or "General">
 }`;
 
+    const tGemini = Date.now();
     const result = await model.generateContent([
         prompt,
         { inlineData: { data: imageBuffer.toString('base64'), mimeType } }
     ]);
 
+    console.log(`[receipt-annotator] Gemini answered in ${Date.now() - tGemini}ms`);
     const cleanJson = result.response.text()
         .replace(/```json/g, '')
         .replace(/```/g, '')
@@ -176,8 +178,20 @@ Return ONLY a raw JSON object (no markdown, no backticks). Exact keys:
 
 // ── Start ─────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`✅ receipt-annotator running on :${PORT}`);
     console.log(`   MINIO_ENDPOINT: ${process.env.MINIO_ENDPOINT}`);
     console.log(`   GEMINI key set: ${!!process.env.GEMINI_API_KEY}`);
 });
+
+// Graceful shutdown: Knative scales to zero by sending SIGTERM. Without a handler
+// Node dies with a non-zero exit code and the pod ends in "Error" instead of
+// "Completed", which looks like a crash in `kubectl get pods`. Stop accepting new
+// connections, let in-flight extractions finish, then exit 0.
+function shutdown(signal) {
+    console.log(`[receipt-annotator] ${signal} received — draining and exiting`);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 25000).unref(); // hard stop before the 30s grace period
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT',  () => shutdown('SIGINT'));

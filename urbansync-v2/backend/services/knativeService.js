@@ -21,14 +21,17 @@
  *
  * Config (all optional):
  *   RECEIPT_ANNOTATOR_URL         default http://receipt-annotator.urbansync.svc.cluster.local
- *   RECEIPT_ANNOTATOR_TIMEOUT_MS  default 60000 (cold start ~5-15s + Gemini)
+ *   RECEIPT_ANNOTATOR_TIMEOUT_MS  default 100000 (cold start ~12s + Gemini 20-45s, measured 3/9)
  * ============================================================
  */
 const { createBreaker } = require('../resilience/circuitBreaker');
 
 const ANNOTATOR_URL =
     process.env.RECEIPT_ANNOTATOR_URL || 'http://receipt-annotator.urbansync.svc.cluster.local';
-const TIMEOUT_MS = parseInt(process.env.RECEIPT_ANNOTATOR_TIMEOUT_MS, 10) || 60000;
+// Must sit BETWEEN the Knative revision timeout (inner) and the ingress proxy timeout (outer):
+//   kservice timeoutSeconds 90  <  this 100s  <  ingress proxy-read-timeout 120s
+// so the innermost layer always fails first and the client gets a JSON error, never an nginx page.
+const TIMEOUT_MS = parseInt(process.env.RECEIPT_ANNOTATOR_TIMEOUT_MS, 10) || 100000;
 // Anything slower than this almost certainly included a pod spin-up.
 const COLD_START_HINT_MS = 3000;
 
@@ -83,17 +86,36 @@ const knativeBreaker = createBreaker(
         volumeThreshold:          3,
         // Client-side problems (4xx) are not the function's fault: don't trip the circuit.
         errorFilter: (err) => Boolean(err && err.status && err.status < 500),
-    },
-    () => {
-        const e = new Error('Knative circuit OPEN — receipt-annotator unreachable');
-        e.circuitOpen = true;
-        throw e;
     }
+    // NOTE: deliberately no opossum `fallback`. opossum runs the fallback on EVERY
+    // failure (timeout, exception), not only when the circuit is OPEN, so a fallback
+    // that throws "circuit OPEN" would mislabel ordinary timeouts. We detect the
+    // real OPEN state below via err.code === 'EOPENBREAKER'.
 );
 
-/** Public API used by the controller. */
+/**
+ * Public API used by the controller.
+ * Normalises opossum's error codes into flags the route can map to HTTP status:
+ *   err.circuitOpen  -> 503 (fast-fail, circuit is OPEN)
+ *   err.timeout      -> 504 (our AbortController or opossum's own timeout)
+ *   err.status       -> upstream HTTP status from the function
+ */
 async function extractViaKnative(buffer, mimeType, filename) {
-    return knativeBreaker.fire(buffer, mimeType, filename);
+    try {
+        return await knativeBreaker.fire(buffer, mimeType, filename);
+    } catch (err) {
+        if (err && err.code === 'EOPENBREAKER') {
+            const e = new Error('Knative circuit OPEN — receipt-annotator unreachable');
+            e.circuitOpen = true;
+            throw e;
+        }
+        if (err && err.code === 'ETIMEDOUT') {
+            const e = new Error(`receipt-annotator call exceeded breaker timeout (${TIMEOUT_MS + 5000}ms)`);
+            e.timeout = true;
+            throw e;
+        }
+        throw err;
+    }
 }
 
 module.exports = { extractViaKnative, knativeBreaker, ANNOTATOR_URL, TIMEOUT_MS };
