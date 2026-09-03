@@ -19,3 +19,7 @@ data:
   GEMINI_MODEL: "gemini-3.5-flash-lite"
   GEMINI_THINKING_LEVEL: "minimal"
   GEMINI_MAX_OUTPUT_TOKENS: "1024"
+  # Hedged requests (tail-latency): send a 2nd/3rd identical call if no answer after N ms.
+  # Measured 3/9: 43% of calls queue 13-24s at Google with 0 thinking tokens. 0 = off.
+  GEMINI_HEDGE_AFTER_MS: "3000"
+  GEMINI_MAX_HEDGES: "2"

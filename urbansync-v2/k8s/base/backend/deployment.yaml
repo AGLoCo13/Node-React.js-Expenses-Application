@@ -107,3 +107,13 @@ spec:
                 configMapKeyRef:
                   name: urbansync-config
                   key: GEMINI_MAX_OUTPUT_TOKENS
+            - name: GEMINI_HEDGE_AFTER_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_HEDGE_AFTER_MS
+            - name: GEMINI_MAX_HEDGES
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_MAX_HEDGES
