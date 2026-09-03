@@ -89,9 +89,13 @@ spec:
                 configMapKeyRef:
                   name: urbansync-config
                   key: GEMINI_MAX_HEDGES
+          # Requests are for SCHEDULING only. On the 2-vCPU Azure node the sum of all requests
+          # reached 1935m/2000m and this pod (user-container + 25m queue-proxy sidecar) could
+          # not be placed: "0/1 nodes are available: 1 Insufficient cpu" -> ProgressDeadlineExceeded.
+          # The function is network-bound (waits on Gemini); it can still burst to the limit.
           resources:
             requests:
-              cpu:    "100m"
+              cpu:    "50m"
               memory: "128Mi"
             limits:
               cpu:    "500m"
