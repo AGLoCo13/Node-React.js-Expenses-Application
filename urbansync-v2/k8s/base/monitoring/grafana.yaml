@@ -1,0 +1,121 @@
+# =============================================================================
+# Grafana — provisioned datasource, σερβίρεται στο /grafana του ingress
+# =============================================================================
+# Το datasource ΔΕΝ ρυθμίζεται με το χέρι: το provisioning ConfigMap παρακάτω
+# το δηλώνει, οπότε ένα σβήσιμο του pod δεν χάνει τίποτα (DoD του S4).
+# Τα dashboards είναι ξεχωριστό task (S6) — μπαίνουν με τον ίδιο τρόπο, ως
+# ConfigMap κάτω από /etc/grafana/provisioning/dashboards/.
+#
+# ΠΡΟΣΟΧΗ — anonymous Viewer είναι ενεργό ώστε η Grafana να "ανοίγει" κατευθείαν
+# στο demo χωρίς login. Η θύρα 80 είναι ανοιχτή στο internet από το NSG, άρα
+# όποιος βρει την IP βλέπει τα γραφήματα (read-only). Αποδεκτό για μάθημα,
+# ΟΧΙ για production: κλείσε το GF_AUTH_ANONYMOUS_ENABLED ή περιόρισε το NSG.
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: urbansync
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus.urbansync.svc.cluster.local:9090
+        isDefault: true
+        editable: false
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: urbansync
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      securityContext:
+        fsGroup: 472
+        runAsUser: 472
+        runAsNonRoot: true
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.2.0
+          ports:
+            - name: http
+              containerPort: 3000
+          env:
+            # Σερβίρεται κάτω από /grafana, όχι στο root — αλλιώς τα assets
+            # (js/css) ζητούνται από το / και τα τρώει το frontend.
+            - name: GF_SERVER_ROOT_URL
+              value: "%(protocol)s://%(domain)s/grafana/"
+            - name: GF_SERVER_SERVE_FROM_SUB_PATH
+              value: "true"
+            # Ανοίγει χωρίς login για το demo (read-only).
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Viewer"
+            # Δεν χρειάζεται installer/analytics call προς τα έξω.
+            - name: GF_ANALYTICS_REPORTING_ENABLED
+              value: "false"
+            - name: GF_ANALYTICS_CHECK_FOR_UPDATES
+              value: "false"
+          resources:
+            requests:
+              cpu: "20m"
+              memory: "96Mi"
+            limits:
+              cpu: "200m"
+              memory: "256Mi"
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            # emptyDir: ό,τι φτιαχτεί από το UI χάνεται στο restart — σκόπιμο.
+            # Η πηγή αλήθειας είναι τα provisioning ConfigMaps στο git.
+            - name: storage
+              mountPath: /var/lib/grafana
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 40
+            periodSeconds: 20
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: storage
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: urbansync
+  labels:
+    app: grafana
+spec:
+  type: ClusterIP
+  selector:
+    app: grafana
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000

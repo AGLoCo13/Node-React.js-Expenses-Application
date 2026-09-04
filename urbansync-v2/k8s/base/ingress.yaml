@@ -24,6 +24,16 @@ spec:
                 name: backend
                 port:
                   number: 5000
+          # Grafana κάτω από /grafana (S4). Το GF_SERVER_SERVE_FROM_SUB_PATH
+          # στο deployment κάνει την Grafana να παράγει σωστά τα asset paths,
+          # οπότε ΔΕΝ χρειάζεται rewrite-target εδώ.
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
           - path: /
             pathType: Prefix
             backend:
