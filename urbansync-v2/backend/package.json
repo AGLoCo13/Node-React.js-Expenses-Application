@@ -25,7 +25,7 @@
     "multer": "^1.4.5-lts.1",
     "multer-s3": "^3.0.1",
     "validator": "^13.9.0",
-    "@google/generative-ai": "latest",
+    "@google/generative-ai": "0.24.1",
     "async-retry": "^1.3.3",
     "opossum": "^8.1.4"
   },

@@ -27,7 +27,7 @@ spec:
               protocol: UDP
           resources:
             requests:
-              cpu: "150m"
+              cpu: "100m"   # was 150m; freed for the Knative function on the 2-vCPU node (limit unchanged)
               memory: "768Mi"
             limits:
               cpu: "600m"

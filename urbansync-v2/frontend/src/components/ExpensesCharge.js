@@ -5,6 +5,15 @@ import DashboardLayout from './DashboardLayout';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+// UUID v4 for the Idempotency-Key header (crypto.randomUUID needs a secure context; fall back otherwise).
+const newIdempotencyKey = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+};
+
 
 function ExpensesCharge() {
   const [isExtracting , setIsExtracting] = useState(false);
@@ -22,6 +31,10 @@ function ExpensesCharge() {
   const [administratorProfile, setAdministrator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  // Idempotency pattern: one key per *intent* (per filled-in form). A retry or a double-click
+  // re-sends the same key, so the backend replays the first 201 instead of creating a duplicate.
+  // The key is regenerated whenever the form content changes or after a successful submit.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => newIdempotencyKey());
 
   const navItems = [
     { label: 'Dashboard', path: '/building-administrator', icon: FaHome },
@@ -48,6 +61,10 @@ function ExpensesCharge() {
   useEffect(() => {
     fetchBuildingAdministrator();
   }, []);
+
+  useEffect(() => {
+    setIdempotencyKey(newIdempotencyKey());
+  }, [formData, selectedFile]);
 
   const fetchBuildingAdministrator = async () => {
     try {
@@ -153,10 +170,12 @@ function ExpensesCharge() {
 
       const token = window.localStorage.getItem('token');
       const response = await axios.post('/api/expenses', formDataToSend, {
-        headers: { Authorization: token },
+        headers: { Authorization: token, 'Idempotency-Key': idempotencyKey },
       });
 
-      if (response.data.receiptInfo && response.data.receiptInfo.uploaded) {
+      if (response.headers['idempotency-replayed'] === 'true') {
+        toast.info('This expense was already saved (duplicate submission ignored).');
+      } else if (response.data.receiptInfo && response.data.receiptInfo.uploaded) {
         toast.success('Expense added and receipt uploaded to secure storage!');
       } else {
         toast.success('Expense added successfully!');

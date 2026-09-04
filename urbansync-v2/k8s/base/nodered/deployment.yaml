@@ -13,11 +13,37 @@ spec:
       labels:
         app: nodered
     spec:
+      # GitOps for the flows: the ConfigMap nodered-flows (k8s/base/iot/nodered/flows.json) is
+      # copied over /data/flows.json on EVERY start, so git — not the UI — is the source of truth.
+      # Edits made in the Node-RED editor survive only until the next pod restart, on purpose.
+      initContainers:
+        - name: seed-flows
+          image: busybox:1.36
+          command: ["sh", "-c", "cp /flows/flows.json /data/flows.json && echo 'flows.json seeded from ConfigMap' && ls -l /data/flows.json"]
+          volumeMounts:
+            - name: nodered-data
+              mountPath: /data
+            - name: flows
+              mountPath: /flows
+              readOnly: true
       containers:
         - name: nodered
           image: nodered/node-red:latest
           ports:
             - containerPort: 1880
+          env:
+            # the function nodes read these with env.get(), so the flow in git
+            # carries no tokens: msg.url = TB_HOST + /api/v1/ + TB_TOKEN_* + /telemetry
+            - name: TB_HOST
+              value: "http://thingsboard:9090"
+            - name: TB_TOKEN_AP1
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-ap1 } }
+            - name: TB_TOKEN_AP2
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-ap2 } }
+            - name: TB_TOKEN_AP3
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-ap3 } }
+            - name: TB_TOKEN_FUEL
+              valueFrom: { secretKeyRef: { name: iot-credentials, key: tb-token-fuel } }
           resources:
             requests:
               cpu: "20m"
@@ -32,3 +58,6 @@ spec:
         - name: nodered-data
           persistentVolumeClaim:
             claimName: nodered-pvc
+        - name: flows
+          configMap:
+            name: nodered-flows

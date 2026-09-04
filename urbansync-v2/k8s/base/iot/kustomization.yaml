@@ -1,0 +1,28 @@
+# IoT layer as code: Node-RED simulator flows + ThingsBoard provisioning.
+# Everything a human used to click together in the two UIs now lives here and is
+# applied by ArgoCD like any other manifest (local cluster and Azure VM alike).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: urbansync
+
+resources:
+  - iot-credentials.yaml
+  - thingsboard-provision-job.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true         # stable names; the Job is re-created on every sync anyway
+  labels:
+    urbansync/component: iot
+
+configMapGenerator:
+  # Rendered into /data/flows.json by the nodered initContainer (see k8s/base/nodered/deployment.yaml)
+  - name: nodered-flows
+    files:
+      - flows.json=nodered/flows.json
+  # Mounted at /provision inside the thingsboard-provision Job
+  - name: thingsboard-provision
+    files:
+      - provision.js=thingsboard/provision.js
+      - root-rule-chain.json=thingsboard/root-rule-chain.json
+      - thermostats.json=thingsboard/dashboards/thermostats.json
+      - building-a-status.json=thingsboard/dashboards/building-a-status.json

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: localhost:5000/urbansync-backend:efdb6f1b
+          image: localhost:5000/urbansync-backend:edb99cb9
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
@@ -77,8 +77,43 @@ spec:
                 configMapKeyRef:
                   name: urbansync-config
                   key: MINIO_BUCKET
+            - name: RECEIPT_ANNOTATOR_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: RECEIPT_ANNOTATOR_URL
+            - name: RECEIPT_ANNOTATOR_TIMEOUT_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: RECEIPT_ANNOTATOR_TIMEOUT_MS
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: urbansync-secrets
                   key: gemini-api-key
+            - name: GEMINI_MODEL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_MODEL
+            - name: GEMINI_THINKING_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_THINKING_LEVEL
+            - name: GEMINI_MAX_OUTPUT_TOKENS
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_MAX_OUTPUT_TOKENS
+            - name: GEMINI_HEDGE_AFTER_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_HEDGE_AFTER_MS
+            - name: GEMINI_MAX_HEDGES
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: GEMINI_MAX_HEDGES

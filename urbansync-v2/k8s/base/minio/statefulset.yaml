@@ -43,6 +43,21 @@ spec:
                 secretKeyRef:
                   name: urbansync-secrets
                   key: minio-secret-key
+            # ── Flow B, step 1: the webhook TARGET (Claim Check → Async Reply) ──────────────
+            # A notification target is server-level config that MinIO reads at boot, so it
+            # belongs here, not in a post-install script. Identifier "knative" gives the ARN
+            #   arn:minio:sqs::knative:webhook
+            # that the minio-setup Job binds to the receipts bucket (bucket rules are per-bucket
+            # metadata and need no restart). MinIO POSTs the S3 event to the Knative function,
+            # which answers 202 immediately and processes the object asynchronously.
+            - name: MINIO_NOTIFY_WEBHOOK_ENABLE_knative
+              value: "on"
+            - name: MINIO_NOTIFY_WEBHOOK_ENDPOINT_knative
+              value: "http://receipt-annotator.urbansync.svc.cluster.local"
+            - name: MINIO_NOTIFY_WEBHOOK_QUEUE_LIMIT_knative
+              value: "100"
+            - name: MINIO_NOTIFY_WEBHOOK_QUEUE_DIR_knative
+              value: "/data/.notify-queue"    # events survive a function outage / cold start
           volumeMounts:
             - name: minio-data
               mountPath: /data

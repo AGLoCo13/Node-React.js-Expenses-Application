@@ -100,20 +100,32 @@ Outside cluster:
 ### IoT Telemetry Flow (Flow A)
 
 ```
-Node-RED (MQTT every 10 s)
-    │  topic: v1/devices/me/telemetry
+Node-RED  (4 simulated devices, HTTP telemetry every 5 s)
+    │  POST /api/v1/<device-token>/telemetry   {temperature} | {fuel}
     ▼
 ThingsBoard  (stores, displays, evaluates Rule Engine)
-    │  if fuel_usage < 200 → trigger alarm
+    │  device-profile alarm rules: High Temperature (>28 °C), Low Fuel (<20 %)
+    │  root rule chain: Save Timeseries → filters → RabbitMQ node
     ▼
 RabbitMQ  queue: building-alarms
-    │  amqplib consumer in backend
+    │  amqplib consumer in backend (Retry + Circuit Breaker)
     ▼
 MongoDB   collection: notifications
     │
     ▼
 Admin Dashboard  (polling /api/notifications)
 ```
+
+**IoT as code.** Nothing in this flow is clicked together by hand any more. `k8s/base/iot/`
+holds the Node-RED flow (`nodered/flows.json`, seeded into the pod's `/data` on every start by an
+initContainer — the editor is read-only in spirit: edit git, not the UI), the ThingsBoard root rule
+chain and the two dashboards (`thingsboard/`), and a Kubernetes Job (`thingsboard-provision`) that
+runs `provision.js` after every ArgoCD sync: it waits for ThingsBoard, creates/updates the device
+profiles with their alarm rules, the 4 devices with fixed access tokens (Secret `iot-credentials`),
+imports the rule chain (RabbitMQ credentials injected from `urbansync-secrets` at import time — the
+JSON in git has only `${RABBITMQ_USER}` placeholders) and the dashboards (`__DEVICE_ID:<name>__`
+placeholders resolved to the real device ids). It is idempotent and never deletes anything. Job
+logs: `kubectl logs -n urbansync job/thingsboard-provision`.
 
 ### Receipt Upload & AI Annotation Flow (Flow B)
 
@@ -768,9 +780,24 @@ Wraps transient operations (e.g. initial connection attempts) with configurable 
 
 ### Idempotency
 
-Receipt upload requests include a client-generated `idempotency-key` header. The backend checks
-MongoDB before processing to ensure that duplicate uploads (e.g. from a browser retry) do not
-create duplicate expense records.
+- **Where:** `POST /api/expenses` — `backend/middleware/idempotency.js`, `backend/models/idempotencyRecord.js`
+- **Client side:** the Expenses form generates a UUID v4 per filled-in form (`crypto.randomUUID`) and
+  sends it as the `Idempotency-Key` header; the key is regenerated when the form content changes or
+  after a successful save (`frontend/src/components/ExpensesCharge.js`).
+- **Server side:** the middleware tries to INSERT `(scope, key)` into the `idempotencyrecords`
+  collection, where `scope = method + path + userId`. A **unique compound index** makes the claim
+  atomic, so two racing requests (double-click, browser retry, k6 retry, or two backend replicas)
+  cannot both execute. Outcomes:
+  - first request → handler runs, `201` + body are stored, header `Idempotency-Key` echoed
+  - same key + same payload hash → stored `201` is replayed with `Idempotency-Replayed: true`
+    (no second expense, no second MinIO upload)
+  - same key + different payload → `422 Unprocessable Entity`
+  - same key while the first is still running → `409 Conflict` + `Retry-After: 2`
+  - handler answered `5xx` → the record is deleted so the client may retry
+- **Retention:** records expire via a TTL index (`IDEMPOTENCY_TTL_SECONDS`, default 24 h).
+- **Demo:** `Powershell Scripts\test-idempotency.ps1 -Email <admin>` sends the same expense twice
+  with one key, once with a different payload, once with a new key and once unauthenticated, and
+  shows `201 / 201 replayed (same _id) / 422 / 201 / 401` and exactly +2 rows in the database.
 
 ---
 
