@@ -5,6 +5,14 @@ metadata:
   namespace: urbansync
 spec:
   replicas: 1
+  # Recreate, όχι RollingUpdate. Με 1 replica σε κόμβο στο 98% CPU requests το
+  # rolling update κάνει deadlock: το maxSurge φτιάχνει δεύτερο pod που δεν
+  # χωράει ("Insufficient cpu"), και το παλιό δεν αποσύρεται όσο το νέο δεν
+  # γίνεται Ready. Μετρημένο: το backend έμεινε Pending 4.5 ώρες με το /api να
+  # επιστρέφει 503. Recreate σβήνει πρώτα το παλιό, οπότε το νέο πάντα χωράει.
+  # Ίδιο μοτίβο με τον ingress-nginx controller (deploy.yml 4b.5i2).
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: urbansync-backend
