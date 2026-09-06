@@ -127,6 +127,7 @@
             minio-secret-key: "{{ minio_secret_key }}"
             jwt-secret: "{{ jwt_secret }}"
             gemini-api-key: "{{ gemini_api_key }}"
+            grafana-admin-password: "{{ grafana_admin_password }}"
       become: true
       become_user: "{{ deploy_user }}"
       register: k8s_secret_result
@@ -365,6 +366,7 @@
         - { name: minio-secret-key, value: "{{ minio_secret_key | default('password123') }}" }
         - { name: jwt-secret,       value: "{{ jwt_secret | default('your-secret-key') }}" }
         - { name: gemini-api-key,   value: "{{ gemini_api_key | default('REPLACE_WITH_REAL_KEY') }}" }
+        - { name: grafana-admin-password, value: "{{ grafana_admin_password | default('admin') }}" }
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false

@@ -8,3 +8,4 @@ resources:
   - kube-state-metrics.yaml
   - prometheus.yaml
   - grafana.yaml
+  - grafana-dashboards.yaml

@@ -1,0 +1,179 @@
+# =============================================================================
+# Grafana dashboards ως κώδικας (task S6)
+# =============================================================================
+# Δύο ConfigMaps: ο provider λέει στη Grafana "διάβασε αυτόν τον φάκελο", και ο
+# δεύτερος κρατάει τα JSON. Τίποτα δεν φτιάχνεται από το UI —
+# allowUiUpdates: false, ώστε μια αλλαγή στο UI να μην αποκλίνει σιωπηλά από το
+# git. Το /var/lib/grafana είναι emptyDir, άρα ό,τι δεν είναι εδώ, χάνεται.
+#
+# ΠΡΟΣΟΧΗ στο datasource uid: τα panels δείχνουν στο uid "prometheus", που
+# ορίζεται ρητά στο grafana.yaml. Χωρίς σταθερό uid η Grafana παράγει τυχαίο
+# και όλα τα panels γράφουν "Datasource not found".
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider
+  namespace: urbansync
+data:
+  provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: urbansync
+        orgId: 1
+        type: file
+        disableDeletion: true
+        allowUiUpdates: false
+        updateIntervalSeconds: 30
+        options:
+          path: /etc/grafana/dashboards
+          foldersFromFilesStructure: false
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: urbansync
+data:
+  urbansync-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": false,
+      "graphTooltip": 1,
+      "links": [],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "tags": ["urbansync"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timezone": "browser",
+      "title": "UrbanSync — Cluster Overview",
+      "uid": "urbansync-overview",
+      "version": 1,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Running pods (urbansync)",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "count(kube_pod_status_phase{namespace=\"urbansync\",phase=\"Running\"} == 1)" }
+          ],
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] }
+        },
+        {
+          "type": "stat",
+          "title": "Node CPU used",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "100 * sum(rate(container_cpu_usage_seconds_total{id=\"/\"}[5m])) / sum(machine_cpu_cores)" }
+          ],
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent", "min": 0, "max": 100,
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null }, { "color": "yellow", "value": 70 }, { "color": "red", "value": 90 }
+              ] }
+            }, "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "Node memory used",
+          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "100 * sum(container_memory_working_set_bytes{id=\"/\"}) / sum(machine_memory_bytes)" }
+          ],
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent", "min": 0, "max": 100,
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null }, { "color": "yellow", "value": 75 }, { "color": "red", "value": 88 }
+              ] }
+            }, "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "CPU requests committed",
+          "description": "Το ποσοστό της CPU του κόμβου που είναι ΔΕΣΜΕΥΜΕΝΟ από requests. Αυτό γεμίζει πρώτο, όχι η πραγματική χρήση — στο 100% τα νέα pods μένουν Pending.",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "100 * sum(kube_pod_container_resource_requests{resource=\"cpu\"}) / sum(kube_node_status_allocatable{resource=\"cpu\"})" }
+          ],
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent", "min": 0, "max": 100,
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null }, { "color": "yellow", "value": 80 }, { "color": "red", "value": 95 }
+              ] }
+            }, "overrides": []
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Backend replicas — desired vs available (HPA demo)",
+          "description": "Το panel του S5: υπό φορτίο ο HPA ανεβάζει το desired και το available το ακολουθεί. Αν το available μείνει πίσω, τα pods δεν χωράνε στον κόμβο.",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "kube_deployment_spec_replicas{namespace=\"urbansync\",deployment=\"urbansync-backend\"}", "legendFormat": "desired" },
+            { "refId": "B", "expr": "kube_deployment_status_replicas_available{namespace=\"urbansync\",deployment=\"urbansync-backend\"}", "legendFormat": "available" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "fillOpacity": 10 } },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Container restarts (increase, 1h window)",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"urbansync\"}[1h])) by (pod)", "legendFormat": "{{pod}}" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60 } },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "CPU usage by pod (urbansync)",
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(rate(container_cpu_usage_seconds_total{namespace=\"urbansync\",container!=\"\",container!=\"POD\"}[5m])) by (pod)", "legendFormat": "{{pod}}" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 15, "stacking": { "mode": "normal" } } },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        },
+        {
+          "type": "timeseries",
+          "title": "Memory working set by pod (urbansync)",
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 12 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "sum(container_memory_working_set_bytes{namespace=\"urbansync\",container!=\"\",container!=\"POD\"}) by (pod)", "legendFormat": "{{pod}}" }
+          ],
+          "fieldConfig": {
+            "defaults": { "unit": "bytes", "min": 0, "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 15, "stacking": { "mode": "normal" } } },
+            "overrides": []
+          },
+          "options": { "legend": { "displayMode": "table", "placement": "right", "showLegend": true, "calcs": ["mean", "max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
+        }
+      ]
+    }
