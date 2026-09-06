@@ -1,7 +1,7 @@
 # VM Upgrade Plan — `Standard_B2ms` → `Standard_B4ms`
 
 **Status:** proposed, not applied.
-**Written:** 2026-09-04 · **Measurements from:** 2026-09-03 (VM deallocated since).
+**Written:** 2026-09-04 · **Measurements refreshed:** 2026-09-06 (S4 now deployed).
 **Owner:** Στέφανος (DevOps · GitOps & Μετρήσεις)
 
 ---
@@ -22,18 +22,28 @@ This has already cost real time twice:
 
 ---
 
-## 2. Current state (measured 2026-09-03)
+## 2. Current state (measured 2026-09-06, **with S4 deployed**)
 
 ```
-CPU requests   1935m / 2000m   (96%)   <- the binding constraint
-CPU actual      206m           (10%)   <- requests are ~9x real usage
-Memory req     3084Mi / 7937Mi (39%)
-Memory actual  4668Mi          (59%)
-Disk             17G / 29G     (57%)
+CPU requests   1965m / 2000m   (98%)   <- the binding constraint; 35m free
+CPU actual      224m           (11%)   <- requests are ~9x real usage
+Memory req     3484Mi / 7937Mi (44%)
+Memory actual  5937Mi          (75%)   <- was 59% before S4
+Disk             22G / 29G     (76%)   <- was 57% on 2026-09-03
 ```
 
-The gap between 96% requested and 10% used is the whole story: nothing is working
+The gap between 98% requested and 11% used is the whole story: nothing is working
 hard, the scheduler simply has no reservation budget left to hand out.
+
+**Two numbers moved against us since the first draft:**
+
+- **Memory 59% → 75%.** Prometheus and Grafana account for most of it. Memory is now
+  the metric closest to a hard failure — an OOM kill is unrecoverable in a way a
+  `Pending` pod is not. The 16 GB that comes with B4ms is no longer the secondary
+  benefit §5 describes it as.
+- **Disk 57% → 76%** (7.1 GB free). A VM resize does **not** grow the OS disk, so this
+  is a separate problem — see §9. Prometheus' 2Gi PVC is committed but barely used yet
+  (3-day retention, small cluster), so expect further creep.
 
 ### Where the CPU requests go
 
@@ -58,15 +68,18 @@ Roughly **1100m of the 1935m is Kubernetes and Knative infrastructure**, not the
 
 | Task | Workload | New CPU requests |
 |---|---|---|
-| S4 | Prometheus 50m + Grafana 20m + kube-state-metrics 10m | **80m** |
+| ~~S4~~ | ~~Prometheus 50m + Grafana 20m + KSM 10m~~ — **deployed 2026-09-06, fit** | ~~80m~~ |
 | S5 | HPA on backend, min 1 → **max 4** (3 extra × 50m) | **150m** |
 | — | receipt-annotator revision (50m + 25m queue-proxy sidecar) | **75m** |
 | S7 | k6 load — no *requests*, but real CPU burn during runs | — |
-| | | **≈ 305m needed vs ~65m free** |
+| | | **≈ 225m still needed vs 35m free** |
 
 **It does not fit.** S5 is the killer: the entire point of the HPA demo is watching
 replicas go 1 → 3/4 under k6 load. On a full node those replicas stay `Pending` and
 the demo shows nothing.
+
+S4 landing without incident is not evidence the node is fine — it consumed 80m of the
+115m that was free and left 35m. The next workload of any size is the one that fails.
 
 ---
 
@@ -216,6 +229,11 @@ Do **not** apply if:
 
 ## 9. Open questions
 
+- **Disk is at 76% and the upgrade does not help.** `disk_size_gb` is a separate
+  change from `size`, and growing it needs its own stop/apply/`resize2fs` cycle.
+  Cheaper first move is reclaiming space: the local Docker registry keeps an image
+  per build and is the documented growth driver, so `docker system prune -a` on the
+  VM plus deleting stale registry tags. Revisit if free space drops under ~4 GB.
 - **Remaining credit is unknown.** Not readable via CLI on this subscription. Someone
   should check the portal and record it here.
 - **denmarkeast pricing unverified.** If it ever appears in the retail API, replace the
