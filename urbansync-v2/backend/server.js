@@ -14,7 +14,11 @@ const paymentController = require('./controllers/paymentController');
 const rabbitMQConsumer = require('./services/rabbitmq-consumer');
 // Design Patterns
 const {withRetry} = require('./resilience/retryHelper.js');
+const { instrument, errorMetrics, registerDependency } = require('./middleware/metrics');
 const app = express();
+// Prometheus: must be the first middleware so it wraps every route below,
+// and it registers GET /metrics. See middleware/metrics.js.
+instrument(app);
 require('dotenv').config();
 //Use of multer library for the app to be able to upload receipts
 const multer = require('multer');
@@ -563,6 +567,33 @@ app.get('/api/consumptions/:apartmentId' , async (req, res) => {
     }
 })
 
+
+
+// ============================================================
+// Prometheus — dependency probes + error handler
+// ============================================================
+// Same three checks the /ready probe performs, exported as the
+// dependency_up gauge so an outage is visible on the dashboard and not only
+// to kubelet. Probes must be synchronous (they run on every scrape), so the
+// async MinIO check is polled on a timer and the probe just reads the flag.
+registerDependency('mongodb',  () => mongoose.connection.readyState === 1);
+registerDependency('rabbitmq', () => rabbitMQConsumer.isConnected);
+
+let minioUp = false;
+const minioPoll = setInterval(async () => {
+    try {
+        await cloudService.minioClient.bucketExists(process.env.MINIO_BUCKET || 'receipts');
+        minioUp = true;
+    } catch (_) {
+        minioUp = false;
+    }
+}, 30000);
+minioPoll.unref();   // must not keep the process alive on shutdown
+registerDependency('minio', () => minioUp);
+
+// Error handler LAST: a 4-argument middleware only sees errors thrown by
+// handlers registered before it.
+errorMetrics(app);
 
 // ============================================================
 // MongoDB connection — Pattern: RETRY

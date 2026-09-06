@@ -10,6 +10,14 @@ spec:
       app: urbansync-backend
   template:
     metadata:
+      annotations:
+        # Picked up by the Prometheus `kubernetes-pods` job. /metrics is served by
+        # backend/middleware/metrics.js and is NOT reachable from outside: the
+        # ingress sends only /api to this pod, so /metrics resolves to the
+        # frontend and 404s. Prometheus scrapes the pod IP directly.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
       labels:
         app: urbansync-backend
     spec:
