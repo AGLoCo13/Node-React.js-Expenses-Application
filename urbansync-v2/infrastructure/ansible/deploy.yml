@@ -127,6 +127,7 @@
             minio-secret-key: "{{ minio_secret_key }}"
             jwt-secret: "{{ jwt_secret }}"
             gemini-api-key: "{{ gemini_api_key }}"
+            grafana-admin-password: "{{ grafana_admin_password }}"
       become: true
       become_user: "{{ deploy_user }}"
       register: k8s_secret_result
@@ -251,14 +252,33 @@
       changed_when: false
       when: deploy_env | default('prod') == 'prod'
 
-    # Ένα patch, ένα rollout: hostNetwork ώστε ο controller να δεσμεύσει
-    # απευθείας το :80/:443 του κόμβου (το NSG επιτρέπει ήδη 80), και ταυτόχρονα
-    # το CPU request trim (100m -> 50m) για τον μικρό κόμβο.
-    - name: "4b.5i2 | hostNetwork + CPU request στον ingress-nginx-controller"
+    # Ένα patch, ένα rollout. Πέντε πράγματα μαζί:
+    #  1. hostNetwork ώστε ο controller να δεσμεύσει απευθείας το :80/:443 του
+    #     κόμβου (το NSG επιτρέπει ήδη 80).
+    #  2. CPU request trim (100m -> 50m) για τον μικρό κόμβο.
+    #  3. prometheus.io annotations -> τον σκανάρει το kubernetes-pods job.
+    #  4. --enable-metrics=true ΚΑΙ --metrics-per-host=false. Χρειάζονται ΚΑΙ ΤΑ
+    #     ΔΥΟ, για δύο διαφορετικούς λόγους:
+    #       - το baremetal manifest έχει enable-metrics ΡΗΤΑ false, οπότε το
+    #         :10254 απαντάει 200 αλλά σερβίρει μόνο Go/build metrics. Ένα
+    #         "target up" στον Prometheus ΔΕΝ σημαίνει ότι υπάρχουν δεδομένα.
+    #       - με metrics-per-host=true (default) το nginx κρατάει τα per-request
+    #         metrics ανά host. Το ingress.yaml μας δεν δηλώνει host (μόνο
+    #         `http:` rules), οπότε το nginx_ingress_controller_requests
+    #         ΔΕΝ εμφανίζεται ποτέ — σιωπηλά, χωρίς error πουθενά.
+    #     Επειδή το args είναι array, το
+    #     strategic merge το αντικαθιστά ολόκληρο: η λίστα παρακάτω είναι
+    #     αυτούσια του controller-v1.10.1 (καρφωμένο στο 4b.5i παραπάνω) με
+    #     μόνη αλλαγή το metrics flag. Αν αλλάξει το pin, ξαναδές τη λίστα.
+    #  5. Recreate + grace 30s. Με hostNetwork το RollingUpdate κολλάει: το νέο
+    #     pod δεν προγραμματίζεται όσο το παλιό κρατάει το :80 ("didn't have
+    #     free ports"), και το παλιό αργεί 300s να φύγει. Μετρημένο downtime
+    #     ~5 λεπτά. Με Recreate + 30s ο controller γυρίζει σε ~30 δευτερόλεπτα.
+    - name: "4b.5i2 | hostNetwork + metrics + CPU request στον ingress-nginx-controller"
       ansible.builtin.command:
         cmd: >
           kubectl patch deployment ingress-nginx-controller -n ingress-nginx
-          -p '{"spec":{"template":{"spec":{"hostNetwork":true,"dnsPolicy":"ClusterFirstWithHostNet","containers":[{"name":"controller","resources":{"requests":{"cpu":"50m"}}}]}}}}'
+          -p '{"spec":{"strategy":{"type":"Recreate","rollingUpdate":null},"template":{"metadata":{"annotations":{"prometheus.io/scrape":"true","prometheus.io/port":"10254"}},"spec":{"hostNetwork":true,"dnsPolicy":"ClusterFirstWithHostNet","terminationGracePeriodSeconds":30,"containers":[{"name":"controller","resources":{"requests":{"cpu":"50m"}},"args":["/nginx-ingress-controller","--election-id=ingress-nginx-leader","--controller-class=k8s.io/ingress-nginx","--ingress-class=nginx","--configmap=$(POD_NAMESPACE)/ingress-nginx-controller","--validating-webhook=:8443","--validating-webhook-certificate=/usr/local/certificates/cert","--validating-webhook-key=/usr/local/certificates/key","--enable-metrics=true","--metrics-per-host=false"]}]}}}}'
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false
@@ -365,6 +385,7 @@
         - { name: minio-secret-key, value: "{{ minio_secret_key | default('password123') }}" }
         - { name: jwt-secret,       value: "{{ jwt_secret | default('your-secret-key') }}" }
         - { name: gemini-api-key,   value: "{{ gemini_api_key | default('REPLACE_WITH_REAL_KEY') }}" }
+        - { name: grafana-admin-password, value: "{{ grafana_admin_password | default('admin') }}" }
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false

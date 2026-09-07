@@ -10,6 +10,7 @@
  * ============================================================
  */
 const retry = require('async-retry');
+const { retryAttempts } = require('../middleware/metrics');
 
 /**
  * Default retry configuration.
@@ -43,6 +44,7 @@ async function withRetry(fn, options = {}, label = 'Operation') {
         ...RETRY_DEFAULTS,
         ...options,
         onRetry: (err, attempt) => {
+            retryAttempts.inc({ label });
             console.warn(
                 `⚠️  [Retry:${label}] Attempt ${attempt} failed — ${err.message}. ` +
                 `Retrying with back-off...`

@@ -17,6 +17,7 @@
  * ============================================================
  */
 const CircuitBreaker = require('opossum');
+const { watchBreaker } = require('../middleware/metrics');
 
 /** Shared circuit breaker configuration */
 const CB_DEFAULTS = {
@@ -53,6 +54,11 @@ function createBreaker(fn, name, opts = {}, fallback = null) {
         console.error(`⏱️  [CB:${name}] Call timed out (>${CB_DEFAULTS.timeout}ms)`));
     breaker.on('reject',   () =>
         console.warn (`🚫 [CB:${name}] Call rejected — circuit is OPEN`));
+
+    // Prometheus: done here rather than per-breaker at the call sites, so every
+    // breaker is covered automatically — including knativeBreaker, which is
+    // created inside services/knativeService.js and never exported.
+    watchBreaker(breaker);
 
     if (fallback) {
         breaker.fallback(fallback);

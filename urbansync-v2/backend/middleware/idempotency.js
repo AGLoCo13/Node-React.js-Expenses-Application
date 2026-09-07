@@ -24,6 +24,7 @@
 // payload hash covers the parsed fields and the uploaded file).
 const crypto = require('crypto');
 const IdempotencyRecord = require('../models/idempotencyRecord');
+const { idempotencyReplays } = require('./metrics');
 
 const HEADER = 'idempotency-key';
 const MAX_KEY_LENGTH = 128;
@@ -79,6 +80,7 @@ function idempotent(opts = {}) {
         const existing = await IdempotencyRecord.findOne({ scope, key }).lean();
         if (!existing) return next(); // raced with TTL/cleanup: just run it
         if (existing.status === 'in_progress') {
+          idempotencyReplays.inc({ outcome: 'in_progress' });
           res.set('Retry-After', '2');
           return res.status(409).json({
             error: 'A request with this Idempotency-Key is still being processed',
@@ -86,11 +88,13 @@ function idempotent(opts = {}) {
           });
         }
         if (existing.requestHash !== requestHash) {
+          idempotencyReplays.inc({ outcome: 'payload_mismatch' });
           return res.status(422).json({
             error: 'Idempotency-Key was already used for a different request payload'
           });
         }
         console.log(`[idempotency] replay  key=${key.slice(0, 8)}… -> ${existing.statusCode}`);
+        idempotencyReplays.inc({ outcome: 'replayed' });
         res.set('Idempotency-Replayed', 'true');
         res.set('Idempotency-Key', key);
         return res.status(existing.statusCode).json(existing.responseBody);

@@ -27,3 +27,4 @@ resources:
   - knative/kservice.yaml
   - metrics-server.yaml
   - iot                      # Node-RED flows + ThingsBoard provisioning as code
+  - monitoring               # Prometheus + Grafana + kube-state-metrics (S4)

@@ -5,17 +5,33 @@ metadata:
   namespace: urbansync
 spec:
   replicas: 1
+  # Recreate, όχι RollingUpdate. Με 1 replica σε κόμβο στο 98% CPU requests το
+  # rolling update κάνει deadlock: το maxSurge φτιάχνει δεύτερο pod που δεν
+  # χωράει ("Insufficient cpu"), και το παλιό δεν αποσύρεται όσο το νέο δεν
+  # γίνεται Ready. Μετρημένο: το backend έμεινε Pending 4.5 ώρες με το /api να
+  # επιστρέφει 503. Recreate σβήνει πρώτα το παλιό, οπότε το νέο πάντα χωράει.
+  # Ίδιο μοτίβο με τον ingress-nginx controller (deploy.yml 4b.5i2).
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: urbansync-backend
   template:
     metadata:
+      annotations:
+        # Picked up by the Prometheus `kubernetes-pods` job. /metrics is served by
+        # backend/middleware/metrics.js and is NOT reachable from outside: the
+        # ingress sends only /api to this pod, so /metrics resolves to the
+        # frontend and 404s. Prometheus scrapes the pod IP directly.
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/metrics"
       labels:
         app: urbansync-backend
     spec:
       containers:
         - name: backend
-          image: localhost:5000/urbansync-backend:edb99cb9
+          image: localhost:5000/urbansync-backend:910c85ee
           imagePullPolicy: Always
           ports:
             - containerPort: 5000

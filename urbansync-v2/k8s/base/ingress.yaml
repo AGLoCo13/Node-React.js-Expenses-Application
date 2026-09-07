@@ -24,6 +24,16 @@ spec:
                 name: backend
                 port:
                   number: 5000
+          # Grafana κάτω από /grafana (S4). Το GF_SERVER_SERVE_FROM_SUB_PATH
+          # στο deployment κάνει την Grafana να παράγει σωστά τα asset paths,
+          # οπότε ΔΕΝ χρειάζεται rewrite-target εδώ.
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
           - path: /
             pathType: Prefix
             backend:
@@ -31,3 +41,33 @@ spec:
                 name: frontend
                 port:
                   number: 80
+---
+# Χωριστό Ingress μόνο για το redirect /grafana -> /grafana/
+# ---------------------------------------------------------------------------
+# Η Grafana σερβίρει το index.html και στα δύο, αλλά τα asset paths μέσα στο
+# HTML είναι ΣΧΕΤΙΚΑ ("public/build/x.js"). Χωρίς την τελική κάθετο ο browser
+# τα ζητάει από το / -> τα πιάνει το frontend -> 404 -> λευκή σελίδα.
+# Το permanent-redirect είναι annotation ολόκληρου του Ingress, γι' αυτό
+# χρειάζεται δικό του resource. pathType: Exact -> nginx "location = /grafana",
+# που προηγείται του prefix, οπότε τα /grafana/* δεν επηρεάζονται.
+# (configuration-snippet θα ήταν μονόγραμμο, αλλά το ingress-nginx 1.10 το έχει
+#  απενεργοποιημένο: allow-snippet-annotations=false.)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: grafana-slash-redirect
+  namespace: urbansync
+  annotations:
+    nginx.ingress.kubernetes.io/permanent-redirect: /grafana/
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /grafana
+            pathType: Exact
+            backend:
+              service:
+                name: grafana
+                port:
+                  number: 3000
