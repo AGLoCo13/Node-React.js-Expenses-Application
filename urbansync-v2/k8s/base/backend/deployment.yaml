@@ -31,7 +31,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: localhost:5000/urbansync-backend:910c85ee
+          image: localhost:5000/urbansync-backend:54276ccd
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
