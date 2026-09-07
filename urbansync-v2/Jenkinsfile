@@ -55,8 +55,20 @@ pipeline {
                         script: 'git log -1 --pretty=%B',
                         returnStdout: true
                     ).trim()
-                    if (commitMsg.contains('[skip ci]')) {
+                    // FORCE_BUILD must win over the [skip ci] guard. After any
+                    // successful run HEAD *is* this pipeline's own manifest-bump
+                    // commit, which carries [skip ci] -- so without this exception
+                    // the guard sets NOT_BUILT, the outer Build & Push `when` sees
+                    // a non-null result, and all three image stages are skipped no
+                    // matter what FORCE_BUILD says. The recovery switch was dead in
+                    // precisely the state it exists for (empty/stale registry).
+                    // No loop risk: poll-triggered builds default FORCE_BUILD=false,
+                    // so an automatic build still stops on [skip ci] as before.
+                    if (commitMsg.contains('[skip ci]') && !params.FORCE_BUILD) {
+                        echo "HEAD is a [skip ci] commit — nothing to build."
                         currentBuild.result = 'NOT_BUILT'
+                    } else if (commitMsg.contains('[skip ci]')) {
+                        echo "HEAD is [skip ci] but FORCE_BUILD is set — building anyway."
                     }
                 }
                 echo "Tagging images as :${env.GIT_SHA}"
