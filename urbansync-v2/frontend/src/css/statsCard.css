@@ -3,10 +3,13 @@
 .stats-card {
   background-color: white;
   border-radius: 0.75rem;
-  padding: 1.5rem;
+  padding: 1.25rem 1.5rem 1.25rem 1.5rem;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
   border-left: 4px solid;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 .stats-card:hover {
@@ -14,10 +17,11 @@
   transform: translateY(-2px);
 }
 
+/* ── Top row ── */
 .stats-card-content {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .stats-info {
@@ -25,12 +29,20 @@
 }
 
 .stats-title {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: #64748b;
   margin: 0 0 0.5rem 0;
-  font-weight: 500;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+}
+
+/* Subtitle appended to title (e.g. "· SEP 2026") */
+.stats-subtitle {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #94a3b8;
 }
 
 .stats-value {
@@ -38,13 +50,14 @@
   font-weight: 700;
   color: #1e293b;
   margin: 0;
-  line-height: 1;
+  line-height: 1.1;
 }
 
+/* ── Trend line (▲ 12,4% vs Aug) ── */
 .stats-trend {
-  font-size: 0.875rem;
-  margin-top: 0.5rem;
-  font-weight: 500;
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  font-weight: 600;
 }
 
 .stats-trend.up {
@@ -55,31 +68,141 @@
   color: #ef4444;
 }
 
+/* ── Sub-value ── */
+.stats-subvalue {
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  font-weight: 500;
+  color: #ef4444; /* default: red */
+}
+.stats-subvalue-red     { color: #ef4444; }
+.stats-subvalue-neutral { color: #64748b; }
+.stats-subvalue-warning { color: #f59e0b; }
+
+/* ── Circular Gauge ── */
+.stats-gauge-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  margin-left: 0.75rem;
+}
+
+.stats-gauge-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Icon ── */
 .stats-icon {
-  width: 4rem;
-  height: 4rem;
+  width: 3.25rem;
+  height: 3.25rem;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 0.75rem;
-  font-size: 2rem;
-  opacity: 0.8;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-left: 0.75rem;
 }
 
-/* Color Variants */
+/* ── Progress bar ── */
+.stats-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.stats-progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.stats-progress-left {
+  height: 100%;
+  border-radius: 9999px;
+  background-color: #10b981; /* green = paid/completed */
+  transition: width 0.4s ease;
+}
+
+/* For the red card (Pending Payments), override progress color */
+.stats-card-red .stats-progress-left {
+  background-color: #10b981;
+}
+
+.stats-progress-labels {
+  display: flex;
+  justify-content: space-between;
+}
+
+.stats-progress-label-left {
+  font-size: 0.72rem;
+  color: #10b981;
+  font-weight: 500;
+}
+
+.stats-progress-label-right {
+  font-size: 0.72rem;
+  color: #ef4444;
+  font-weight: 500;
+}
+
+/* ── Breakdown row (Heat · Elev · Gen) ── */
+.stats-breakdown {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-top: 0.25rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.stats-breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.stats-breakdown-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.stats-breakdown-value {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+/* ── Color Variants ── */
 .stats-card-blue {
   border-left-color: #2563eb;
 }
-
 .stats-card-blue .stats-icon {
   background-color: #dbeafe;
+  color: #2563eb;
+}
+.stats-card-blue .stats-progress-left {
+  background-color: #2563eb;
+}
+.stats-card-blue .stats-progress-label-left {
   color: #2563eb;
 }
 
 .stats-card-green {
   border-left-color: #10b981;
 }
-
 .stats-card-green .stats-icon {
   background-color: #d1fae5;
   color: #10b981;
@@ -88,16 +211,20 @@
 .stats-card-orange {
   border-left-color: #f59e0b;
 }
-
 .stats-card-orange .stats-icon {
   background-color: #fef3c7;
+  color: #f59e0b;
+}
+.stats-card-orange .stats-progress-left {
+  background-color: #f59e0b;
+}
+.stats-card-orange .stats-progress-label-left {
   color: #f59e0b;
 }
 
 .stats-card-red {
   border-left-color: #ef4444;
 }
-
 .stats-card-red .stats-icon {
   background-color: #fee2e2;
   color: #ef4444;
@@ -106,16 +233,15 @@
 .stats-card-purple {
   border-left-color: #8b5cf6;
 }
-
 .stats-card-purple .stats-icon {
   background-color: #ede9fe;
   color: #8b5cf6;
 }
 
-/* Responsive */
+/* ── Responsive ── */
 @media (max-width: 768px) {
   .stats-card {
-    padding: 1.25rem;
+    padding: 1rem 1.25rem;
   }
 
   .stats-value {
@@ -123,8 +249,8 @@
   }
 
   .stats-icon {
-    width: 3rem;
-    height: 3rem;
-    font-size: 1.5rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.25rem;
   }
 }

@@ -1,0 +1,166 @@
+/* Alarms & Notifications Card — same palette/shape language as statsCard.css */
+
+.alarms-card {
+  background-color: white;
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.alarms-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.alarms-card-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0;
+}
+
+.alarms-header-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  flex-shrink: 0;
+}
+
+.alarms-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 340px;
+  overflow-y: auto;
+}
+
+.alarms-empty {
+  color: #94a3b8;
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+  margin: 0;
+}
+
+.alarms-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.65rem;
+  border-radius: 0.5rem;
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid transparent;
+}
+
+.alarms-item[role='button'] {
+  cursor: pointer;
+}
+
+.alarms-item[role='button']:hover {
+  background-color: #f1f5f9;
+}
+
+.alarms-item-icon {
+  font-size: 1rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.alarms-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.alarms-item-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alarms-item-message {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.alarms-item-unread-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #2563eb;
+  flex-shrink: 0;
+}
+
+.alarms-item-context {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.alarms-item-time {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+/* ── Severity accents ── */
+.alarms-item-critical {
+  border-left-color: #ef4444;
+}
+.alarms-item-critical .alarms-item-icon {
+  color: #ef4444;
+}
+
+.alarms-item-warning {
+  border-left-color: #f59e0b;
+}
+.alarms-item-warning .alarms-item-icon {
+  color: #f59e0b;
+}
+
+.alarms-item-info {
+  border-left-color: #2563eb;
+}
+.alarms-item-info .alarms-item-icon {
+  color: #2563eb;
+}
+
+/* ── Read state — same idea as .stats-card but muted ── */
+.alarms-item-read {
+  opacity: 0.65;
+}
+.alarms-item-read .alarms-item-message {
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* ── Footer ── */
+.alarms-card-footer {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.6rem;
+  text-align: right;
+}
+
+.alarms-card-footer button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.alarms-card-footer button:hover {
+  text-decoration: underline;
+}
