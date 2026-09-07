@@ -132,24 +132,6 @@
     }
    },
    {
-    "type": "org.thingsboard.rule.engine.filter.TbJsFilterNode",
-    "name": "Check Low Fuel",
-    "debugSettings": null,
-    "singletonMode": false,
-    "queueName": null,
-    "configurationVersion": 0,
-    "configuration": {
-     "scriptLang": "TBEL",
-     "jsScript": "return msg.fuel < 20;",
-     "tbelScript": "return msg.fuel < 20;"
-    },
-    "additionalInfo": {
-     "description": "",
-     "layoutX": 1140,
-     "layoutY": 203
-    }
-   },
-   {
     "type": "org.thingsboard.rule.engine.rabbitmq.TbRabbitMqNode",
     "name": "Send To RabbitMQ",
     "debugSettings": {
@@ -181,35 +163,25 @@
     }
    },
    {
-    "type": "org.thingsboard.rule.engine.filter.TbJsFilterNode",
-    "name": "Check High Temp",
+    "type": "org.thingsboard.rule.engine.transform.TbTransformMsgNode",
+    "name": "Enrich Alarm",
     "debugSettings": null,
     "singletonMode": false,
     "queueName": null,
     "configurationVersion": 0,
     "configuration": {
      "scriptLang": "TBEL",
-     "jsScript": "return typeof msg.temperature !== 'undefined' && msg.temperature > 28;",
-     "tbelScript": "return typeof msg.temperature !== 'undefined' && msg.temperature > 28;"
+     "jsScript": "return {msg: msg, metadata: metadata, msgType: msgType};",
+     "tbelScript": "// Flatten the Alarm into the envelope the backend consumer expects.\n// Without this the queue would carry a raw Alarm object with no device\n// name, and the backend could not map it to an apartment.\nvar alarmId = null;\nif (msg.id != null) { alarmId = msg.id.id != null ? msg.id.id : msg.id; }\n\nvar cleared = metadata.isClearedAlarm == 'true' || msg.cleared == true;\n\n// The measured value is best-effort: alarm details when the rule fills\n// them in, otherwise whatever the originating telemetry left in metadata.\nvar value = null;\nif (msg.details != null) {\n  if (msg.details.temperature != null) { value = msg.details.temperature; }\n  else if (msg.details.fuel != null) { value = msg.details.fuel; }\n}\nif (value == null && metadata.temperature != null) { value = metadata.temperature; }\nif (value == null && metadata.fuel != null) { value = metadata.fuel; }\n\nvar out = {\n  alarmId: alarmId,\n  type: msg.type,\n  status: cleared ? 'CLEARED' : 'ACTIVE',\n  severity: msg.severity,\n  deviceName: metadata.deviceName,\n  deviceType: metadata.deviceType,\n  value: value,\n  startTs: msg.startTs\n};\n\nreturn {msg: out, metadata: metadata, msgType: msgType};"
     },
     "additionalInfo": {
-     "description": "",
+     "description": "Alarm -> {alarmId, type, status, severity, deviceName, value} for building-alarms",
      "layoutX": 1003,
-     "layoutY": 587
+     "layoutY": 470
     }
    }
   ],
   "connections": [
-   {
-    "fromIndex": 0,
-    "toIndex": 7,
-    "type": "Success"
-   },
-   {
-    "fromIndex": 0,
-    "toIndex": 9,
-    "type": "Success"
-   },
    {
     "fromIndex": 2,
     "toIndex": 0,
@@ -241,14 +213,19 @@
     "type": "Success"
    },
    {
-    "fromIndex": 7,
+    "fromIndex": 6,
     "toIndex": 8,
-    "type": "True"
+    "type": "Alarm Created"
    },
    {
-    "fromIndex": 9,
+    "fromIndex": 6,
     "toIndex": 8,
-    "type": "True"
+    "type": "Cleared Alarm"
+   },
+   {
+    "fromIndex": 8,
+    "toIndex": 7,
+    "type": "Success"
    }
   ],
   "ruleChainConnections": null

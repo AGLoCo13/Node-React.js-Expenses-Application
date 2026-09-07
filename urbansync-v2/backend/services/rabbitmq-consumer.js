@@ -94,6 +94,37 @@ class RabbitMQConsumer {
         });
     }
 
+    /**
+     * deadLetter — park a message we can never process on building-alarms.dlq.
+     *
+     * Application-level dead-lettering on purpose: adding a dead-letter-exchange
+     * argument to building-alarms would require deleting the existing queue
+     * (RabbitMQ answers PRECONDITION_FAILED on changed arguments), and that queue
+     * is declared by ThingsBoard as well as by us. Publishing the poison message
+     * ourselves keeps it for inspection without touching the live queue.
+     */
+    async deadLetter(msg, reason) {
+        const dlq = rabbitmqConfig.queues.alarmsDlq;
+        try {
+            await this.channel.assertQueue(dlq, { durable: true });
+            this.channel.sendToQueue(dlq, msg.content, {
+                persistent: true,
+                headers: { 'x-death-reason': String(reason).slice(0, 300), 'x-parked-at': new Date().toISOString() },
+            });
+            console.warn(`☠️  [RabbitMQ] message parked on ${dlq}: ${reason}`);
+        } catch (err) {
+            console.error(`[RabbitMQ] could not park message on ${dlq}:`, err.message);
+        }
+    }
+
+    /**
+     * consumeAlarms — building-alarms -> callback, with a routing policy:
+     *   parsed + handled            -> ack
+     *   permanent failure (bad JSON, unknown alarm type) -> dead-letter + ack
+     *   retryable failure, 1st time -> nack(requeue) so a restarting MongoDB
+     *                                  does not cost us the alarm
+     *   retryable failure, again    -> dead-letter + ack, never a hot loop
+     */
     async consumeAlarms(callback) {
         if (!this.channel) await this.connect();
 
@@ -102,14 +133,29 @@ class RabbitMQConsumer {
         console.log(`🎧 [RabbitMQ] Listening for alarms on queue: ${queue}`);
 
         this.channel.consume(queue, async (msg) => {
-            if (msg !== null) {
-                try {
-                    const alarm = JSON.parse(msg.content.toString());
-                    await callback(alarm);
+            if (msg === null) return;
+
+            let alarm;
+            try {
+                alarm = JSON.parse(msg.content.toString());
+            } catch (error) {
+                await this.deadLetter(msg, `unparseable JSON: ${error.message}`);
+                this.channel.ack(msg);
+                return;
+            }
+
+            try {
+                await callback(alarm);
+                this.channel.ack(msg);
+            } catch (error) {
+                const retryable = error && error.retryable && !msg.fields.redelivered;
+                if (retryable) {
+                    console.warn('[RabbitMQ] alarm deferred, requeueing once:', error.message);
+                    this.channel.nack(msg, false, true);
+                } else {
+                    console.error('[RabbitMQ] Error processing alarm:', error.message);
+                    await this.deadLetter(msg, error.message);
                     this.channel.ack(msg);
-                } catch (error) {
-                    console.error('[RabbitMQ] Error processing alarm:', error);
-                    this.channel.nack(msg, false, false); // Don't requeue
                 }
             }
         });

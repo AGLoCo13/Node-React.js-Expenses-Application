@@ -104,17 +104,32 @@ Node-RED  (4 simulated devices, HTTP telemetry every 5 s)
     │  POST /api/v1/<device-token>/telemetry   {temperature} | {fuel}
     ▼
 ThingsBoard  (stores, displays, evaluates Rule Engine)
-    │  device-profile alarm rules: High Temperature (>28 °C), Low Fuel (<20 %)
-    │  root rule chain: Save Timeseries → filters → RabbitMQ node
+    │  device-profile alarm rules: High Temperature (>28 °C, clears ≤26), Low Fuel (<20 %, clears ≥30)
+    │  root rule chain: Device Profile Node ─"Alarm Created"/"Cleared Alarm"─▶ Enrich Alarm ─▶ RabbitMQ
+    │  → one message per state TRANSITION, not one per 5 s tick
     ▼
-RabbitMQ  queue: building-alarms
+RabbitMQ  queue: building-alarms          (poison messages → building-alarms.dlq)
     │  amqplib consumer in backend (Retry + Circuit Breaker)
+    ▼
+Backend   services/alarmIngestion.js
+    │  device → apartment/building → recipients (admin always, tenant for indoor alarms)
+    │  deduplicated by a unique (user, dedupeKey) index: a replay creates nothing
     ▼
 MongoDB   collection: notifications
     │
     ▼
-Admin Dashboard  (polling /api/notifications)
+Admin Dashboard  (GET /api/notifications, PATCH /api/notifications/:id/read)
 ```
+
+**Alarm ingestion (A6).** The consumer accepts both the enriched alarm envelope above and, as a
+fallback, raw `{temperature}` / `{fuel}` telemetry — so reverting the rule chain makes notifications
+coarser, never silent. The dedupe key is the alarm id plus its status when there is one, otherwise a
+time window (`ALARM_DEDUPE_WINDOW_MS`, default 10 min). Device-to-apartment pairing follows the floor
+number in the device name (`Ap2 Thermostat` → the apartment on floor 2) and can be overridden with
+`IOT_DEVICE_MAP`. Outcomes are counted in `alarms_processed_total{type,outcome}`.
+Proof: `Powershell Scripts\test-alarms.ps1 -Email <admin>` publishes an alarm, replays the identical
+message, and shows +1 then +0 notifications, a dead-lettered malformed message, and the unread count
+dropping when one is marked read.
 
 **IoT as code.** Nothing in this flow is clicked together by hand any more. `k8s/base/iot/`
 holds the Node-RED flow (`nodered/flows.json`, seeded into the pod's `/data` on every start by an
@@ -801,23 +816,31 @@ Wraps transient operations (e.g. initial connection attempts) with configurable 
 
 ### Metrics (`GET /metrics`, `backend/middleware/metrics.js`)
 
-- Prometheus exposition format via **`prom-client`**, mounted alongside `/health` / `/ready`
-  (before the auth middleware, always reachable).
-- **Default process metrics** (`collectDefaultMetrics`, prefix `urbansync_`): CPU seconds,
-  RSS/heap memory, event-loop lag, open handles — raw material for a future CPU/memory-based HPA.
-- **`urbansync_http_request_duration_seconds{method,route,status_code}`** (Histogram) — every
-  request is timed by a global middleware; this is what the SLA/CDF work (99th percentile,
-  Gold/Silver/Bronze classes) will be computed from once k6 load tests are wired up.
-- **`urbansync_circuit_breaker_state{name}`** (Gauge: 0=CLOSED, 1=HALF_OPEN, 2=OPEN) — pushed
-  from the `opossum` event hooks in `resilience/circuitBreaker.js`, so the Circuit Breaker
-  pattern above is directly graphable, not just console logs.
-- **`urbansync_alarms_received_total{alarm_type}`** (Counter) — incremented by the
-  `building-alarms` RabbitMQ consumer in `server.js`. `alarm_type` is derived from which field
-  the ThingsBoard rule chain forwarded (`temperature` -> `high_temperature`, `fuel` -> `low_fuel`),
-  since the rule chain relays raw telemetry rather than a tagged event — this also doubles as
-  the evidence that BOTH alarm types actually reach the backend.
-- **Try it:** `curl http://localhost:5000/metrics` (or through the port-forward) while the
-  Node-RED simulator runs.
+- Prometheus exposition format via **`prom-client`**, on its own `Registry`. `instrument(app)` runs
+  immediately after `const app = express()` so the timing middleware wraps every route, and it is
+  what registers `GET /metrics`; `errorMetrics(app)` is registered last, after every route.
+- **Default `nodejs_*` / `process_*` metrics** — heap, event-loop lag, GC, open handles.
+- **`http_request_duration_seconds{method,route,code}`** (Histogram) — buckets straddle the SLA tier
+  boundaries (25ms .. 15s) so p95/p99 are accurate rather than interpolated across a wide bucket.
+  Route labels use the matched Express template, never `req.path`, or every scanned 404 URL would
+  become its own series; `middleware/metrics.selfcheck.js` guards that regression.
+- **`http_requests_total{method,route,code}`** (Counter) — throughput and error rate by status class.
+- **`http_exceptions_total{route,type}`** (Counter) — errors reaching the Express error handler, plus
+  process-level `uncaughtException` / `unhandledRejection` (observe-only, the process still crashes).
+- **`circuit_breaker_state{name}`** (Gauge: 0=closed, 1=half-open, 2=open) and
+  **`circuit_breaker_events_total{name,event}`** — wired by `watchBreaker()` from inside
+  `createBreaker()`, so all three breakers are covered automatically (RabbitMQ, MinIO, Knative).
+- **`retry_attempts_total{label}`** — attempts made by `withRetry()`, per operation.
+- **`idempotency_replays_total{outcome}`** — requests short-circuited by the Idempotency-Key
+  middleware (`replayed` / `in_progress` / `payload_mismatch`).
+- **`dependency_up{name}`** (Gauge) — the same three checks the `/ready` probe performs
+  (mongodb, rabbitmq, minio), exported so an outage is visible on the dashboard and not only to
+  kubelet. Probes are synchronous; the async MinIO check is polled on a 30s timer.
+- **Scraping:** the backend Deployment carries `prometheus.io/scrape`, `prometheus.io/port: "5000"`
+  and `prometheus.io/path: "/metrics"`, so the `kubernetes-pods` job in `k8s/base/monitoring/`
+  picks the pod up with no Prometheus config change.
+- **Try it:** `curl http://localhost:5000/metrics`, or open `/grafana` and the
+  "UrbanSync Application" dashboard.
 
 ---
 

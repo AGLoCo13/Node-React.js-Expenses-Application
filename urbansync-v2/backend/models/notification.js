@@ -38,6 +38,14 @@ const notificationSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // A6 - dedupe handle. One alarm transition (or one time window of raw
+    // telemetry) yields at most one notification per user, even when RabbitMQ
+    // redelivers the message or a second backend replica consumes it.
+    // See services/alarmIngestion.js for how the key is built.
+    dedupeKey: {
+        type: String,
+        required: false
+    },
     timestamp: {
         type: Date,
         default: Date.now
@@ -49,6 +57,10 @@ const notificationSchema = new mongoose.Schema({
 // Index for faster queries
 notificationSchema.index({ user: 1, isRead: 1, timestamp: -1 });
 notificationSchema.index({ building: 1, timestamp: -1 });
+// Unique per (user, dedupeKey): the insert IS the deduplication, so two
+// concurrent consumers cannot both win. Sparse, so notifications without a key
+// (e.g. future in-app messages) are unaffected.
+notificationSchema.index({ user: 1, dedupeKey: 1 }, { unique: true, sparse: true });
 
 const Notification = mongoose.model('Notification', notificationSchema);
 

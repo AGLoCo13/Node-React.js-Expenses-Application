@@ -12,6 +12,7 @@ const { idempotent } = require('./middleware/idempotency'); // Idempotency patte
 const accountManagement = require('./controllers/accountManagement.js');
 const paymentController = require('./controllers/paymentController');
 const rabbitMQConsumer = require('./services/rabbitmq-consumer');
+const alarmIngestion = require('./services/alarmIngestion');   // A6: alarms -> notifications
 // Design Patterns
 const {withRetry} = require('./resilience/retryHelper.js');
 const { instrument, errorMetrics, registerDependency } = require('./middleware/metrics');
@@ -60,6 +61,7 @@ const Expense = require('./models/expenses.js');
 const Payment = require('./models/payment.js');
 const { TopologyDescription } = require('mongodb');
 const Apartment = require('./models/apartment.js');
+const Notification = require('./models/notification.js');   // B5: notifications API
 
 app.use(express.json());
 //use the cors middleware
@@ -552,6 +554,60 @@ app.get('/api/consumptions' , async (req, res) => {
     }
 });
 //get consumptions based on apartment's Id
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTIFICATIONS (B5) — what the bell in the header reads.
+// Both routes are scoped to the caller: a user can only ever see, or mark as
+// read, their own notifications.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** GET /api/notifications?unread=true&limit=50 */
+app.get('/api/notifications', authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const filter = { user: userId };
+        if (String(req.query.unread) === 'true') filter.isRead = false;
+
+        const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+
+        const [notifications, unreadCount] = await Promise.all([
+            Notification.find(filter)
+                .sort({ timestamp: -1 })
+                .limit(limit)
+                .populate('building', 'address')
+                .populate('apartment', 'name floor'),
+            Notification.countDocuments({ user: userId, isRead: false }),
+        ]);
+
+        res.status(200).json({ notifications, unreadCount });
+    } catch (error) {
+        console.error('[notifications] list failed:', error.message);
+        res.status(500).json({ error: 'Could not load notifications' });
+    }
+});
+
+/** PATCH /api/notifications/:id/read */
+app.patch('/api/notifications/:id/read', authenticateUser, async (req, res) => {
+    try {
+        const userId = req.user.userId;
+
+        // The user filter is part of the query, not a check afterwards: another
+        // user's id simply matches nothing.
+        const notification = await Notification.findOneAndUpdate(
+            { _id: req.params.id, user: userId },
+            { isRead: true },
+            { new: true }
+        );
+
+        if (!notification) return res.status(404).json({ error: 'Notification not found' });
+
+        const unreadCount = await Notification.countDocuments({ user: userId, isRead: false });
+        res.status(200).json({ notification, unreadCount });
+    } catch (error) {
+        console.error('[notifications] mark-read failed:', error.message);
+        res.status(500).json({ error: 'Could not update notification' });
+    }
+});
+
 app.get('/api/consumptions/:apartmentId' , async (req, res) => {
     try {
         const apartmentId = req.params.apartmentId;
@@ -637,8 +693,12 @@ const connectWithRetry = async () => {
         app.listen(PORT, () => {
             console.log(`🚀 Server started on port ${PORT} (Database is Ready)`);
             console.log("🐰 Starting RabbitMQ Consumers...");
+            // A6: normalise -> resolve building/apartment -> persist one
+            // Notification per recipient, deduplicated by (user, dedupeKey).
+            // Throws are meaningful here: the consumer dead-letters permanent
+            // failures and requeues retryable ones exactly once.
             rabbitMQConsumer.consumeAlarms(async (alarmData) => {
-                console.log("🔥 ALARM RECEIVED IN BACKEND:", alarmData);
+                await alarmIngestion.handle(alarmData);
             });
             rabbitMQConsumer.consumeReceipts(async (event) => {
                 const record = event.Records?.[0];

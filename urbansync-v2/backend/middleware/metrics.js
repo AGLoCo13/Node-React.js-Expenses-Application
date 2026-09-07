@@ -78,6 +78,16 @@ const idempotencyReplays = new client.Counter({
     registers: [register],
 });
 
+// A6 — IoT alarms consumed off the building-alarms queue. outcome tells the
+// story the log cannot: created / deduplicated (the unique index caught a
+// redelivery) / unmapped (no recipient) / invalid (dead-lettered) / deferred.
+const alarmsProcessed = new client.Counter({
+    name: 'alarms_processed_total',
+    help: 'IoT alarms consumed from building-alarms, by type and outcome',
+    labelNames: ['type', 'outcome'],
+    registers: [register],
+});
+
 // ── Dependency health ─────────────────────────────────────────────────────
 // A probe registry instead of direct imports — see the cycle warning above.
 // Probes must be SYNCHRONOUS (they run on every scrape); anything async, like
@@ -191,4 +201,5 @@ module.exports = {
     registerDependency,
     retryAttempts,
     idempotencyReplays,
+    alarmsProcessed,
 };

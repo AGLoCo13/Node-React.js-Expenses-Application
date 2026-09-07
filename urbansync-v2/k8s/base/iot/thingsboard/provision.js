@@ -184,7 +184,7 @@ async function ensureRootRuleChain() {
   delete metadata.version;               // optimistic-locking field from the export, not ours
   await api('POST', '/api/ruleChain/metadata', metadata);
   if (!chain.root) { await api('POST', `/api/ruleChain/${chain.id.id}/root`); log(`rule chain '${name}' set as ROOT`); }
-  log(`rule chain '${name}': ${spec.metadata.nodes.length} nodes (Low Fuel / High Temp -> RabbitMQ building-alarms)`);
+  log(`rule chain '${name}': ${spec.metadata.nodes.length} nodes (Alarm Created/Cleared -> Enrich Alarm -> RabbitMQ building-alarms)`);
 }
 
 async function ensureDashboards(deviceIds) {
