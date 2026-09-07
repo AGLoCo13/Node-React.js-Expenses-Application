@@ -799,6 +799,26 @@ Wraps transient operations (e.g. initial connection attempts) with configurable 
   with one key, once with a different payload, once with a new key and once unauthenticated, and
   shows `201 / 201 replayed (same _id) / 422 / 201 / 401` and exactly +2 rows in the database.
 
+### Metrics (`GET /metrics`, `backend/middleware/metrics.js`)
+
+- Prometheus exposition format via **`prom-client`**, mounted alongside `/health` / `/ready`
+  (before the auth middleware, always reachable).
+- **Default process metrics** (`collectDefaultMetrics`, prefix `urbansync_`): CPU seconds,
+  RSS/heap memory, event-loop lag, open handles — raw material for a future CPU/memory-based HPA.
+- **`urbansync_http_request_duration_seconds{method,route,status_code}`** (Histogram) — every
+  request is timed by a global middleware; this is what the SLA/CDF work (99th percentile,
+  Gold/Silver/Bronze classes) will be computed from once k6 load tests are wired up.
+- **`urbansync_circuit_breaker_state{name}`** (Gauge: 0=CLOSED, 1=HALF_OPEN, 2=OPEN) — pushed
+  from the `opossum` event hooks in `resilience/circuitBreaker.js`, so the Circuit Breaker
+  pattern above is directly graphable, not just console logs.
+- **`urbansync_alarms_received_total{alarm_type}`** (Counter) — incremented by the
+  `building-alarms` RabbitMQ consumer in `server.js`. `alarm_type` is derived from which field
+  the ThingsBoard rule chain forwarded (`temperature` -> `high_temperature`, `fuel` -> `low_fuel`),
+  since the rule chain relays raw telemetry rather than a tagged event — this also doubles as
+  the evidence that BOTH alarm types actually reach the backend.
+- **Try it:** `curl http://localhost:5000/metrics` (or through the port-forward) while the
+  Node-RED simulator runs.
+
 ---
 
 ## 11. IaC — OpenTofu + Ansible
