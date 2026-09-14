@@ -30,6 +30,12 @@ data:
         url: http://prometheus.urbansync.svc.cluster.local:9090
         isDefault: true
         editable: false
+        # Ίσο με το scrape_interval του Prometheus. Χωρίς αυτό η Grafana δεν ξέρει
+        # το interval και το $__rate_interval των dashboards πέφτει σε default,
+        # οπότε ένα k6 burst φαίνεται αργά ή σπασμένο. Διαβάζεται ΜΟΝΟ στο startup:
+        # μετά από αλλαγή, σβήσε το pod (όχι rollout restart, το ξαναγυρνάει το ArgoCD).
+        jsonData:
+          timeInterval: "15s"
 ---
 apiVersion: apps/v1
 kind: Deployment
