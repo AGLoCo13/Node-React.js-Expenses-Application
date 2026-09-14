@@ -17,6 +17,12 @@ spec:
       containers:
         - name: minio
           image: minio/minio:latest
+          # IfNotPresent, όχι το default Always του :latest. Από 2026-09 το Docker Hub
+          # απαντάει "pull access denied" για minio/minio, οπότε με Always κάθε restart
+          # (π.χ. deallocate/start του VM) έκανε ImagePullBackOff παρότι το image ήταν
+          # ήδη στο containerd cache. Μακροπρόθεσμα: pin σε image από registry που
+          # δημοσιεύει ακόμα, αλλιώς ένας καθαρός κόμβος δεν θα βρίσκει MinIO.
+          imagePullPolicy: IfNotPresent
           args:
             - server
             - /data
