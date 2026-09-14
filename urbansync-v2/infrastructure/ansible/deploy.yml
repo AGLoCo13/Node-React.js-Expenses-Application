@@ -390,6 +390,9 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
       when: deploy_env | default('prod') == 'prod'
+      # Χωρίς αυτό το Ansible τυπώνει κάθε item του loop, δηλαδή gemini key, JWT secret και
+      # Grafana password σε plaintext, σε κάθε run (βρέθηκε στο output της 2026-09-14).
+      no_log: true
 
     # 4c. Εφαρμογή Kustomize overlay (local ή prod ανάλογα με deploy_env)
     - name: "4c | kubectl apply -k k8s/overlays/{{ deploy_env | default('prod') }}/"
