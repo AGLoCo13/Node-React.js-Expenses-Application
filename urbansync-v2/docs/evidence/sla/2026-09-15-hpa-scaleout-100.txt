@@ -1,0 +1,56 @@
+# S5 HPA scale-out test, 100 parallel, 2026-09-15T16:00:42Z, VM urbansync-rg-vm (Standard_B4as_v2)
+# Load: 100 parallel curl POST /api/login (bcrypt) from the VM via ingress, 3 min, then idle
+# HPA: CPU 65% of 50m request, min 1, max 4
+16:00:42 load start
+16:00:42 targets=6%/65% replicas=1 ready=1 node=213m/5%
+16:00:58 targets=6%/65% replicas=1 ready=1 node=588m/14%
+16:01:13 targets=312%/65% replicas=1 ready=1 node=1031m/25%
+16:01:28 targets=800%/65% replicas=4 ready=4 node=1046m/26%
+16:01:43 targets=802%/65% replicas=4 ready=4 node=2037m/50%
+16:01:59 targets=794%/65% replicas=4 ready=4 node=2104m/52%
+16:02:14 targets=795%/65% replicas=4 ready=4 node=2060m/51%
+16:02:29 targets=799%/65% replicas=4 ready=4 node=2111m/52%
+16:02:44 targets=794%/65% replicas=4 ready=4 node=2068m/51%
+16:03:00 targets=798%/65% replicas=4 ready=4 node=2074m/51%
+16:03:15 targets=795%/65% replicas=4 ready=4 node=2095m/52%
+16:03:30 targets=798%/65% replicas=4 ready=4 node=2137m/53%
+16:03:42 load stop
+16:03:46 targets=798%/65% replicas=4 ready=4 node=2074m/51%
+16:04:01 targets=798%/65% replicas=4 ready=4 node=1646m/41%
+16:04:16 targets=691%/65% replicas=4 ready=4 node=416m/10%
+16:04:31 targets=168%/65% replicas=4 ready=4 node=288m/7%
+16:04:46 targets=12%/65% replicas=4 ready=4 node=221m/5%
+16:05:01 targets=9%/65% replicas=4 ready=4 node=210m/5%
+16:05:17 targets=6%/65% replicas=4 ready=4 node=192m/4%
+16:05:32 targets=6%/65% replicas=4 ready=4 node=281m/7%
+16:05:47 targets=6%/65% replicas=4 ready=4 node=203m/5%
+16:06:02 targets=6%/65% replicas=4 ready=4 node=204m/5%
+16:06:17 targets=6%/65% replicas=4 ready=4 node=199m/4%
+16:06:32 targets=6%/65% replicas=4 ready=4 node=208m/5%
+16:06:48 targets=6%/65% replicas=4 ready=4 node=607m/15%
+16:07:03 targets=6%/65% replicas=4 ready=4 node=1005m/25%
+16:07:18 targets=6%/65% replicas=4 ready=4 node=752m/18%
+16:07:33 targets=6%/65% replicas=4 ready=4 node=236m/5%
+16:07:48 targets=6%/65% replicas=4 ready=4 node=194m/4%
+16:08:03 targets=6%/65% replicas=4 ready=4 node=210m/5%
+16:08:19 targets=6%/65% replicas=4 ready=4 node=201m/5%
+16:08:34 targets=6%/65% replicas=4 ready=4 node=230m/5%
+16:08:49 targets=6%/65% replicas=4 ready=4 node=263m/6%
+16:09:04 targets=6%/65% replicas=4 ready=4 node=202m/5%
+16:09:19 targets=6%/65% replicas=4 ready=1 node=205m/5%
+16:09:34 targets=6%/65% replicas=1 ready=1 node=267m/6%
+16:09:50 targets=6%/65% replicas=1 ready=1 node=203m/5%
+16:10:05 targets=6%/65% replicas=1 ready=1 node=316m/7%
+16:10:20 targets=6%/65% replicas=1 ready=1 node=203m/5%
+# response codes under load (count code):
+   3812 200
+# latency seconds (all responses):
+n=3812 p50=0.750 p95=15.499 p99=16.184 max=20.656
+Events:
+  Type    Reason             Age                   From                       Message
+  ----    ------             ----                  ----                       -------
+  Normal  SuccessfulRescale  9m21s (x2 over 165m)  horizontal-pod-autoscaler  New size: 4; reason: cpu resource utilization (percentage of request) above target
+  Normal  SuccessfulRescale  65s (x2 over 157m)    horizontal-pod-autoscaler  New size: 1; reason: All metrics below target
+NAME                                 READY   STATUS    RESTARTS   AGE
+urbansync-backend-86f8868468-xhg65   1/1     Running   0          168m
+DONE

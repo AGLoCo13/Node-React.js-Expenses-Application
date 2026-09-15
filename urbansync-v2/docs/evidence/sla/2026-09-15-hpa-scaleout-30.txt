@@ -1,0 +1,56 @@
+# S5 HPA scale-out test, 30 parallel, 2026-09-15T16:13:58Z, VM urbansync-rg-vm (Standard_B4as_v2)
+# Load: 30 parallel curl POST /api/login (bcrypt) from the VM via ingress, 3 min, then idle
+# HPA: CPU 65% of 50m request, min 1, max 4
+16:13:58 load start
+16:13:58 targets=6%/65% replicas=1 ready=1 node=150m/3%
+16:14:13 targets=6%/65% replicas=1 ready=1 node=483m/12%
+16:14:28 targets=122%/65% replicas=1 ready=1 node=909m/22%
+16:14:43 targets=800%/65% replicas=2 ready=3 node=1025m/25%
+16:14:59 targets=800%/65% replicas=4 ready=4 node=1695m/42%
+16:15:14 targets=782%/65% replicas=4 ready=4 node=2059m/51%
+16:15:29 targets=746%/65% replicas=4 ready=4 node=2037m/50%
+16:15:44 targets=793%/65% replicas=4 ready=4 node=2055m/51%
+16:16:00 targets=791%/65% replicas=4 ready=4 node=2047m/51%
+16:16:15 targets=797%/65% replicas=4 ready=4 node=2065m/51%
+16:16:30 targets=797%/65% replicas=4 ready=4 node=2051m/51%
+16:16:46 targets=796%/65% replicas=4 ready=4 node=2061m/51%
+16:16:58 load stop
+16:17:01 targets=796%/65% replicas=4 ready=4 node=2114m/52%
+16:17:16 targets=798%/65% replicas=4 ready=4 node=1572m/39%
+16:17:31 targets=743%/65% replicas=4 ready=4 node=170m/4%
+16:17:46 targets=166%/65% replicas=4 ready=4 node=192m/4%
+16:18:02 targets=6%/65% replicas=4 ready=4 node=185m/4%
+16:18:17 targets=7%/65% replicas=4 ready=4 node=211m/5%
+16:18:32 targets=7%/65% replicas=4 ready=4 node=250m/6%
+16:18:47 targets=7%/65% replicas=4 ready=4 node=205m/5%
+16:19:02 targets=6%/65% replicas=4 ready=4 node=193m/4%
+16:19:17 targets=6%/65% replicas=4 ready=4 node=230m/5%
+16:19:33 targets=6%/65% replicas=4 ready=4 node=183m/4%
+16:19:48 targets=6%/65% replicas=4 ready=4 node=206m/5%
+16:20:03 targets=6%/65% replicas=4 ready=4 node=193m/4%
+16:20:18 targets=6%/65% replicas=4 ready=4 node=200m/5%
+16:20:33 targets=6%/65% replicas=4 ready=4 node=210m/5%
+16:20:48 targets=6%/65% replicas=4 ready=4 node=229m/5%
+16:21:04 targets=6%/65% replicas=4 ready=4 node=183m/4%
+16:21:19 targets=6%/65% replicas=4 ready=4 node=218m/5%
+16:21:34 targets=6%/65% replicas=4 ready=4 node=185m/4%
+16:21:49 targets=6%/65% replicas=4 ready=4 node=194m/4%
+16:22:04 targets=6%/65% replicas=4 ready=4 node=170m/4%
+16:22:19 targets=6%/65% replicas=4 ready=4 node=200m/5%
+16:22:35 targets=6%/65% replicas=4 ready=1 node=210m/5%
+16:22:50 targets=6%/65% replicas=1 ready=1 node=278m/6%
+16:23:05 targets=6%/65% replicas=1 ready=1 node=184m/4%
+16:23:20 targets=6%/65% replicas=1 ready=1 node=317m/7%
+16:23:35 targets=6%/65% replicas=1 ready=1 node=243m/6%
+# response codes under load (count code):
+   3657 200
+      1 502
+# latency seconds (all responses):
+n=3658 p50=0.763 p95=4.593 p99=4.975 max=12.365
+Events:
+  Type    Reason             Age                  From                       Message
+  ----    ------             ----                 ----                       -------
+  Normal  SuccessfulRescale  9m21s                horizontal-pod-autoscaler  New size: 2; reason: cpu resource utilization (percentage of request) above target
+  Normal  SuccessfulRescale  9m6s (x3 over 178m)  horizontal-pod-autoscaler  New size: 4; reason: cpu resource utilization (percentage of request) above target
+  Normal  SuccessfulRescale  66s (x3 over 170m)   horizontal-pod-autoscaler  New size: 1; reason: All metrics below target
+DONE
