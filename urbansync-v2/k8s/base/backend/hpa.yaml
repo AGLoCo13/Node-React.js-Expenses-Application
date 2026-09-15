@@ -1,0 +1,22 @@
+# S5: scale the backend on CPU (resource metrics from metrics-server).
+# Utilization is relative to the 50m request in deployment.yaml, so bcrypt-heavy
+# logins cross 65% quickly. Default behavior: scale-down waits 5 minutes.
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: urbansync-backend
+  namespace: urbansync
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: urbansync-backend
+  minReplicas: 1
+  maxReplicas: 4
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65

@@ -4,15 +4,16 @@ metadata:
   name: urbansync-backend
   namespace: urbansync
 spec:
-  replicas: 1
-  # Recreate, όχι RollingUpdate. Με 1 replica σε κόμβο στο 98% CPU requests το
-  # rolling update κάνει deadlock: το maxSurge φτιάχνει δεύτερο pod που δεν
-  # χωράει ("Insufficient cpu"), και το παλιό δεν αποσύρεται όσο το νέο δεν
-  # γίνεται Ready. Μετρημένο: το backend έμεινε Pending 4.5 ώρες με το /api να
-  # επιστρέφει 503. Recreate σβήνει πρώτα το παλιό, οπότε το νέο πάντα χωράει.
-  # Ίδιο μοτίβο με τον ingress-nginx controller (deploy.yml 4b.5i2).
+  # No `replicas:` on purpose. hpa.yaml owns the count; with it in Git, ArgoCD
+  # selfHeal would reset every HPA scale-out back to 1.
+  # RollingUpdate with no unavailability: new pods take traffic only once the
+  # readiness probe passes. (Recreate was needed while the node sat at 100% CPU
+  # requests on B2ms; B4as_v2 has room for the surge pod.)
   strategy:
-    type: Recreate
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app: urbansync-backend
@@ -35,6 +36,23 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
+          # All probes use /health, not /ready. The server only listens after MongoDB
+          # connects, so /health already gates startup. /ready also fails when RabbitMQ
+          # or MinIO is down, which would pull every replica out of the Service and 503
+          # the whole API instead of letting the circuit breakers degrade gracefully.
+          startupProbe:
+            httpGet: { path: /health, port: 5000 }
+            periodSeconds: 10
+            failureThreshold: 30   # up to 5 min of MongoDB connect retries after a boot
+          readinessProbe:
+            httpGet: { path: /health, port: 5000 }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /health, port: 5000 }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
           resources:
             requests:
               cpu: "50m"
