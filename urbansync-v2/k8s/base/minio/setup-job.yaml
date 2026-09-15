@@ -32,11 +32,9 @@ spec:
       containers:
         - name: mc
           # same image as the server: ships both `mc` and a shell (minio/mc alone has no sh)
-          image: minio/minio:latest
-          # IfNotPresent for the same reason as the StatefulSet: Docker Hub now answers
-          # "pull access denied" for minio/minio, and with the default Always for :latest this
-          # PostSync hook failed with ErrImagePull on every ArgoCD sync even though the image is
-          # already cached on the node (the MinIO server pod uses the very same image).
+          # Keep in step with the StatefulSet image (see the comment there). An unpullable image
+          # here hangs every ArgoCD sync, because ErrImagePull never counts toward backoffLimit.
+          image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
           imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:

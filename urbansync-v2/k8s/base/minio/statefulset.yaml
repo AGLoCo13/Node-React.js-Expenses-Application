@@ -16,12 +16,10 @@ spec:
     spec:
       containers:
         - name: minio
-          image: minio/minio:latest
-          # IfNotPresent, όχι το default Always του :latest. Από 2026-09 το Docker Hub
-          # απαντάει "pull access denied" για minio/minio, οπότε με Always κάθε restart
-          # (π.χ. deallocate/start του VM) έκανε ImagePullBackOff παρότι το image ήταν
-          # ήδη στο containerd cache. Μακροπρόθεσμα: pin σε image από registry που
-          # δημοσιεύει ακόμα, αλλιώς ένας καθαρός κόμβος δεν θα βρίσκει MinIO.
+          # MinIO removed minio/minio from Docker Hub in Sep 2026 and archived the community
+          # edition. quay.io is its official registry; this tag is the last community release
+          # (same image `latest` points to there). Pinned, so IfNotPresent is safe.
+          image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
           imagePullPolicy: IfNotPresent
           args:
             - server
