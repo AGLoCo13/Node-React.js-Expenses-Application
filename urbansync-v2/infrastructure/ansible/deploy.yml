@@ -390,6 +390,9 @@
       become_user: "{{ deploy_user }}"
       changed_when: false
       when: deploy_env | default('prod') == 'prod'
+      # Χωρίς αυτό το Ansible τυπώνει κάθε item του loop, δηλαδή gemini key, JWT secret και
+      # Grafana password σε plaintext, σε κάθε run (βρέθηκε στο output της 2026-09-14).
+      no_log: true
 
     # 4c. Εφαρμογή Kustomize overlay (local ή prod ανάλογα με deploy_env)
     - name: "4c | kubectl apply -k k8s/overlays/{{ deploy_env | default('prod') }}/"
@@ -490,6 +493,10 @@
     # BLOCK 6 — Εγκατάσταση και ρύθμιση ArgoCD
     # ---------------------------------------------------------------------------
 
+    # Όλο το block έχει tag "argocd", ώστε να παραλείπεται με --skip-tags argocd
+    # όταν το ArgoCD είναι ήδη εγκατεστημένο και ένα re-apply θα έκανε κακό
+    # (π.χ. 2026-09-14: outage του quay.io, κάθε νέο pod ArgoCD έμενε ImagePullBackOff).
+
     - name: "6a | Δημιουργία namespace argocd"
       ansible.builtin.command:
         cmd: kubectl create namespace argocd --dry-run=client -o yaml
@@ -497,6 +504,7 @@
       become_user: "{{ deploy_user }}"
       register: argocd_ns_yaml
       changed_when: false
+      tags: [argocd]
 
     - name: "6a | Εφαρμογή namespace argocd"
       ansible.builtin.command:
@@ -506,14 +514,22 @@
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false
+      tags: [argocd]
 
-    - name: "6b | Εγκατάσταση ArgoCD (upstream stable manifest, server-side apply)"
+    # Καρφωμένη έκδοση, ΟΧΙ το floating "stable": το stable άλλαξε σε v3.5.3 στις
+    # 2026-09-14 ενώ το cluster έτρεχε v3.5.2, οπότε κάθε run θα έκανε σιωπηλό
+    # upgrade του ArgoCD. Αλλάζεις έκδοση επίτηδες, εδώ.
+    # --force-conflicts: το upstream manifest πρέπει να κερδίζει πεδία που άλλαξαν
+    # με το χέρι (π.χ. imagePullPolicy σε outage). Χωρίς αυτό το server-side apply
+    # αποτυγχάνει με "conflict" και σταματάει το playbook.
+    - name: "6b | Εγκατάσταση ArgoCD v3.5.2 (pinned manifest, server-side apply)"
       ansible.builtin.command:
-        cmd: kubectl apply -n argocd --server-side -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+        cmd: kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/v3.5.2/manifests/install.yaml
       become: true
       become_user: "{{ deploy_user }}"
       register: argocd_install_result
       changed_when: "'configured' in argocd_install_result.stdout or 'created' in argocd_install_result.stdout"
+      tags: [argocd]
 
     - name: "6b | Αναμονή ArgoCD server deployment"
       ansible.builtin.command:
@@ -521,6 +537,7 @@
       become: true
       become_user: "{{ deploy_user }}"
       changed_when: false
+      tags: [argocd]
 
     - name: "6c | Γράψε repo-secret.yaml από secrets.yml"
       ansible.builtin.copy:
@@ -542,6 +559,7 @@
         owner: "{{ deploy_user }}"
         group: "{{ deploy_user }}"
         mode: "0600"
+      tags: [argocd]
 
     - name: "6d | Εφαρμογή repo-secret στο cluster"
       ansible.builtin.command:
@@ -550,6 +568,7 @@
       become_user: "{{ deploy_user }}"
       register: repo_secret_result
       changed_when: "'created' in repo_secret_result.stdout or 'configured' in repo_secret_result.stdout"
+      tags: [argocd]
 
     - name: "6e | Εφαρμογή ArgoCD Application CR (prod)"
       ansible.builtin.command:
@@ -558,6 +577,7 @@
       become_user: "{{ deploy_user }}"
       register: app_result
       changed_when: "'created' in app_result.stdout or 'configured' in app_result.stdout"
+      tags: [argocd]
 
     # ---------------------------------------------------------------------------
     # BLOCK 7 — Τελικό μήνυμα

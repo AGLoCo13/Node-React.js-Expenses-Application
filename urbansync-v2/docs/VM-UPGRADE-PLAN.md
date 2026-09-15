@@ -1,6 +1,29 @@
-# VM Upgrade Plan — `Standard_B2ms` → `Standard_B4ms`
+# VM Upgrade Plan — `Standard_B2ms` → `Standard_B4as_v2`
 
-**Status:** proposed, not applied.
+> **Applied 2026-09-14 via OpenTofu, to `Standard_B4as_v2`, not the B4ms this document
+> originally proposed.** Trigger: CPU requests reached 2000m/2000m and the backend sat
+> `Pending` on `Insufficient cpu` with `/api` returning 503.
+>
+> **Why B4as_v2 instead of B4ms:** same 4 vCPU / 16 GB, about 10% cheaper
+> (Sweden Central Linux PAYG, official retail API: B4as_v2 $0.156/h, B4ms $0.173/h, B2ms
+> $0.0864/h; denmarkeast still has no price rows), not affected by the B-series v1 retirement
+> on 15 Nov 2028, and it uses the Basv2 quota (0/10) instead of filling the BS quota (4/4).
+> DSv5/DASv5 quota is 0 on this subscription.
+>
+> **Temp disk:** Basv2 has none. Microsoft's resize doc allows moving between sizes with and
+> without a temp disk **for Linux**. Checked before the resize: `/mnt` held only Azure's
+> `DATALOSS_WARNING_README.txt`, was mounted `nofail`, had no swap, and all state lives on `/`.
+>
+> **How it was done:** `size` changed in `infrastructure/opentofu/main.tf`. The baseline
+> `tofu plan` showed no drift, the change plan showed `~ update in-place, 0 to destroy`, and
+> `tofu apply` finished in 13s on the deallocated VM.
+>
+> **Result:** allocatable CPU 4, memory 16 GB (AMD EPYC 7763), CPU requests 100% → ~50%,
+> same public IP, disk and Key Vault, no failed systemd units after boot.
+>
+> Everything below is the original analysis from 2026-09-04/06, kept for the record.
+
+**Status (original):** proposed, not applied.
 **Written:** 2026-09-04 · **Measurements refreshed:** 2026-09-06 (S4 now deployed).
 **Owner:** Στέφανος (DevOps · GitOps & Μετρήσεις)
 

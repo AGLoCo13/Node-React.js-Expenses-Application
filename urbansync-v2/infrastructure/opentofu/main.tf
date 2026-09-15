@@ -158,7 +158,12 @@ resource "azurerm_linux_virtual_machine" "main" {
   name                = "${var.resource_group_name}-vm"
   location            = azurerm_resource_group.main.location
   resource_group_name = azurerm_resource_group.main.name
-  size                = "Standard_B2ms"
+  # B4as_v2 (4 vCPU / 16 GB, AMD Basv2) από 2026-09-14. Το B2ms έφτασε 100% CPU
+  # requests και το backend έμενε Pending. Όχι B4ms: ακριβότερο, B-series v1
+  # αποσύρεται 15/11/2028, και θα γέμιζε το BS quota (4/4). Το Basv2 ΔΕΝ έχει
+  # temp disk (/mnt): στο Linux το resize επιτρέπεται, και τίποτα δεν ζει στο /mnt.
+  # Αλλαγή size = update in-place (stop/resize/start), όχι rebuild.
+  size                = "Standard_B4as_v2"
   admin_username      = var.admin_username
 
   network_interface_ids = [

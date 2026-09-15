@@ -1,0 +1,55 @@
+# S5 HPA scale-out test, 2026-09-15T13:24:18Z, VM urbansync-rg-vm (Standard_B4as_v2)
+# Load: 30 parallel curl POST /api/login (bcrypt) from the VM via ingress, ~3 min, then idle
+# HPA: CPU 65% of 50m request, min 1, max 4
+13:24:18 load start
+13:24:18 targets=6%/65% replicas=1 ready=1
+13:24:33 targets=156%/65% replicas=1 ready=1
+13:24:48 targets=798%/65% replicas=3 ready=3
+13:25:03 targets=804%/65% replicas=4 ready=4
+13:25:18 targets=776%/65% replicas=4 ready=4
+13:25:34 targets=793%/65% replicas=4 ready=4
+13:25:49 targets=797%/65% replicas=4 ready=4
+13:26:04 targets=792%/65% replicas=4 ready=4
+13:26:19 targets=796%/65% replicas=4 ready=4
+13:26:34 targets=796%/65% replicas=4 ready=4
+13:26:50 targets=799%/65% replicas=4 ready=4
+13:27:05 targets=796%/65% replicas=4 ready=4
+13:27:18 load stop
+13:27:20 targets=802%/65% replicas=4 ready=4
+13:27:35 targets=740%/65% replicas=4 ready=4
+13:27:50 targets=255%/65% replicas=4 ready=4
+13:28:05 targets=8%/65% replicas=4 ready=4
+13:28:21 targets=7%/65% replicas=4 ready=4
+13:28:36 targets=6%/65% replicas=4 ready=4
+13:28:51 targets=7%/65% replicas=4 ready=4
+13:29:06 targets=6%/65% replicas=4 ready=4
+13:29:21 targets=6%/65% replicas=4 ready=4
+13:29:36 targets=6%/65% replicas=4 ready=4
+13:29:51 targets=6%/65% replicas=4 ready=4
+13:30:06 targets=6%/65% replicas=4 ready=4
+13:30:21 targets=6%/65% replicas=4 ready=4
+13:30:37 targets=6%/65% replicas=4 ready=4
+13:30:52 targets=6%/65% replicas=4 ready=4
+13:31:07 targets=6%/65% replicas=4 ready=4
+13:31:22 targets=6%/65% replicas=4 ready=4
+13:31:37 targets=6%/65% replicas=4 ready=4
+13:31:52 targets=6%/65% replicas=4 ready=4
+13:32:07 targets=6%/65% replicas=4 ready=4
+13:32:22 targets=6%/65% replicas=4 ready=4
+13:32:37 targets=6%/65% replicas=4 ready=4
+13:32:53 targets=6%/65% replicas=4 ready=1
+13:33:08 targets=6%/65% replicas=1 ready=1
+13:33:23 targets=6%/65% replicas=1 ready=1
+13:33:38 targets=6%/65% replicas=1 ready=1
+13:33:53 targets=6%/65% replicas=1 ready=1
+13:34:08 targets=6%/65% replicas=1 ready=1
+# response codes under load (count code):
+   3797 200
+Events:
+  Type     Reason                        Age                From                       Message
+  ----     ------                        ----               ----                       -------
+  Warning  FailedGetResourceMetric       11m (x2 over 11m)  horizontal-pod-autoscaler  failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+  Warning  FailedComputeMetricsReplicas  11m (x2 over 11m)  horizontal-pod-autoscaler  invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+  Normal   SuccessfulRescale             9m51s              horizontal-pod-autoscaler  New size: 3; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             9m36s              horizontal-pod-autoscaler  New size: 4; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             96s                horizontal-pod-autoscaler  New size: 1; reason: All metrics below target

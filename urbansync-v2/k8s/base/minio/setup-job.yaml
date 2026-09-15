@@ -32,7 +32,10 @@ spec:
       containers:
         - name: mc
           # same image as the server: ships both `mc` and a shell (minio/mc alone has no sh)
-          image: minio/minio:latest
+          # Keep in step with the StatefulSet image (see the comment there). An unpullable image
+          # here hangs every ArgoCD sync, because ErrImagePull never counts toward backoffLimit.
+          image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+          imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:
             - |

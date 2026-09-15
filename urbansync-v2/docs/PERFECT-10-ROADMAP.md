@@ -2,6 +2,30 @@
 
 *Audited 2026-08-25 against the final-project rubric. Deadline: September 21.*
 
+> **Status on 2026-09-15.** This audit is kept as a historical record. The team plan of
+> record since 2 Sep is the "UrbanSync Roadmap 21/9". Parts of the text below no longer
+> match the repo:
+>
+> | Item from this document | State on 15 Sep |
+> |---|---|
+> | Branch `dev-combined` | Everything (Jenkins, ArgoCD) now runs on `main` |
+> | Stale `k8s/backend/`, `k8s/frontend/` duplicates | Deleted |
+> | `SETUP.md` superseded note | Done |
+> | Environment | Azure VM `9.205.24.56`, `Standard_B4as_v2` (4 vCPU / 16 GB). The demo runs there |
+> | First-build changeset trap | Fixed: `FORCE_BUILD` parameter, which also overrides `[skip ci]` |
+> | `/metrics` with `prom-client` (Task 1) | Done (`backend/middleware/metrics.js`), route label bounded to the Express template |
+> | Idempotency middleware (Task 2) | Done (`backend/middleware/idempotency.js`) |
+> | Compensating logic (Task 3) | Not found in the backend code |
+> | JWT secret from env (Stateless) | **Not done**: `your-secret-key` / `yourSecretKey` still hardcoded |
+> | Monitoring stack | Done, but hand-written manifests in `k8s/base/monitoring/` (Prometheus, Grafana, kube-state-metrics) instead of `kube-prometheus-stack`. No `prometheus-adapter` |
+> | Grafana dashboards from Git | Done: Cluster Overview and Application dashboards, provisioned from a ConfigMap |
+> | HPA | **Not done**. Roadmap 21/9 simplified it to CPU 65%, min 1, max 4 |
+> | Backend probes | `/health` and `/ready` exist in `server.js`, but the Deployment does not use them |
+> | k6 runs, `docs/SLA.md`, tiers from data | **Not done** (scripts exist in `load/k6/`) |
+> | Node-RED flows and ThingsBoard rule chain in Git | Done (`k8s/base/iot/`) |
+> | ArgoCD sync-waves, `syncPolicy.retry` | Not done |
+> | MinIO image | Docker Hub removed `minio/minio`; pinned to `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` |
+
 ---
 
 ## Part 1 — Uncompromising audit
