@@ -5,8 +5,10 @@ import DashboardLayout from './DashboardLayout';
 import ConfirmModal from './ConfirmModal';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useBuildingAdminProfile } from '../hooks/useBuildingAdminProfile';
 
 function CalculateExpenses() {
+  const { userName, buildingInfo } = useBuildingAdminProfile();
   const [data, setData] = useState({
     apartments: [],
     consumptions: [],
@@ -242,9 +244,10 @@ function CalculateExpenses() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userName}
       userRole="Building Administrator"
       dashboardTitle="Calculate Expenses"
+      buildingInfo={buildingInfo}
     >
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>

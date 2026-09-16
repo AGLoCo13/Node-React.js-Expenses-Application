@@ -5,8 +5,10 @@ import DashboardLayout from './DashboardLayout';
 import ConfirmModal from './ConfirmModal';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useBuildingAdminProfile } from '../hooks/useBuildingAdminProfile';
 
 function ViewPayment() {
+  const { userName, buildingInfo } = useBuildingAdminProfile();
   const [payments, setPayments] = useState([]);
   const [apartments, setApartments] = useState([]);
   const [building, setBuilding] = useState(null);
@@ -170,9 +172,10 @@ function ViewPayment() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userName}
       userRole="Building Administrator"
       dashboardTitle="View Payments"
+      buildingInfo={buildingInfo}
     >
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>

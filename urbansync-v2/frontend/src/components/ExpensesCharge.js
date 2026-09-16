@@ -4,6 +4,7 @@ import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyB
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useBuildingAdminProfile } from '../hooks/useBuildingAdminProfile';
 
 // UUID v4 for the Idempotency-Key header (crypto.randomUUID needs a secure context; fall back otherwise).
 const newIdempotencyKey = () => {
@@ -16,6 +17,7 @@ const newIdempotencyKey = () => {
 
 
 function ExpensesCharge() {
+  const { userName, buildingInfo } = useBuildingAdminProfile();
   const [isExtracting , setIsExtracting] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [formData, setFormData] = useState({
@@ -29,9 +31,6 @@ function ExpensesCharge() {
   });
   const [building, setBuilding] = useState(null);
   const [administratorProfile, setAdministrator] = useState(null);
-  // Profile _id (from /api/profile) — this is what Expense.profile must reference,
-  // NOT administratorProfile._id (that's the User doc, used only for display below).
-  const [profileId, setProfileId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   // Idempotency pattern: one key per *intent* (per filled-in form). A retry or a double-click
@@ -77,7 +76,6 @@ function ExpensesCharge() {
       });
 
       if (response.data.profileId) {
-        setProfileId(response.data.profileId);
         const buildingResponse = await axios.get(
           `/api/buildings/${response.data.profileId}`
         );
@@ -160,9 +158,7 @@ function ExpensesCharge() {
     setSubmitting(true);
 
     try {
-      // BUG FIX: administratorProfile is the User doc (for display only) — the Expense's
-      // profile field must be the Profile _id, so we use profileId here instead.
-      const newFormData = { ...formData, profile: profileId };
+      const newFormData = { ...formData, profile: administratorProfile._id };
       newFormData.date_created = new Date();
 
       const formDataToSend = new FormData();
@@ -220,9 +216,10 @@ function ExpensesCharge() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userName}
       userRole="Building Administrator"
       dashboardTitle="Expenses Charge"
+      buildingInfo={buildingInfo}
     >
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>

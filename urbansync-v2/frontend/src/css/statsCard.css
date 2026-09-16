@@ -45,6 +45,21 @@
   color: #94a3b8;
 }
 
+/* Badge pill (e.g. "1 ALARM") */
+.stats-badge {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 9999px;
+  background-color: #fef3c7;
+  color: #d97706;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
 .stats-value {
   font-size: 2rem;
   font-weight: 700;

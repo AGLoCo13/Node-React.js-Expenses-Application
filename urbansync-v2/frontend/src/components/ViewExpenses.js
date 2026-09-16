@@ -5,8 +5,10 @@ import DashboardLayout from './DashboardLayout';
 import ConfirmModal from './ConfirmModal';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useBuildingAdminProfile } from '../hooks/useBuildingAdminProfile';
 
 function ViewExpenses() {
+  const { userName, buildingInfo } = useBuildingAdminProfile();
   const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -142,8 +144,9 @@ function ViewExpenses() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userName}
       userRole="Building Administrator"
+      buildingInfo={buildingInfo}
       dashboardTitle="View Expenses"
     >
       {/* Page Header */}

@@ -1,14 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory } from 'react-icons/fa';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaThermometerHalf, FaGasPump, FaCheck } from 'react-icons/fa';
 import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
-import AlarmsNotificationsCard from './AlarmsNotificationsCard';
+import FuelTankChart from './FuelTankChart';
+import ExpenseMixChart from './ExpenseMixChart';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 const fmt = (n) =>
   `€ ${Number(n).toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+// Convert a timestamp to a human-readable "X h ago" / "X d ago" string
+function timeAgo(ts) {
+  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (diff < 3600)  return `${Math.floor(diff / 60)} min ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
+  return `${Math.floor(diff / 86400)} d ago`;
+}
+
+// Extract a numeric temperature value from a notification message or thingsboardData
+function extractTemp(n) {
+  if (n.thingsboardData?.value !== undefined) return parseFloat(n.thingsboardData.value);
+  const m = (n.message || '').match(/([\d.]+)\s*°?C/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+// Icon per notification type
+function NotifIcon({ type }) {
+  const style = { marginRight: '0.5rem', flexShrink: 0 };
+  if (type === 'low_fuel')        return <FaGasPump        style={{ ...style, color: '#ef4444' }} />;
+  if (type === 'high_temperature') return <FaThermometerHalf style={{ ...style, color: '#f59e0b' }} />;
+  return <FaThermometerHalf style={{ ...style, color: '#64748b' }} />;
+}
 
 function BuildingAdministratorDashboard() {
   const [userData,     setUserData]     = useState(null);
@@ -20,9 +44,19 @@ function BuildingAdministratorDashboard() {
     paid: 0, pending: 0, outstandingAmt: 0,
   });
   const [fuelStats, setFuelStats] = useState({
-    pct:      0,    // 0-100 — % καυσίμου που απομένει
-    daysLeft: null, // εκτιμώμενες μέρες που απομένουν
+    pct:      0,
+    daysLeft: null,
     isLow:    false,
+    allCons:  [],   // raw consumption records for chart
+  });
+  const [buildingReserve, setBuildingReserve] = useState(null);
+  const [buildingInfo,    setBuildingInfo]    = useState(null);
+  const [notifStats, setNotifStats] = useState({
+    notifications: [],
+    unreadCount:   0,
+    avgTemp:       null,   // μέση θερμοκρασία από high_temperature alarms
+    tempAlarmCount: 0,     // πλήθος temperature alarms
+    worstTempMsg:  null,   // message του πιο πρόσφατου temperature alarm
   });
 
   // ── date helpers ──────────────────────────────────────────────────────────
@@ -67,8 +101,15 @@ function BuildingAdministratorDashboard() {
 
         // 3. Building → Apartments → Payments
         try {
-          const buildingRes = await axios.get(`/api/buildings/${profileId}`, { headers });
-          const aptsRes     = await axios.get(`/api/apartments/building/${buildingRes.data._id}`, { headers });
+          const buildingRes    = await axios.get(`/api/buildings/${profileId}`, { headers });
+          const buildingData   = buildingRes.data;
+          setBuildingReserve(buildingData.reserve || null);
+          setBuildingInfo({
+            address:    buildingData.address,
+            apartments: buildingData.apartments,
+            floors:     buildingData.floors,
+          });
+          const aptsRes        = await axios.get(`/api/apartments/building/${buildingData._id}`, { headers });
           const apartments  = Array.isArray(aptsRes.data) ? aptsRes.data : [];
 
           const paymentsByApt = await Promise.all(
@@ -146,11 +187,36 @@ function BuildingAdministratorDashboard() {
           setFuelStats({
             pct,
             daysLeft,
-            isLow: pct <= LOW_FUEL_THRESHOLD,
+            isLow:   pct <= LOW_FUEL_THRESHOLD,
+            allCons, // pass raw records to chart
           });
 
         } catch (payErr) {
           console.error('Error fetching payments/consumptions:', payErr);
+        }
+
+        // 5. Notifications
+        try {
+          const notifRes = await axios.get('/api/notifications?limit=50', { headers });
+          const notifs   = notifRes.data.notifications || [];
+          const unread   = notifRes.data.unreadCount   || 0;
+
+          // Extract temperature readings from high_temperature alarms
+          const tempAlarms = notifs.filter(n => n.type === 'high_temperature');
+          const temps      = tempAlarms.map(extractTemp).filter(v => v !== null);
+          const avgTemp    = temps.length > 0
+            ? (temps.reduce((s, t) => s + t, 0) / temps.length).toFixed(1)
+            : null;
+
+          setNotifStats({
+            notifications:  notifs,
+            unreadCount:    unread,
+            avgTemp,
+            tempAlarmCount: tempAlarms.length,
+            worstTempMsg:   tempAlarms.length > 0 ? tempAlarms[0].message : null,
+          });
+        } catch (nErr) {
+          console.error('Error fetching notifications:', nErr);
         }
 
       } catch (error) {
@@ -161,6 +227,23 @@ function BuildingAdministratorDashboard() {
     };
     fetchAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Mark all unread notifications as read ────────────────────────────────
+  const markAllRead = useCallback(async () => {
+    const token   = window.localStorage.getItem('token');
+    const headers = { Authorization: token };
+    const unread  = notifStats.notifications.filter(n => !n.isRead);
+    await Promise.all(
+      unread.map(n =>
+        axios.patch(`/api/notifications/${n._id}/read`, {}, { headers }).catch(() => {})
+      )
+    );
+    setNotifStats(prev => ({
+      ...prev,
+      unreadCount:   0,
+      notifications: prev.notifications.map(n => ({ ...n, isRead: true })),
+    }));
+  }, [notifStats.notifications]);
 
   // ── derived values ────────────────────────────────────────────────────────
   const totalCur  = expenseStats.totalHeating + expenseStats.totalElevator + expenseStats.totalGeneral;
@@ -191,6 +274,7 @@ function BuildingAdministratorDashboard() {
       userName={userData?.name || "Administrator"}
       userRole="Building Administrator"
       dashboardTitle="Building Administrator"
+      buildingInfo={buildingInfo}
     >
       <div className="welcome-section" style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem' }}>
@@ -203,9 +287,9 @@ function BuildingAdministratorDashboard() {
 
       <div className="stats-grid" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '1.5rem',
-        marginBottom: '2rem',
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: '1rem',
+        marginBottom: '1.5rem',
       }}>
         {/* ── Total Expenses ── */}
         <StatsCard
@@ -266,62 +350,115 @@ function BuildingAdministratorDashboard() {
           }
           subvalueColor={fuelStats.isLow ? 'warning' : 'neutral'}
         />
+
+        {/* ── Avg. Temperature ── */}
+        <StatsCard
+          title="Avg. Temperature"
+          value={loading ? '—' : notifStats.avgTemp ? `${notifStats.avgTemp} °C` : 'N/A'}
+          icon={FaThermometerHalf}
+          color="green"
+          badge={notifStats.tempAlarmCount > 0 ? `${notifStats.tempAlarmCount} ALARM${notifStats.tempAlarmCount > 1 ? 'S' : ''}` : null}
+          subvalue={
+            loading ? '' :
+            notifStats.worstTempMsg
+              ? notifStats.worstTempMsg
+              : 'Nominal avg'
+          }
+          subvalueColor={notifStats.tempAlarmCount > 0 ? 'warning' : 'neutral'}
+        />
       </div>
 
-      <div style={{ marginBottom: '2rem' }}>
-        <AlarmsNotificationsCard />
+      {/* ── Second row: Fuel Tank Chart + Expense Mix Chart ─────────────── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '1.5rem',
+        marginBottom: '1.5rem',
+      }}>
+        <FuelTankChart
+          allCons={fuelStats.allCons}
+          pct={fuelStats.pct}
+          daysLeft={fuelStats.daysLeft}
+        />
+        <ExpenseMixChart
+          heating={expenseStats.totalHeating}
+          elevator={expenseStats.totalElevator}
+          general={expenseStats.totalGeneral}
+          reserve={buildingReserve}
+          monthLabel={curLabel}
+        />
       </div>
 
-      <div className="quick-actions" style={{
+      {/* ── Alarms & Notifications panel ─────────────────────────────────── */}
+      <div style={{
         backgroundColor: 'white',
         borderRadius: '0.75rem',
         padding: '1.5rem',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'
+        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06)',
+        marginBottom: '1.5rem',
       }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1rem' }}>
-          Quick Actions
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-          <a 
-            href="/building-administrator/expenses-charge" 
-            className="btn btn-primary" 
-            style={{ 
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              textAlign: 'center'
-            }}
-          >
-            <FaFileInvoiceDollar style={{ marginRight: '0.5rem' }} />
-            Charge Expenses
-          </a>
-          <a 
-            href="/building-administrator/calculate-expenses" 
-            className="btn btn-success" 
-            style={{ 
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              textAlign: 'center'
-            }}
-          >
-            <FaCalculator style={{ marginRight: '0.5rem' }} />
-            Calculate Expenses
-          </a>
-          <a 
-            href="/building-administrator/view-payments" 
-            className="btn btn-warning" 
-            style={{ 
-              padding: '0.75rem 1.5rem',
-              borderRadius: '0.5rem',
-              textDecoration: 'none',
-              textAlign: 'center'
-            }}
-          >
-            <FaMoneyBillWave style={{ marginRight: '0.5rem' }} />
-            View Payments
-          </a>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+            Alarms &amp; notifications
+          </h3>
+          {notifStats.unreadCount > 0 && (
+            <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
+          )}
         </div>
+
+        {/* List */}
+        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
+          {notifStats.notifications.length === 0 ? (
+            <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
+              No notifications
+            </p>
+          ) : (
+            notifStats.notifications.map(n => (
+              <div key={n._id} style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                padding: '0.75rem 0',
+                borderBottom: '1px solid #f1f5f9',
+                borderLeft: `3px solid ${n.isRead ? '#e2e8f0' : '#ef4444'}`,
+                paddingLeft: '0.75rem',
+                marginBottom: '0.25rem',
+              }}>
+                <NotifIcon type={n.type} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e293b', fontWeight: n.isRead ? 400 : 500 }}>
+                    {n.message}
+                  </p>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
+                    {timeAgo(n.timestamp)} · {n.isRead ? 'read' : 'unread'}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Footer */}
+        {notifStats.unreadCount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
+            <button
+              onClick={markAllRead}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#2563eb',
+                fontSize: '0.875rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+              }}
+            >
+              <FaCheck /> Mark all read
+            </button>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );

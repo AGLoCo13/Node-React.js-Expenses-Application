@@ -4,8 +4,10 @@ import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyB
 import DashboardLayout from './DashboardLayout';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import { useBuildingAdminProfile } from '../hooks/useBuildingAdminProfile';
 
 function ViewBuilding() {
+  const { userName, buildingInfo } = useBuildingAdminProfile();
   const [building, setBuilding] = useState(null);
   const [apartments, setApartments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,9 +63,10 @@ function ViewBuilding() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userName}
       userRole="Building Administrator"
       dashboardTitle="View Building"
+      buildingInfo={buildingInfo}
     >
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>
@@ -245,10 +248,9 @@ function ViewBuilding() {
                           <FaDoorOpen style={{ marginRight: '0.5rem', color: '#f59e0b' }} />
                           {apartment.name}
                         </td>
-                        <td>
-                          <span className="badge badge-info">
+                        <td style={{ fontWeight: '500' }}>
+                          <FaLayerGroup style={{ marginRight: '0.5rem', color: '#64748b' }} />
                             Floor {apartment.floor}
-                          </span>
                         </td>
                         <td>
                           <FaRulerCombined style={{ marginRight: '0.5rem', color: '#64748b' }} />

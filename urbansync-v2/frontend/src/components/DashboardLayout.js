@@ -3,7 +3,18 @@ import { Link, useNavigate } from 'react-router-dom';
 import { FaBars, FaTimes, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
 import '../css/dashboardLayout.css';
 
-const DashboardLayout = ({ children, navItems, userName, userRole, dashboardTitle }) => {
+/**
+ * DashboardLayout
+ *
+ * Props:
+ *   children        — page content
+ *   navItems        — [{ label, path, icon, badge, badgeColor }]
+ *   userName        — displayed in header
+ *   userRole        — displayed in header
+ *   dashboardTitle  — header title
+ *   buildingInfo    — optional { address, apartments, floors } — shown in sidebar below logo
+ */
+const DashboardLayout = ({ children, navItems, userName, userRole, dashboardTitle, buildingInfo }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const navigate = useNavigate();
 
@@ -20,18 +31,27 @@ const DashboardLayout = ({ children, navItems, userName, userRole, dashboardTitl
     <div className="dashboard-wrapper">
       {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : 'closed'}`}>
+        {/* Logo */}
         <div className="sidebar-header">
           <h3 className="sidebar-logo" style={{ color: 'white' }}>UrbanSync</h3>
-          <p style={{ 
-            color: 'rgba(255, 255, 255, 0.7)', 
-            margin: '0.25rem 0 0 0', 
-            fontSize: '0.75rem',
-            fontStyle: 'italic',
-            textAlign: 'center'
-          }}>
-            Your Building, Simplified
-          </p>
+          <p className="sidebar-tagline">Your Building, Simplified</p>
         </div>
+
+        {/* Building info block (only for Building Administrator) */}
+        {buildingInfo && sidebarOpen && (
+          <div className="sidebar-building-info">
+            <p className="sidebar-building-address">{buildingInfo.address}</p>
+            <p className="sidebar-building-meta">
+              {buildingInfo.apartments} apartments · {buildingInfo.floors} floors
+            </p>
+            {buildingInfo.devicesOnline !== undefined && (
+              <p className="sidebar-building-devices">
+                <span className="sidebar-devices-dot" />
+                {buildingInfo.devicesOnline}/{buildingInfo.devicesTotal} devices online
+              </p>
+            )}
+          </div>
+        )}
         
         <nav className="sidebar-nav">
           {navItems.map((item, index) => (
@@ -43,6 +63,11 @@ const DashboardLayout = ({ children, navItems, userName, userRole, dashboardTitl
             >
               {item.icon && <item.icon className="nav-icon" />}
               <span className="nav-label">{item.label}</span>
+              {item.badge && (
+                <span className="sidebar-nav-badge" style={{ backgroundColor: item.badgeColor || '#ef4444' }}>
+                  {item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </nav>

@@ -3,11 +3,13 @@ import axios from 'axios';
 import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaCalendarAlt, FaDoorOpen, FaCheck, FaClock } from 'react-icons/fa';
 import DashboardLayout from './DashboardLayout';
 import ConsumptionHistory from './ConsumptionHistory';
+import { useBuildingAdminProfile } from '../hooks/useBuildingAdminProfile';
 import { toast } from 'react-toastify';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'react-toastify/dist/ReactToastify.css';
 
 function FuelCharge() {
+  const { userName, buildingInfo } = useBuildingAdminProfile();
   const [formData, setFormData] = useState({
     apartment: '',
     month: '',
@@ -107,9 +109,10 @@ function FuelCharge() {
   return (
     <DashboardLayout
       navItems={navItems}
-      userName="Administrator"
+      userName={userName}
       userRole="Building Administrator"
       dashboardTitle="Fuel Charge"
+      buildingInfo={buildingInfo}
     >
       {/* Page Header */}
       <div style={{ marginBottom: '2rem' }}>
