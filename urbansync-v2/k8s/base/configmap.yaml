@@ -4,6 +4,7 @@ metadata:
   name: urbansync-config
   namespace: urbansync
 data:
+  THINGSBOARD_URL: "http://thingsboard:9090"
   BACKEND_PORT: "5000"
   CORS_ORIGIN: "http://localhost"
   MINIO_ENDPOINT: "minio"

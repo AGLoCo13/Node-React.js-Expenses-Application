@@ -293,6 +293,24 @@ class CloudService {
         await this.rabbitmqConsumer.close();
         console.log('✅ Cloud Services shut down complete');
     }
+
+    /**
+ * deleteFromMinIO — removes an object from MinIO.
+ *
+ * PATTERN: COMPENSATING LOGIC (called from expensesController.createExpense)
+ *   Αν το Mongo save μετά από επιτυχές upload αποτύχει, αυτό αναιρεί το
+ *   upload ώστε να μη μείνει ορφανό object στο bucket. Best-effort: μια
+ *   αποτυχία εδώ καταγράφεται, δεν πετάει exception — δεν θέλουμε να
+ *   κρύψουμε το αρχικό σφάλμα.
+ *
+ * PATTERN: CIRCUIT BREAKER (minioBreaker) — ίδιο breaker με το upload.
+ */
+async deleteFromMinIO(bucketName, fileName) {
+    return minioBreaker.fire(async () => {
+        await this.minioClient.removeObject(bucketName, fileName);
+        console.log(`[MinIO] Compensating delete: removed ${fileName} from ${bucketName}`);
+    });
+}
 }
 
 // Export singleton instance

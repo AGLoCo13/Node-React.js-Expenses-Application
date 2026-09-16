@@ -3,26 +3,22 @@ const {extractReceiptData} = require('../services/aiService.js');
 const { extractViaKnative, TIMEOUT_MS: KNATIVE_TIMEOUT_MS } = require('../services/knativeService');
 const cloudService = require('../services/cloudService');
 
-// Create a new expense
 const createExpense = async (req, res) => {
+  let documentData = null;
+  let documentMetadata = null;
+  const bucketName = process.env.MINIO_BUCKET || 'receipts';
+  let uploadResult = null;
+
   try {
-    // Retrieve the necessary data from the request body
     const { profile, total, date_created, month, year, type_expenses } = req.body;
 
-    // Upload file to MinIO manually (req.file comes from uploadMemory middleware)
-    let documentData = null;
-    let documentMetadata = null;
-    const bucketName = process.env.MINIO_BUCKET || 'receipts';
-    let uploadResult = null;
-    
     if (req.file && req.file.buffer) {
-      // Generate unique filename and upload to MinIO via native minio client
       const fileName = `${Date.now()}-${req.file.originalname}`;
       uploadResult = await cloudService.uploadToMinIO(fileName, req.file.buffer, {
         'Content-Type': req.file.mimetype
       });
-      
-      documentData = fileName; // Store the MinIO key
+
+      documentData = fileName;
       documentMetadata = {
         originalName: req.file.originalname,
         size: req.file.size,
@@ -31,36 +27,39 @@ const createExpense = async (req, res) => {
       };
     }
 
-    // Create a new expense instance
     const expense = new Expense({
-      profile,
-      total,
-      date_created,
+      profile, total, date_created,
       document: documentData,
       documentBucket: bucketName,
-      documentMetadata: documentMetadata,
-      month,
-      year,
-      type_expenses
+      documentMetadata,
+      month, year, type_expenses
     });
 
-    // Save the expense to the database
     const savedExpense = await expense.save();
 
-    // Return response with receipt info
     const response = {
       ...savedExpense.toObject(),
       receiptInfo: uploadResult ? {
-        uploaded: true,
-        filename: documentData,
-        url: uploadResult.url,
-        bucket: bucketName
+        uploaded: true, filename: documentData, url: uploadResult.url, bucket: bucketName
       } : null
     };
-
     res.status(201).json(response);
+
   } catch (error) {
     console.error(error);
+
+    // PATTERN: COMPENSATING LOGIC — το MinIO upload πέτυχε αλλά κάτι μετά
+    // (validation/save στο Mongo) απέτυχε. Χωρίς αυτό, κάθε τέτοια αποτυχία
+    // αφήνει για πάντα ένα ορφανό object στο bucket.
+    if (documentData) {
+      try {
+        await cloudService.deleteFromMinIO(bucketName, documentData);
+        console.warn(`[createExpense] Compensated: rolled back MinIO object ${documentData} after save failure`);
+      } catch (compErr) {
+        console.error(`[createExpense] Compensating delete FAILED for ${documentData} — orphan left in ${bucketName}:`, compErr.message);
+      }
+    }
+
     res.status(500).json({ error: 'Failed to create a new expense' });
   }
 };

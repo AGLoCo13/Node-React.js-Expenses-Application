@@ -151,3 +151,18 @@ spec:
                 configMapKeyRef:
                   name: urbansync-config
                   key: GEMINI_MAX_HEDGES
+            - name: THINGSBOARD_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: urbansync-config
+                  key: THINGSBOARD_URL
+            - name: TB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: iot-credentials
+                  key: tb-username
+            - name: TB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: iot-credentials
+                  key: tb-password
