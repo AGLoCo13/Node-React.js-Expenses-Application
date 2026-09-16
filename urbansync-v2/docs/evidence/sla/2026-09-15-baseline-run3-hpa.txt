@@ -1,0 +1,25 @@
+# baseline run 3, HPA every 15s (UTC time, cpu target, replicas, ready, node cpu)
+21:26:35 6%/65% 2 ready=1 node=8%
+21:26:50 6%/65% 1 ready=1 node=11%
+21:27:05 116%/65% 1 ready=1 node=11%
+21:27:20 310%/65% 2 ready=2 node=23%
+21:27:35 524%/65% 4 ready=4 node=27%
+21:27:50 562%/65% 4 ready=4 node=23%
+21:28:06 351%/65% 4 ready=4 node=25%
+21:28:21 359%/65% 4 ready=4 node=28%
+21:28:36 422%/65% 4 ready=4 node=30%
+21:28:51 437%/65% 4 ready=4 node=33%
+21:29:07 482%/65% 4 ready=4 node=33%
+21:29:22 536%/65% 4 ready=4 node=35%
+21:29:37 537%/65% 4 ready=4 node=36%
+21:29:52 568%/65% 4 ready=4 node=37%
+21:30:08 602%/65% 4 ready=4 node=39%
+21:30:23 620%/65% 4 ready=4 node=41%
+21:30:38 606%/65% 4 ready=4 node=41%
+21:30:53 659%/65% 4 ready=4 node=46%
+21:31:09 720%/65% 4 ready=4 node=46%
+21:31:24 754%/65% 4 ready=4 node=47%
+21:31:39 766%/65% 4 ready=4 node=46%
+21:31:55 773%/65% 4 ready=4 node=44%
+21:32:10 721%/65% 4 ready=4 node=34%
+21:32:25 621%/65% 4 ready=4 node=16%
