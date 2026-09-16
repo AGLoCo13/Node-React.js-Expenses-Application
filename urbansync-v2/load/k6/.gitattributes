@@ -1,0 +1,2 @@
+# Runner scripts execute under bash (WSL / the VM); CRLF from a Windows checkout breaks them.
+*.sh text eol=lf
