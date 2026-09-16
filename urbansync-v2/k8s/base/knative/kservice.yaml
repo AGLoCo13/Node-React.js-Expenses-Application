@@ -25,6 +25,8 @@ spec:
         autoscaling.knative.dev/target: "1"
         # Maximum scale
         autoscaling.knative.dev/max-scale: "3"
+        # S7 cold-start measurement: keep one warm pod (reverted after the runs)
+        autoscaling.knative.dev/min-scale: "1"
     spec:
       # Time to wait for pod to start before routing traffic (handles cold start)
       timeoutSeconds: 90   # Gemini measured 20-45s on a receipt photo (3/9); backend waits 100s, ingress 120s
