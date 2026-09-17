@@ -17,6 +17,7 @@ import '../css/statsCard.css';
  *  breakdown   — [{ label: "Heat", value: "€ 0" }, ...]
  *  gauge       — 0-100 number — shows a circular SVG gauge instead of icon
  *  gaugeWarning — threshold below which gauge turns orange (default 20)
+ *  badge       — short string shown as a pill next to the title (e.g. "1 ALARM")
  */
 
 // ── Circular SVG Gauge ────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ const StatsCard = ({
   breakdown,
   gauge,
   gaugeWarning = 20,
+  badge,
 }) => {
   return (
     <div className={`stats-card stats-card-${color}`}>
@@ -73,6 +75,7 @@ const StatsCard = ({
           <p className="stats-title">
             {title}
             {subtitle && <span className="stats-subtitle"> · {subtitle}</span>}
+            {badge && <span className="stats-badge">{badge}</span>}
           </p>
           <h3 className="stats-value">{value}</h3>
 

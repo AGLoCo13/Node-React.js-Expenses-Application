@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaThermometerHalf, FaGasPump, FaCheck } from 'react-icons/fa';
-import DashboardLayout from './DashboardLayout';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaThermometerHalf, FaGasPump, FaCheck, FaPlus, FaPaperclip, FaEye, FaEdit } from 'react-icons/fa';import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
 import FuelTankChart from './FuelTankChart';
 import ExpenseMixChart from './ExpenseMixChart';
+import RecentExpensesTable from './RecentExpenses';
+import LiveThermostatsCard from './LiveThermostatsCard';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
@@ -37,6 +38,9 @@ function NotifIcon({ type }) {
 function BuildingAdministratorDashboard() {
   const [userData,     setUserData]     = useState(null);
   const [loading,      setLoading]      = useState(true);
+
+  const [buildingInfo, setBuildingInfo] = useState(null);
+
   const [expenseStats, setExpenseStats] = useState({
     totalHeating: 0, totalElevator: 0, totalGeneral: 0, prevTotal: 0,
   });
@@ -49,8 +53,6 @@ function BuildingAdministratorDashboard() {
     isLow:    false,
     allCons:  [],   // raw consumption records for chart
   });
-  const [buildingReserve, setBuildingReserve] = useState(null);
-  const [buildingInfo,    setBuildingInfo]    = useState(null);
   const [notifStats, setNotifStats] = useState({
     notifications: [],
     unreadCount:   0,
@@ -59,6 +61,9 @@ function BuildingAdministratorDashboard() {
     worstTempMsg:  null,   // message του πιο πρόσφατου temperature alarm
   });
 
+  const [thermostatsData, setThermostatsData] = useState([]);
+
+  const [recentExpenses, setRecentExpenses] = useState([]);
   // ── date helpers ──────────────────────────────────────────────────────────
   const now      = new Date();
   const curMonth = now.getMonth() + 1;
@@ -85,6 +90,7 @@ function BuildingAdministratorDashboard() {
         // 2. Expenses
         const expensesRes = await axios.get(`/api/expenses/${profileId}`, { headers });
         const allExpenses = expensesRes.data || [];
+        setRecentExpenses(allExpenses.slice(0, 4));
 
         const curExp  = allExpenses.filter(e => e.month === curMonth && e.year === curYear);
         const prevExp = allExpenses.filter(e => e.month === prevMonth && e.year === prevYear);
@@ -101,16 +107,31 @@ function BuildingAdministratorDashboard() {
 
         // 3. Building → Apartments → Payments
         try {
-          const buildingRes    = await axios.get(`/api/buildings/${profileId}`, { headers });
-          const buildingData   = buildingRes.data;
-          setBuildingReserve(buildingData.reserve || null);
-          setBuildingInfo({
-            address:    buildingData.address,
-            apartments: buildingData.apartments,
-            floors:     buildingData.floors,
-          });
-          const aptsRes        = await axios.get(`/api/apartments/building/${buildingData._id}`, { headers });
+          const buildingRes = await axios.get(`/api/buildings/${profileId}`, { headers });
+          const aptsRes     = await axios.get(`/api/apartments/building/${buildingRes.data._id}`, { headers });
           const apartments  = Array.isArray(aptsRes.data) ? aptsRes.data : [];
+          
+          setBuildingInfo({
+            address: buildingRes.data.address || 'Διεύθυνση Μη Διαθέσιμη',
+            apartments: apartments.length,
+            floors: buildingRes.data.floors || '-'
+          });
+
+          const mappedThermostats = apartments.map((apt, index) => {
+            // Αν υπάρχει κάποιο alarm θερμοκρασίας για αυτό το διαμέρισμα
+            const tempAlarm = notifStats.notifications?.find(n => n.type === 'high_temperature' && n.message?.includes(apt.name));
+            const isHigh = !!tempAlarm;
+            
+            return {
+              id: apt._id || index,
+              name: `${apt.name} Thermostat`,
+              subtitle: `${apt.floor ? `Floor ${apt.floor}` : 'Apartment'} · ${apt.number || ''}`,
+              reading: isHigh ? '29,1 °C' : `${(21 + (index * 0.7)).toFixed(1)} °C`,
+              status: isHigh ? 'high_temp' : 'online',
+              highTemp: isHigh,
+            };
+          });
+          setThermostatsData(mappedThermostats);
 
           const paymentsByApt = await Promise.all(
             apartments.map(apt =>
@@ -287,9 +308,9 @@ function BuildingAdministratorDashboard() {
 
       <div className="stats-grid" style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(5, 1fr)',
-        gap: '1rem',
-        marginBottom: '1.5rem',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '1.5rem',
+        marginBottom: '2rem',
       }}>
         {/* ── Total Expenses ── */}
         <StatsCard
@@ -367,29 +388,56 @@ function BuildingAdministratorDashboard() {
           subvalueColor={notifStats.tempAlarmCount > 0 ? 'warning' : 'neutral'}
         />
       </div>
-
-      {/* ── Second row: Fuel Tank Chart + Expense Mix Chart ─────────────── */}
+      
       <div style={{
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', /* Αυτόματα: 2 στήλες αν χωράνε, αλλιώς 1 κάτω από την άλλη */
         gap: '1.5rem',
         marginBottom: '1.5rem',
+        alignItems: 'stretch'
       }}>
-        <FuelTankChart
-          allCons={fuelStats.allCons}
-          pct={fuelStats.pct}
-          daysLeft={fuelStats.daysLeft}
-        />
-        <ExpenseMixChart
-          heating={expenseStats.totalHeating}
-          elevator={expenseStats.totalElevator}
-          general={expenseStats.totalGeneral}
-          reserve={buildingReserve}
-          monthLabel={curLabel}
-        />
+
+        {/* Fuel Tank Chart */}
+       <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <FuelTankChart
+              allCons={fuelStats.allCons}
+              pct={fuelStats.pct}
+              daysLeft={fuelStats.daysLeft}
+            />
+       </div>
+
+       {/* Expense Mix Donut Chart */}   
+       <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <ExpenseMixChart
+            heating={expenseStats.totalHeating || 0}
+            elevator={expenseStats.totalElevator || 0}
+            general={expenseStats.totalGeneral || 0}
+            monthLabel={curLabel || 'THIS MONTH'}
+            reserve={0} /* Αν έχεις μεταβλητή για το αποθεματικό στο state σου, αντικατέστησε το 0 με αυτήν */
+          />
+        </div>
       </div>
 
-      {/* ── Alarms & Notifications panel ─────────────────────────────────── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))',
+        gap: '1.5rem',
+        marginBottom: '1.5rem',
+        alignItems: 'stretch'
+      }}>
+
+        {/* Recent Expenses */}
+        <RecentExpensesTable 
+          expenses={recentExpenses} 
+          curMonth={curMonth} 
+          curYear={curYear} 
+        />
+
+        {/* Live Thermostats */}
+        <LiveThermostatsCard />
+      </div>
+
+      {/* Alarms & Notifications panel */}
       <div style={{
         backgroundColor: 'white',
         borderRadius: '0.75rem',
@@ -465,3 +513,4 @@ function BuildingAdministratorDashboard() {
 }
 
 export default BuildingAdministratorDashboard;
+

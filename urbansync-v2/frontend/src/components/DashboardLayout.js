@@ -15,7 +15,7 @@ import '../css/dashboardLayout.css';
  *   buildingInfo    — optional { address, apartments, floors } — shown in sidebar below logo
  */
 const DashboardLayout = ({ children, navItems, userName, userRole, dashboardTitle, buildingInfo }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768);
   const navigate = useNavigate();
 
   const handleLogout = () => {
