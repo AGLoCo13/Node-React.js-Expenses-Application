@@ -304,6 +304,12 @@ function BuildingAdministratorDashboard() {
             name:     `${apt.name} Thermostat`,
             subtitle: `${apt.floor ? `Floor ${apt.floor}` : 'Apartment'} · ${apt.number || ''}`,
             reading:  !available ? 'no sensor' : `${Number(value).toFixed(1)} °C`,
+            // Raw numeric reading, kept alongside the formatted string above,
+            // so the "Avg. Temperature" stat card below can compute a real
+            // live average across online sensors instead of relying on
+            // historical high_temperature alarm data (which is empty unless
+            // an alarm has actually fired).
+            rawValue: available ? Number(value) : null,
             status:   !available ? 'offline' : stale ? 'stale' : isHigh ? 'high_temp' : 'online',
             highTemp: isHigh,
           };
@@ -340,6 +346,18 @@ function BuildingAdministratorDashboard() {
   const totalPayments = paymentStats.paid + paymentStats.pending;
   const paidPct       = totalPayments > 0 ? Math.round((paymentStats.paid    / totalPayments) * 100) : 0;
   const pendingPct    = totalPayments > 0 ? Math.round((paymentStats.pending / totalPayments) * 100) : 0;
+
+  // Live average across whatever thermostats are currently online/stale —
+  // this is what the "Avg. Temperature" card should show. It replaces the
+  // old notifStats.avgTemp (derived only from past high_temperature alarms,
+  // which stays null on a quiet building even though sensors are reporting
+  // fine right now).
+  const liveTemps  = thermostatsData
+    .filter(t => t.status !== 'offline' && t.rawValue !== null)
+    .map(t => t.rawValue);
+  const avgLiveTemp = liveTemps.length > 0
+    ? (liveTemps.reduce((s, v) => s + v, 0) / liveTemps.length).toFixed(1)
+    : null;
 
   const navItems = [
     { label: 'Dashboard',         path: '/building-administrator',                    icon: FaHome },
@@ -437,7 +455,7 @@ function BuildingAdministratorDashboard() {
         {/* ── Avg. Temperature ── */}
         <StatsCard
           title="Avg. Temperature"
-          value={loading ? '—' : notifStats.avgTemp ? `${notifStats.avgTemp} °C` : 'N/A'}
+          value={loading ? '—' : avgLiveTemp !== null ? `${avgLiveTemp} °C` : 'N/A'}
           icon={FaThermometerHalf}
           color="green"
           badge={notifStats.tempAlarmCount > 0 ? `${notifStats.tempAlarmCount} ALARM${notifStats.tempAlarmCount > 1 ? 'S' : ''}` : null}
@@ -445,7 +463,9 @@ function BuildingAdministratorDashboard() {
             loading ? '' :
             notifStats.worstTempMsg
               ? notifStats.worstTempMsg
-              : 'Nominal avg'
+              : avgLiveTemp !== null
+                ? 'Nominal avg'
+                : 'No thermostats online'
           }
           subvalueColor={notifStats.tempAlarmCount > 0 ? 'warning' : 'neutral'}
         />
