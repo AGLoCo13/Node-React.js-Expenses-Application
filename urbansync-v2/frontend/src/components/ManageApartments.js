@@ -20,6 +20,9 @@ function ManageApartments() {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(true);
   const [tenants, setTenants] = useState([]);
+  const [buildingFilter, setBuildingFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const navItems = [
     { label: 'Dashboard', path: '/admin-dashboard', icon: FaHome },
@@ -149,6 +152,21 @@ function ManageApartments() {
     }
   };
 
+  const filteredApartments = apartments.filter(apt => {
+    if (buildingFilter === 'All') return true;
+    const bId = apt.building?._id || apt.building;
+    return bId === buildingFilter;
+  });
+
+  const totalPages = Math.ceil(filteredApartments.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentApartments = filteredApartments.slice(startIndex, startIndex + itemsPerPage);
+
+  const handleBuildingFilterChange = (e) => {
+    setBuildingFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
   return (
     <DashboardLayout
       navItems={navItems}
@@ -261,25 +279,67 @@ function ManageApartments() {
         </div>
       )}
 
-      {/* Apartments Table */}
       <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem' }}>
-          Apartments List ({apartments.length})
-        </h3>
-        {apartments && apartments.length > 0 ? (
-          <div className="table-responsive">
-            <table className="table table-hover">
-              <thead style={{ backgroundColor: '#f8fafc' }}>
+        
+        {/* Header: Τίτλος & Επιλογή Κτιρίου (Αριστερά) */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'flex-start', 
+          alignItems: 'center', 
+          marginBottom: '1.5rem',
+          width: '100%',
+          gap: '1.5rem',
+          paddingLeft: '0.5rem',
+          paddingRight: '0.5rem',
+          flexWrap: 'wrap'
+        }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+            Apartments List ({filteredApartments.length})
+          </h3>
+          
+          <select
+            value={buildingFilter}
+            onChange={handleBuildingFilterChange}
+            style={{
+              padding: '0.4rem 0.8rem',
+              borderRadius: '0.375rem',
+              border: '1px solid #cbd5e1',
+              outline: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+              minWidth: '240px'
+            }}
+          >
+            <option value="All">All Buildings (Select Building)</option>
+            {buildings.map((b) => (
+              <option key={b._id} value={b._id}>
+                {b.address}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Πίνακας */}
+        <div className="table-responsive">
+          <table className="table table-hover">
+            <thead style={{ backgroundColor: '#f8fafc' }}>
+              <tr>
+                <th>Name</th>
+                <th>Building Address</th>
+                <th>Floor</th>
+                <th>Tenant</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {currentApartments.length === 0 ? (
                 <tr>
-                  <th>Name</th>
-                  <th>Building Address</th>
-                  <th>Floor</th>
-                  <th>Tenant</th>
-                  <th>Actions</th>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                    No apartments found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {apartments.map((apartment) => (
+              ) : (
+                currentApartments.map((apartment) => (
                   <tr key={apartment._id}>
                     <td style={{ fontWeight: '500' }}>{apartment.name}</td>
                     <td>{apartment.building?.address || 'No Building'}</td>
@@ -294,13 +354,44 @@ function ManageApartments() {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p style={{ textAlign: 'center', color: '#64748b', padding: '2rem' }}>No apartments found</p>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Κουμπιά Paging (Αριστερά) */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'flex-start',
+          alignItems: 'center',
+          gap: '1rem',
+          marginTop: '1.5rem',
+          paddingLeft: '0.5rem'
+        }}>
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            disabled={currentPage === 1}
+            className="btn btn-sm btn-light"
+            style={{ border: '1px solid #cbd5e1' }}
+          >
+            Previous
+          </button>
+          
+          <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+            Page <strong style={{ color: '#1e293b' }}>{currentPage}</strong> of <strong>{totalPages || 1}</strong>
+          </span>
+          
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            disabled={currentPage === totalPages || totalPages === 0}
+            className="btn btn-sm btn-light"
+            style={{ border: '1px solid #cbd5e1' }}
+          >
+            Next
+          </button>
+        </div>
+
       </div>
 
       {/* Confirmation Modal */}

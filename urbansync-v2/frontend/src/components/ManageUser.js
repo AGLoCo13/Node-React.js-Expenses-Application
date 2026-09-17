@@ -14,6 +14,9 @@ function ManageUsers() {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(true);
+  const [roleFilter, setRoleFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   const navItems = [
     { label: 'Dashboard', path: '/admin-dashboard', icon: FaHome },
@@ -107,6 +110,24 @@ function ManageUsers() {
     setSelectedUser(null);
   };
 
+  // 1. Φιλτράρισμα με βάση τον ρόλο
+  const filteredUsers = users.filter(user => {
+    if (roleFilter === 'All') return true;
+    return user.role === roleFilter; 
+  });
+
+  // 2. Υπολογισμοί Paging
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+
+  // 3. Reset τη σελίδα στο 1 όταν αλλάζει το φίλτρο
+  const handleFilterChange = (e) => {
+    setRoleFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
   return (
     <DashboardLayout
       navItems={navItems}
@@ -181,11 +202,44 @@ function ManageUsers() {
         </div>
       )}
 
-      {/* Users Table */}
-      <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem' }}>
-          Users List ({users.length})
-        </h3>
+        <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
+        
+
+        {/* Header: Τίτλος & Φίλτρο */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'flex-start', 
+          alignItems: 'center', 
+          marginBottom: '1.5rem',
+          width: '100%',
+          gap: '1.5rem',
+          paddingLeft: '0.5rem',
+          paddingRight: '0.5rem'
+        }}>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
+            Users List ({filteredUsers.length})
+          </h3>
+          
+          <select
+            value={roleFilter}
+            onChange={handleFilterChange}
+            style={{
+              padding: '0.4rem 0.8rem',
+              borderRadius: '0.375rem',
+              border: '1px solid #cbd5e1',
+              outline: 'none',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+          >
+            <option value="All">All Roles</option>
+            <option value="Site Administrator">Site Administrator</option>
+            <option value="Building Administrator">Building Administrator</option>
+            <option value="Tenant">Tenant</option>
+          </select>
+        </div>
+
+        {/* Πίνακας */}
         <div className="table-responsive">
           <table className="table table-hover">
             <thead style={{ backgroundColor: '#f8fafc' }}>
@@ -197,28 +251,66 @@ function ManageUsers() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user._id}>
-                  <td style={{ fontWeight: '500' }}>{user.name}</td>
-                  <td>{user.email}</td>
-                  <td>
-                    <span className={`badge ${user.role === 'Site-admin' ? 'badge-danger' : user.role === 'Administrator' ? 'badge-warning' : 'badge-info'}`}>
-                      {user.role}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="btn btn-sm btn-primary" style={{ marginRight: '0.5rem' }} onClick={() => selectUser(user)}>
-                      <FaEdit /> Edit
-                    </button>
-                    <button className="btn btn-sm btn-danger" onClick={() => deleteUser(user)}>
-                      <FaTrash /> Delete
-                    </button>
+              {currentUsers.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
+                    No users found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                currentUsers.map((user) => (
+                  <tr key={user._id}>
+                    <td style={{ fontWeight: '500' }}>{user.name}</td>
+                    <td>{user.email}</td>
+                    <td style={{ color: '#1e293b', fontWeight: '500' }}>
+                      {user.role}
+                    </td>
+                    <td>
+                      <button className="btn btn-sm btn-primary" style={{ marginRight: '0.5rem' }} onClick={() => selectUser(user)}>
+                        <FaEdit /> Edit
+                      </button>
+                      <button className="btn btn-sm btn-danger" onClick={() => deleteUser(user)}>
+                        <FaTrash /> Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
+
+        {/* Κουμπιά Paging */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-start',
+            alignItems: 'center',
+            gap: '1rem',
+            marginTop: '1.5rem',
+            paddingLeft: '0.5rem'
+          }}>
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="btn btn-sm btn-light"
+              style={{ border: '1px solid #cbd5e1' }}
+            >
+              Previous
+            </button>
+            
+            <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
+              Page <strong style={{ color: '#1e293b' }}>{currentPage}</strong> of <strong>{totalPages}</strong>
+            </span>
+            
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="btn btn-sm btn-light"
+              style={{ border: '1px solid #cbd5e1' }}
+            >
+              Next
+            </button>
+          </div>
       </div>
 
       {/* Confirmation Modal */}

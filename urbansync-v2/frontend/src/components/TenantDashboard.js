@@ -4,12 +4,19 @@ import { FaHome, FaInfoCircle, FaMoneyBillWave, FaThermometerHalf } from 'react-
 import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
 
+// Same polling cadence / staleness window as the Building Administrator
+// dashboard's telemetry effect, so both views agree on what "fresh" means.
+const TELEMETRY_POLL_MS = 7000;
+const STALE_AFTER_MS = 3 * 60 * 1000; // 3 minutes
+
 function TenantDashboard() {
   const [userData, setUserData] = useState(null);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [buildingInfo, setBuildingInfo] = useState(null);
+  const [apartmentId, setApartmentId] = useState(null);
   const [apartmentTemp, setApartmentTemp] = useState(null);
+  const [tempStale, setTempStale] = useState(false);
 
   const navItems = [
     { label: 'Dashboard', path: '/tenant-dashboard', icon: FaHome },
@@ -32,6 +39,14 @@ function TenantDashboard() {
         const apartmentResponse = await axios.get(`/api/apartment/${profileResponse.data.profileId}`, {
           headers: { Authorization: `${token}` }
         });
+
+        // Keep the apartment id around so the telemetry-polling effect below
+        // (added alongside B4) can hit /api/apartments/:id/telemetry/temperature
+        // once fetchData is done — this is what actually feeds the
+        // "Apartment Temperature" stat card, which previously never got wired.
+        if (apartmentResponse.data?._id) {
+          setApartmentId(apartmentResponse.data._id);
+        }
 
         // Fetch Building Info
         try {
@@ -71,6 +86,42 @@ function TenantDashboard() {
     };
     fetchData();
   }, []);
+
+  // Live apartment temperature (A7/B4) — polls once apartmentId is known.
+  // Mirrors the Building Administrator dashboard's telemetry effect: same
+  // endpoint shape ({available, value, ts}), same staleness window, just for
+  // a single apartment instead of the whole building's list.
+  useEffect(() => {
+    if (!apartmentId) return;
+    const token = window.localStorage.getItem('token');
+    let cancelled = false;
+
+    const pollTemperature = async () => {
+      try {
+        const res = await axios.get(
+          `/api/apartments/${apartmentId}/telemetry/temperature`,
+          { headers: { Authorization: token } }
+        );
+        if (cancelled) return;
+        const { available, value, ts } = res.data;
+        if (!available) {
+          setApartmentTemp(null);
+          setTempStale(false);
+          return;
+        }
+        setApartmentTemp(Number(value).toFixed(1));
+        setTempStale((Date.now() - ts) > STALE_AFTER_MS);
+      } catch (err) {
+        if (!cancelled) {
+          console.error('[telemetry] apartment temperature poll failed:', err.message);
+        }
+      }
+    };
+
+    pollTemperature();
+    const id = setInterval(pollTemperature, TELEMETRY_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [apartmentId]);
 
   // Calculate stats
   const calculateStats = () => {
@@ -141,9 +192,11 @@ function TenantDashboard() {
 
         <StatsCard
           title="Apartment Temperature"
-          value={loading ? "..." : apartmentTemp ? `${apartmentTemp} °C` : "N/A"} 
+          value={loading ? "..." : apartmentTemp ? `${apartmentTemp} °C` : "N/A"}
           icon={FaThermometerHalf}
           color="red"
+          subvalue={!loading && apartmentTemp && tempStale ? 'stale reading' : undefined}
+          subvalueColor={tempStale ? 'warning' : 'neutral'}
         />
       </div>
 
