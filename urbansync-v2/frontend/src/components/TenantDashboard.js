@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaHome, FaInfoCircle, FaMoneyBillWave } from 'react-icons/fa';
+import { FaHome, FaInfoCircle, FaMoneyBillWave, FaThermometerHalf } from 'react-icons/fa';
 import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
 
@@ -8,6 +8,8 @@ function TenantDashboard() {
   const [userData, setUserData] = useState(null);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [buildingInfo, setBuildingInfo] = useState(null);
+  const [apartmentTemp, setApartmentTemp] = useState(null);
 
   const navItems = [
     { label: 'Dashboard', path: '/tenant-dashboard', icon: FaHome },
@@ -30,6 +32,32 @@ function TenantDashboard() {
         const apartmentResponse = await axios.get(`/api/apartment/${profileResponse.data.profileId}`, {
           headers: { Authorization: `${token}` }
         });
+
+        // Fetch Building Info
+        try {
+          // Αν το API επιστρέφει πίνακα, κρατάμε το πρώτο στοιχείο. Διαφορετικά, το ίδιο το αντικείμενο.
+          const aptData = Array.isArray(apartmentResponse.data) 
+            ? apartmentResponse.data[0] 
+            : apartmentResponse.data;
+
+          // Καλύπτουμε όλα τα πιθανά ονόματα που μπορεί να έχει το πεδίο στη βάση σου
+          const buildingId = aptData?.building?._id || aptData?.building || aptData?.building_id || aptData?.buildingId;
+
+          if (buildingId) {
+            const bRes = await axios.get(`/api/buildings/${buildingId}`, { headers: { Authorization: `${token}` } });
+            const aptsRes = await axios.get(`/api/apartments/building/${buildingId}`, { headers: { Authorization: `${token}` } });
+            
+            setBuildingInfo({
+              address: bRes.data.address || 'Άγνωστη Διεύθυνση',
+              apartments: Array.isArray(aptsRes.data) ? aptsRes.data.length : '-',
+              floors: bRes.data.floors || '-'
+            });
+          } else {
+            console.log("Δεν βρέθηκε ID κτιρίου μέσα στο aptData:", aptData);
+          }
+        } catch (err) {
+          console.error("Δεν βρέθηκε το κτίριο:", err);
+        }
 
         // Fetch payments
         const paymentsResponse = await axios.get(`/api/payments/${apartmentResponse.data._id}`);
@@ -75,6 +103,7 @@ function TenantDashboard() {
       userName={userData?.name || "Tenant"}
       userRole="Tenant"
       dashboardTitle="Tenant Dashboard"
+      buildingInfo={buildingInfo}
     >
       <div className="welcome-section" style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem' }}>
@@ -108,6 +137,13 @@ function TenantDashboard() {
           value={loading ? "..." : stats.pendingCount.toString()}
           icon={FaMoneyBillWave}
           color="orange"
+        />
+
+        <StatsCard
+          title="Apartment Temperature"
+          value={loading ? "..." : apartmentTemp ? `${apartmentTemp} °C` : "N/A"} 
+          icon={FaThermometerHalf}
+          color="red"
         />
       </div>
 

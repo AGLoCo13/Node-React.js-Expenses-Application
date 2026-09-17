@@ -44,7 +44,7 @@ function buildPath(points, W, H, padTop, padBot) {
   return { line: lineD, area: areaD };
 }
 
-export default function FuelTankChart({ allCons = [], pct = 100, daysLeft = null }) {
+export default function FuelTankChart({ allCons = [], pct = 100, daysLeft = null, available = true, stale = false }) {
   const points = useMemo(() => buildChartData(allCons), [allCons]);
   const W = 600; const H = 140; const PAD_TOP = 10; const PAD_BOT = 10;
   const { line, area } = buildPath(points, W, H, PAD_TOP, PAD_BOT);
@@ -52,7 +52,7 @@ export default function FuelTankChart({ allCons = [], pct = 100, daysLeft = null
   const yLow   = PAD_TOP + usableH * (1 - LOW_PCT   / 100);
   const yClear = PAD_TOP + usableH * (1 - CLEAR_PCT / 100);
   const isLow  = pct <= LOW_PCT;
-  const clr    = isLow ? '#f59e0b' : '#10b981';
+  const clr    = !available ? '#94a3b8' : isLow ? '#f59e0b' : '#10b981';
 
   return (
     <div style={{
@@ -72,10 +72,16 @@ export default function FuelTankChart({ allCons = [], pct = 100, daysLeft = null
           </p>
         </div>
         <span style={{padding:'0.2rem 0.6rem',borderRadius:'0.375rem',
-          background:isLow?'#fef3c7':'#d1fae5',color:clr,fontWeight:'700',fontSize:'0.8rem'}}>
-          {pct} %
+          background: !available ? '#f1f5f9' : isLow ? '#fef3c7' : '#d1fae5',
+          color:clr,fontWeight:'700',fontSize:'0.8rem'}}>
+          {available ? `${pct} %` : 'No sensor'}
         </span>
       </div>
+      {stale && available && (
+        <p style={{margin:'0.1rem 0 0',fontSize:'0.7rem',color:'#b45309',fontWeight:'600'}}>
+          ⚠ last reading is stale (device hasn't reported recently)
+        </p>
+      )}
 
       {/* SVG Chart */}
       <div style={{width:'100%',overflow:'hidden',margin:'0.75rem 0'}}>
@@ -113,12 +119,12 @@ export default function FuelTankChart({ allCons = [], pct = 100, daysLeft = null
       {/* Footer */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',
         borderTop:'1px solid #f1f5f9',paddingTop:'0.75rem'}}>
-        <span style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.8rem',color:'#10b981'}}>
+        <span style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.8rem',color: available ? '#10b981' : '#94a3b8'}}>
           <span style={{width:'8px',height:'8px',borderRadius:'50%',
-            backgroundColor:'#10b981',display:'inline-block'}}/>
-          Building Fuel Tank · online
+            backgroundColor: available ? '#10b981' : '#94a3b8',display:'inline-block'}}/>
+          Building Fuel Tank · {available ? (stale ? 'stale' : 'online') : 'no sensor'}
         </span>
-        <span style={{fontSize:'0.75rem',color:'#94a3b8'}}>30-day telemetry</span>
+        <span style={{fontSize:'0.75rem',color:'#94a3b8'}}>live reading + 30-day trend</span>
       </div>
 
       {/* Order Fuel button */}

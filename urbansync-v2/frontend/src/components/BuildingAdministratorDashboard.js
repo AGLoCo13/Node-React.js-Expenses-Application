@@ -1,38 +1,32 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaThermometerHalf, FaGasPump, FaCheck, FaPlus, FaPaperclip, FaEye, FaEdit } from 'react-icons/fa';import DashboardLayout from './DashboardLayout';
+import { FaHome, FaBuilding, FaFire, FaFileInvoiceDollar, FaCalculator, FaMoneyBillWave, FaHistory, FaThermometerHalf, FaPlus, FaPaperclip, FaEye, FaEdit } from 'react-icons/fa';import DashboardLayout from './DashboardLayout';
 import StatsCard from './StatsCard';
 import FuelTankChart from './FuelTankChart';
 import ExpenseMixChart from './ExpenseMixChart';
 import RecentExpensesTable from './RecentExpenses';
 import LiveThermostatsCard from './LiveThermostatsCard';
+import AlarmsNotificationsCard from './AlarmsNotificationsCard';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const MONTH_ABBR = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
 const fmt = (n) =>
   `€ ${Number(n).toLocaleString('el-GR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-// Convert a timestamp to a human-readable "X h ago" / "X d ago" string
-function timeAgo(ts) {
-  const diff = Math.floor((Date.now() - new Date(ts)) / 1000);
-  if (diff < 3600)  return `${Math.floor(diff / 60)} min ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
-  return `${Math.floor(diff / 86400)} d ago`;
-}
+// Live telemetry: how often we poll fuel + thermostats (B4 DoD wants 5-10s).
+const TELEMETRY_POLL_MS = 7000;
+// A reading older than this is shown as "stale" rather than trusted as current.
+const STALE_AFTER_MS = 3 * 60 * 1000; // 3 minutes
+// Same thresholds as the A5 ThingsBoard alarm rules, so the card's own
+// coloring agrees with the alarms that actually fire.
+const HIGH_TEMP_THRESHOLD = 28;
+const LOW_FUEL_THRESHOLD  = 20;
 
 // Extract a numeric temperature value from a notification message or thingsboardData
 function extractTemp(n) {
   if (n.thingsboardData?.value !== undefined) return parseFloat(n.thingsboardData.value);
   const m = (n.message || '').match(/([\d.]+)\s*°?C/);
   return m ? parseFloat(m[1]) : null;
-}
-
-// Icon per notification type
-function NotifIcon({ type }) {
-  const style = { marginRight: '0.5rem', flexShrink: 0 };
-  if (type === 'low_fuel')        return <FaGasPump        style={{ ...style, color: '#ef4444' }} />;
-  if (type === 'high_temperature') return <FaThermometerHalf style={{ ...style, color: '#f59e0b' }} />;
-  return <FaThermometerHalf style={{ ...style, color: '#64748b' }} />;
 }
 
 function BuildingAdministratorDashboard() {
@@ -48,11 +42,17 @@ function BuildingAdministratorDashboard() {
     paid: 0, pending: 0, outstandingAmt: 0,
   });
   const [fuelStats, setFuelStats] = useState({
-    pct:      0,
-    daysLeft: null,
-    isLow:    false,
-    allCons:  [],   // raw consumption records for chart
+    pct:       0,
+    daysLeft:  null,
+    isLow:     false,
+    allCons:   [],   // raw consumption records for the 30-day trend chart
+    available: true, // becomes false once we get a real {available:false} from telemetry
+    stale:     false,
   });
+
+  // Apartments of this building — fetched once in fetchAll, then reused by the
+  // separate telemetry-polling effect below to hit /telemetry/temperature per apartment.
+  const [apartments, setApartments] = useState([]);
   const [notifStats, setNotifStats] = useState({
     notifications: [],
     unreadCount:   0,
@@ -112,26 +112,16 @@ function BuildingAdministratorDashboard() {
           const apartments  = Array.isArray(aptsRes.data) ? aptsRes.data : [];
           
           setBuildingInfo({
+            _id: buildingRes.data._id,
             address: buildingRes.data.address || 'Διεύθυνση Μη Διαθέσιμη',
             apartments: apartments.length,
             floors: buildingRes.data.floors || '-'
           });
 
-          const mappedThermostats = apartments.map((apt, index) => {
-            // Αν υπάρχει κάποιο alarm θερμοκρασίας για αυτό το διαμέρισμα
-            const tempAlarm = notifStats.notifications?.find(n => n.type === 'high_temperature' && n.message?.includes(apt.name));
-            const isHigh = !!tempAlarm;
-            
-            return {
-              id: apt._id || index,
-              name: `${apt.name} Thermostat`,
-              subtitle: `${apt.floor ? `Floor ${apt.floor}` : 'Apartment'} · ${apt.number || ''}`,
-              reading: isHigh ? '29,1 °C' : `${(21 + (index * 0.7)).toFixed(1)} °C`,
-              status: isHigh ? 'high_temp' : 'online',
-              highTemp: isHigh,
-            };
-          });
-          setThermostatsData(mappedThermostats);
+          // Real per-apartment thermostat readings come from a dedicated polling
+          // effect below (GET /api/apartments/:id/telemetry/temperature) once this
+          // apartments list is in state — no more synthetic placeholder values here.
+          setApartments(apartments);
 
           const paymentsByApt = await Promise.all(
             apartments.map(apt =>
@@ -204,13 +194,16 @@ function BuildingAdministratorDashboard() {
             ? Math.round(remainingHours / avgDailyHours)
             : null;
 
-          const LOW_FUEL_THRESHOLD = 20;
-          setFuelStats({
+          // Note: pct/isLow here are the *historical trend* estimate from
+          // consumption records, used only until the first live telemetry
+          // poll (below) lands and overwrites them with the real reading.
+          setFuelStats(prev => ({
+            ...prev,
             pct,
             daysLeft,
             isLow:   pct <= LOW_FUEL_THRESHOLD,
-            allCons, // pass raw records to chart
-          });
+            allCons, // pass raw records to the 30-day trend chart
+          }));
 
         } catch (payErr) {
           console.error('Error fetching payments/consumptions:', payErr);
@@ -249,22 +242,91 @@ function BuildingAdministratorDashboard() {
     fetchAll();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Mark all unread notifications as read ────────────────────────────────
-  const markAllRead = useCallback(async () => {
+  // ── Live telemetry: fuel tank + per-apartment thermostats (A7/B4) ─────────
+  // Runs on its own short interval, independent of the heavier one-time
+  // fetchAll above (expenses/payments/consumptions don't need to be re-polled
+  // every few seconds, but sensor readings do). Waits until buildingInfo/
+  // apartments are known, then polls every TELEMETRY_POLL_MS.
+  //
+  // Toasting on CRITICAL is intentionally NOT duplicated here: the backend's
+  // A5/A6 alarm pipeline (ThingsBoard rule chain -> RabbitMQ -> Alarm
+  // Ingestion Service -> Notification) already raises the canonical
+  // low-fuel/high-temp alarm using these exact thresholds, and
+  // <AlarmsNotificationsCard/> below already toasts on it. Checking the
+  // threshold a second time here, client-side, would just risk a second,
+  // slightly-out-of-sync toast for the same event.
+  useEffect(() => {
+    if (!buildingInfo?._id) return;
     const token   = window.localStorage.getItem('token');
     const headers = { Authorization: token };
-    const unread  = notifStats.notifications.filter(n => !n.isRead);
-    await Promise.all(
-      unread.map(n =>
-        axios.patch(`/api/notifications/${n._id}/read`, {}, { headers }).catch(() => {})
-      )
-    );
-    setNotifStats(prev => ({
-      ...prev,
-      unreadCount:   0,
-      notifications: prev.notifications.map(n => ({ ...n, isRead: true })),
-    }));
-  }, [notifStats.notifications]);
+    let cancelled = false;
+
+    const pollTelemetry = async () => {
+      // Fuel tank (one sensor per building)
+      let fuelAvailable = false; // used below for the sidebar device count
+      try {
+        const res = await axios.get(
+          `/api/buildings/${buildingInfo._id}/telemetry/fuel`,
+          { headers }
+        );
+        const { available, value, ts } = res.data;
+        fuelAvailable = !!available;
+        if (cancelled) return;
+        const stale = !!available && (Date.now() - ts) > STALE_AFTER_MS;
+        setFuelStats(prev => ({
+          ...prev,
+          pct:       available ? value : prev.pct,
+          isLow:     available ? value <= LOW_FUEL_THRESHOLD : prev.isLow,
+          available,
+          stale,
+        }));
+      } catch (err) {
+        console.error('[telemetry] fuel poll failed:', err.message);
+      }
+
+      // Thermostats (one sensor per apartment, may be missing for some)
+      if (apartments.length > 0) {
+        const results = await Promise.all(
+          apartments.map(apt =>
+            axios
+              .get(`/api/apartments/${apt._id}/telemetry/temperature`, { headers })
+              .then(r => ({ apt, ...r.data }))
+              .catch(() => ({ apt, available: false }))
+          )
+        );
+        if (cancelled) return;
+
+        const mapped = results.map(({ apt, available, value, ts }) => {
+          const stale  = !!available && (Date.now() - ts) > STALE_AFTER_MS;
+          const isHigh = !!available && !stale && value > HIGH_TEMP_THRESHOLD;
+          return {
+            id:       apt._id,
+            name:     `${apt.name} Thermostat`,
+            subtitle: `${apt.floor ? `Floor ${apt.floor}` : 'Apartment'} · ${apt.number || ''}`,
+            reading:  !available ? 'no sensor' : `${Number(value).toFixed(1)} °C`,
+            status:   !available ? 'offline' : stale ? 'stale' : isHigh ? 'high_temp' : 'online',
+            highTemp: isHigh,
+          };
+        });
+        setThermostatsData(mapped);
+
+        // Bonus: feed the sidebar's already-existing (previously unused)
+        // devicesOnline/devicesTotal display with real numbers.
+        const onlineDevices = results.filter(r => r.available).length +
+          (fuelAvailable ? 1 : 0);
+        setBuildingInfo(prev => prev && ({
+          ...prev,
+          devicesOnline: onlineDevices,
+          devicesTotal:  apartments.length + 1, // + the building fuel sensor
+        }));
+      }
+    };
+
+    pollTelemetry();
+    const id = setInterval(pollTelemetry, TELEMETRY_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildingInfo?._id, apartments]);
 
   // ── derived values ────────────────────────────────────────────────────────
   const totalCur  = expenseStats.totalHeating + expenseStats.totalElevator + expenseStats.totalGeneral;
@@ -403,6 +465,8 @@ function BuildingAdministratorDashboard() {
               allCons={fuelStats.allCons}
               pct={fuelStats.pct}
               daysLeft={fuelStats.daysLeft}
+              available={fuelStats.available}
+              stale={fuelStats.stale}
             />
        </div>
 
@@ -434,79 +498,12 @@ function BuildingAdministratorDashboard() {
         />
 
         {/* Live Thermostats */}
-        <LiveThermostatsCard />
+        <LiveThermostatsCard thermostats={thermostatsData} />
       </div>
 
-      {/* Alarms & Notifications panel */}
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '0.75rem',
-        padding: '1.5rem',
-        boxShadow: '0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06)',
-        marginBottom: '1.5rem',
-      }}>
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1e293b', margin: 0 }}>
-            Alarms &amp; notifications
-          </h3>
-          {notifStats.unreadCount > 0 && (
-            <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block' }} />
-          )}
-        </div>
-
-        {/* List */}
-        <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-          {notifStats.notifications.length === 0 ? (
-            <p style={{ color: '#94a3b8', textAlign: 'center', padding: '2rem 0', margin: 0 }}>
-              No notifications
-            </p>
-          ) : (
-            notifStats.notifications.map(n => (
-              <div key={n._id} style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                padding: '0.75rem 0',
-                borderBottom: '1px solid #f1f5f9',
-                borderLeft: `3px solid ${n.isRead ? '#e2e8f0' : '#ef4444'}`,
-                paddingLeft: '0.75rem',
-                marginBottom: '0.25rem',
-              }}>
-                <NotifIcon type={n.type} />
-                <div style={{ flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#1e293b', fontWeight: n.isRead ? 400 : 500 }}>
-                    {n.message}
-                  </p>
-                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>
-                    {timeAgo(n.timestamp)} · {n.isRead ? 'read' : 'unread'}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Footer */}
-        {notifStats.unreadCount > 0 && (
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.75rem' }}>
-            <button
-              onClick={markAllRead}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#2563eb',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.4rem',
-              }}
-            >
-              <FaCheck /> Mark all read
-            </button>
-          </div>
-        )}
+      {/* Alarms & Notifications — real B5 API + polling + toast-on-critical (B4) */}
+      <div style={{ marginBottom: '1.5rem' }}>
+        <AlarmsNotificationsCard />
       </div>
     </DashboardLayout>
   );

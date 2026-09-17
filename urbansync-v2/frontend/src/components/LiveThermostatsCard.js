@@ -47,13 +47,15 @@ export default function LiveThermostatsCard({ thermostats = [] }) {
           </thead>
           <tbody>
             {list.map((t, idx) => {
-              const isHigh = t.highTemp;
-              const isOffline = t.status === 'offline';
+              const isHigh    = t.highTemp;
+              const isOffline = t.status === 'offline';   // no sensor bound to this apartment
+              const isStale   = t.status === 'stale';     // sensor exists but hasn't reported recently
 
               return (
                 <tr key={t.id || idx} style={{
                   borderBottom: '1px solid #f1f5f9',
-                  backgroundColor: isHigh ? '#fef2f2' : 'transparent'
+                  backgroundColor: isHigh ? '#fef2f2' : 'transparent',
+                  opacity: (isOffline || isStale) ? 0.6 : 1,
                 }}>
                   <td style={{ padding: '0.75rem 0.5rem' }}>
                     <div style={{ fontWeight: '500', color: isHigh ? '#991b1b' : '#1e293b' }}>
@@ -63,11 +65,11 @@ export default function LiveThermostatsCard({ thermostats = [] }) {
                       {t.subtitle}
                     </div>
                   </td>
-                  <td style={{ padding: '0.75rem 0.5rem', fontWeight: '500', color: isHigh ? '#dc2626' : '#1e293b' }}>
+                  <td style={{ padding: '0.75rem 0.5rem', fontWeight: '500', color: isHigh ? '#dc2626' : (isOffline ? '#94a3b8' : '#1e293b') }}>
                     {t.reading}
                   </td>
                   <td style={{ padding: '0.75rem 0.5rem', width: '70px' }}>
-                    {isHigh ? (
+                    {isOffline ? null : isHigh ? (
                       <svg width="50" height="16" viewBox="0 0 50 16" fill="none">
                         <path d="M2 14L15 10L28 12L48 2" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                       </svg>
@@ -78,7 +80,15 @@ export default function LiveThermostatsCard({ thermostats = [] }) {
                     )}
                   </td>
                   <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                    {isHigh ? (
+                    {isOffline ? (
+                      <span style={{ backgroundColor: '#f1f5f9', color: '#64748b', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '700' }}>
+                        NO SENSOR
+                      </span>
+                    ) : isStale ? (
+                      <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '700' }}>
+                        STALE
+                      </span>
+                    ) : isHigh ? (
                       <span style={{ backgroundColor: '#fee2e2', color: '#991b1b', padding: '0.2rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '700' }}>
                         HIGH TEMP
                       </span>
