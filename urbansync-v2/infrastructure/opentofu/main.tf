@@ -163,8 +163,8 @@ resource "azurerm_linux_virtual_machine" "main" {
   # αποσύρεται 15/11/2028, και θα γέμιζε το BS quota (4/4). Το Basv2 ΔΕΝ έχει
   # temp disk (/mnt): στο Linux το resize επιτρέπεται, και τίποτα δεν ζει στο /mnt.
   # Αλλαγή size = update in-place (stop/resize/start), όχι rebuild.
-  size                = "Standard_B4as_v2"
-  admin_username      = var.admin_username
+  size           = "Standard_B4as_v2"
+  admin_username = var.admin_username
 
   network_interface_ids = [
     azurerm_network_interface.main.id,
