@@ -1,0 +1,265 @@
+# S3 Ansible check-mode run of deploy.yml, 2026-09-17T11:59:11Z, from WSL (Ubuntu 24.04.1 LTS)
+# --check: modules report what they WOULD change; command/shell tasks are skipped.
+ansible [core 2.16.3]
+$ ansible-playbook -i inventory.ini deploy.yml --check
+[WARNING]: Ansible is being run in a world writable directory
+(/mnt/e/Projects/CloudNative/Node-React.js-Expenses-
+Application/urbansync-v2/infrastructure/ansible), ignoring it as an ansible.cfg
+source. For more information see
+https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-
+world-writable-dir
+
+PLAY [Deploy UrbanSync] ********************************************************
+
+TASK [Gathering Facts] *********************************************************
+Thursday 17 September 2026  14:59:13 +0300 (0:00:00.029)       0:00:00.029 **** 
+ok: [9.205.24.56]
+
+TASK [0 | Decrypt secrets (SOPS + age)] ****************************************
+Thursday 17 September 2026  14:59:17 +0300 (0:00:04.655)       0:00:04.685 **** 
+ok: [9.205.24.56]
+
+TASK [1 | Δημιουργία φακέλου προορισμού /opt/urbansync] ************************
+Thursday 17 September 2026  14:59:17 +0300 (0:00:00.250)       0:00:04.936 **** 
+ok: [9.205.24.56]
+
+TASK [2 | Sync urbansync-v2/ → /opt/urbansync/urbansync-v2 (rsync, only changed files)] ***
+Thursday 17 September 2026  14:59:19 +0300 (0:00:01.591)       0:00:06.528 **** 
+changed: [9.205.24.56]
+
+TASK [3 | Εκκίνηση Docker Registry (infrastructure/registry/)] *****************
+Thursday 17 September 2026  14:59:22 +0300 (0:00:02.559)       0:00:09.087 **** 
+ok: [9.205.24.56]
+
+TASK [4a | kubectl apply — k8s/base/namespace.yaml] ****************************
+Thursday 17 September 2026  14:59:27 +0300 (0:00:05.680)       0:00:14.767 **** 
+skipping: [9.205.24.56]
+
+TASK [4a | Αποτέλεσμα namespace] ***********************************************
+Thursday 17 September 2026  14:59:29 +0300 (0:00:01.512)       0:00:16.280 **** 
+ok: [9.205.24.56] => {
+    "msg": []
+}
+
+TASK [4b | Apply urbansync-secrets K8s Secret] *********************************
+Thursday 17 September 2026  14:59:29 +0300 (0:00:00.034)       0:00:16.315 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5a | Εγκατάσταση Knative Serving CRDs] ********************************
+Thursday 17 September 2026  14:59:30 +0300 (0:00:01.313)       0:00:17.628 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5b | Εγκατάσταση Knative Serving core] ********************************
+Thursday 17 September 2026  14:59:31 +0300 (0:00:01.341)       0:00:18.969 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5c | Αναμονή Knative controller] **************************************
+Thursday 17 September 2026  14:59:33 +0300 (0:00:01.309)       0:00:20.278 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5c2 | Αναμονή Knative webhook] ****************************************
+Thursday 17 September 2026  14:59:34 +0300 (0:00:01.311)       0:00:21.590 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5d | Εγκατάσταση Kourier (networking layer)] **************************
+Thursday 17 September 2026  14:59:35 +0300 (0:00:01.306)       0:00:22.896 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5e | Ρύθμιση Knative να χρησιμοποιεί Kourier] *************************
+Thursday 17 September 2026  14:59:37 +0300 (0:00:01.309)       0:00:24.206 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5e2 | Knative: skip tag-to-digest resolution για το τοπικό registry] ***
+Thursday 17 September 2026  14:59:38 +0300 (0:00:01.295)       0:00:25.501 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5f | Μείωση CPU requests σε Knative/Kourier (μικρός κόμβος)] **********
+Thursday 17 September 2026  14:59:39 +0300 (0:00:01.311)       0:00:26.813 **** 
+skipping: [9.205.24.56] => (item={'name': 'activator', 'namespace': 'knative-serving', 'cpu': '100m'}) 
+skipping: [9.205.24.56] => (item={'name': '3scale-kourier-gateway', 'namespace': 'kourier-system', 'cpu': '100m'}) 
+skipping: [9.205.24.56] => (item={'name': 'net-kourier-controller', 'namespace': 'knative-serving', 'cpu': '50m'}) 
+skipping: [9.205.24.56]
+
+TASK [4b.5g | Μείωση CoreDNS replicas σε 1 (μονός κόμβος, redundancy άσκοπη)] ***
+Thursday 17 September 2026  14:59:43 +0300 (0:00:03.902)       0:00:30.715 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5h | Μείωση CPU request calico-node (250m -> 100m)] *******************
+Thursday 17 September 2026  14:59:45 +0300 (0:00:01.338)       0:00:32.054 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5i | Εγκατάσταση nginx ingress controller] ****************************
+Thursday 17 September 2026  14:59:46 +0300 (0:00:01.309)       0:00:33.363 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5i2 | hostNetwork + metrics + CPU request στον ingress-nginx-controller] ***
+Thursday 17 September 2026  14:59:47 +0300 (0:00:01.338)       0:00:34.702 **** 
+skipping: [9.205.24.56]
+
+TASK [4b.5i3 | Αναμονή ingress-nginx-controller] *******************************
+Thursday 17 September 2026  14:59:48 +0300 (0:00:01.319)       0:00:36.022 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.0 | Εγκατάσταση Helm (αν δεν υπάρχει)] ********************************
+Thursday 17 September 2026  14:59:50 +0300 (0:00:01.328)       0:00:37.350 **** 
+ok: [9.205.24.56]
+
+TASK [4d.1 | Helm repo — secrets-store-csi-driver] *****************************
+Thursday 17 September 2026  14:59:51 +0300 (0:00:01.334)       0:00:38.685 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.2 | Helm repo — csi-secrets-store-provider-azure] *********************
+Thursday 17 September 2026  14:59:52 +0300 (0:00:01.335)       0:00:40.020 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.3 | Helm repo update] *************************************************
+Thursday 17 September 2026  14:59:54 +0300 (0:00:01.314)       0:00:41.334 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.4 | Εγκατάσταση Secrets Store CSI Driver] *****************************
+Thursday 17 September 2026  14:59:55 +0300 (0:00:01.317)       0:00:42.652 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.5 | Εγκατάσταση Azure Key Vault provider] *****************************
+Thursday 17 September 2026  14:59:56 +0300 (0:00:01.331)       0:00:43.983 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.5b | Εγκατάσταση Azure CLI (αν δεν υπάρχει)] **************************
+Thursday 17 September 2026  14:59:58 +0300 (0:00:01.354)       0:00:45.337 **** 
+ok: [9.205.24.56]
+
+TASK [4d.5c | az login με Managed Identity] ************************************
+Thursday 17 September 2026  14:59:59 +0300 (0:00:01.334)       0:00:46.672 **** 
+skipping: [9.205.24.56]
+
+TASK [4d.6 | Populate Azure Key Vault με secrets] ******************************
+Thursday 17 September 2026  15:00:00 +0300 (0:00:01.322)       0:00:47.994 **** 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56] => (item=None) 
+skipping: [9.205.24.56]
+
+TASK [4c | kubectl apply -k k8s/overlays/prod/] ********************************
+Thursday 17 September 2026  15:00:14 +0300 (0:00:14.007)       0:01:02.002 **** 
+skipping: [9.205.24.56]
+
+TASK [4c | Αποτέλεσμα k8s overlay] *********************************************
+Thursday 17 September 2026  15:00:16 +0300 (0:00:01.306)       0:01:03.309 **** 
+ok: [9.205.24.56] => {
+    "msg": []
+}
+
+TASK [4e.1 | Συγχρονισμός seed JSON στο VM] ************************************
+Thursday 17 September 2026  15:00:16 +0300 (0:00:00.040)       0:01:03.349 **** 
+skipping: [9.205.24.56]
+
+TASK [4e.2 | Αναμονή MongoDB pod] **********************************************
+Thursday 17 September 2026  15:00:16 +0300 (0:00:00.039)       0:01:03.389 **** 
+skipping: [9.205.24.56]
+
+TASK [4e.3 | Αντιγραφή seed JSON μέσα στο pod] *********************************
+Thursday 17 September 2026  15:00:16 +0300 (0:00:00.033)       0:01:03.422 **** 
+skipping: [9.205.24.56] => (item=users) 
+skipping: [9.205.24.56] => (item=profiles) 
+skipping: [9.205.24.56] => (item=buildings) 
+skipping: [9.205.24.56] => (item=apartments) 
+skipping: [9.205.24.56] => (item=expenses) 
+skipping: [9.205.24.56] => (item=consumptions) 
+skipping: [9.205.24.56] => (item=payments) 
+skipping: [9.205.24.56]
+
+TASK [4e.4 | mongoimport (--drop) μέσα στο pod] ********************************
+Thursday 17 September 2026  15:00:16 +0300 (0:00:00.065)       0:01:03.487 **** 
+skipping: [9.205.24.56] => (item=users) 
+skipping: [9.205.24.56] => (item=profiles) 
+skipping: [9.205.24.56] => (item=buildings) 
+skipping: [9.205.24.56] => (item=apartments) 
+skipping: [9.205.24.56] => (item=expenses) 
+skipping: [9.205.24.56] => (item=consumptions) 
+skipping: [9.205.24.56] => (item=payments) 
+skipping: [9.205.24.56]
+
+TASK [4e.5 | Καθαρισμός προσωρινών αρχείων] ************************************
+Thursday 17 September 2026  15:00:16 +0300 (0:00:00.065)       0:01:03.553 **** 
+skipping: [9.205.24.56]
+
+TASK [5a | Γράψε .env με GITHUB_PAT για το docker-compose του Jenkins] *********
+Thursday 17 September 2026  15:00:16 +0300 (0:00:00.036)       0:01:03.589 **** 
+ok: [9.205.24.56]
+
+TASK [5b | Build + εκκίνηση Jenkins (infrastructure/jenkins/)] *****************
+Thursday 17 September 2026  15:00:19 +0300 (0:00:02.578)       0:01:06.168 **** 
+[WARNING]: Docker compose: unknown None: Docker Compose is configured to build
+using Bake, but buildx isn't installed
+changed: [9.205.24.56]
+
+TASK [6a | Δημιουργία namespace argocd] ****************************************
+Thursday 17 September 2026  15:00:21 +0300 (0:00:02.187)       0:01:08.356 **** 
+skipping: [9.205.24.56]
+
+TASK [6a | Εφαρμογή namespace argocd] ******************************************
+Thursday 17 September 2026  15:00:23 +0300 (0:00:01.704)       0:01:10.060 **** 
+skipping: [9.205.24.56]
+
+TASK [6b | Εγκατάσταση ArgoCD v3.5.2 (pinned manifest, server-side apply)] *****
+Thursday 17 September 2026  15:00:24 +0300 (0:00:01.328)       0:01:11.388 **** 
+skipping: [9.205.24.56]
+
+TASK [6b | Αναμονή ArgoCD server deployment] ***********************************
+Thursday 17 September 2026  15:00:25 +0300 (0:00:01.297)       0:01:12.686 **** 
+skipping: [9.205.24.56]
+
+TASK [6c | Γράψε repo-secret.yaml από secrets.yml] *****************************
+Thursday 17 September 2026  15:00:26 +0300 (0:00:01.287)       0:01:13.973 **** 
+changed: [9.205.24.56]
+
+TASK [6d | Εφαρμογή repo-secret στο cluster] ***********************************
+Thursday 17 September 2026  15:00:28 +0300 (0:00:01.349)       0:01:15.322 **** 
+skipping: [9.205.24.56]
+
+TASK [6e | Εφαρμογή ArgoCD Application CR (prod)] ******************************
+Thursday 17 September 2026  15:00:29 +0300 (0:00:01.306)       0:01:16.629 **** 
+skipping: [9.205.24.56]
+
+TASK [7 | Deployment ολοκληρώθηκε] *********************************************
+Thursday 17 September 2026  15:00:30 +0300 (0:00:01.294)       0:01:17.923 **** 
+ok: [9.205.24.56] => {
+    "msg": "🎉 UrbanSync Deployment Complete!\n✅ Φάκελος εφαρμογής : /opt/urbansync/urbansync-v2\n✅ Docker Registry   : http://9.205.24.56:5000\n✅ Kubernetes        : namespace, secrets και όλα τα manifests εφαρμόστηκαν\n✅ Jenkins UI        : http://9.205.24.56:8080\n"
+}
+
+PLAY RECAP *********************************************************************
+9.205.24.56                : ok=13   changed=3    unreachable=0    failed=0    skipped=34   rescued=0    ignored=0   
+
+
+TASKS RECAP ********************************************************************
+Thursday 17 September 2026  15:00:30 +0300 (0:00:00.070)       0:01:17.994 **** 
+=============================================================================== 
+4d.6 | Populate Azure Key Vault με secrets ----------------------------- 14.01s
+3 | Εκκίνηση Docker Registry (infrastructure/registry/) ----------------- 5.68s
+Gathering Facts --------------------------------------------------------- 4.66s
+4b.5f | Μείωση CPU requests σε Knative/Kourier (μικρός κόμβος) ---------- 3.90s
+5a | Γράψε .env με GITHUB_PAT για το docker-compose του Jenkins --------- 2.58s
+2 | Sync urbansync-v2/ → /opt/urbansync/urbansync-v2 (rsync, only changed files) --- 2.56s
+5b | Build + εκκίνηση Jenkins (infrastructure/jenkins/) ----------------- 2.19s
+6a | Δημιουργία namespace argocd ---------------------------------------- 1.70s
+1 | Δημιουργία φακέλου προορισμού /opt/urbansync ------------------------ 1.59s
+4a | kubectl apply — k8s/base/namespace.yaml ---------------------------- 1.51s
+4d.5 | Εγκατάσταση Azure Key Vault provider ----------------------------- 1.35s
+6c | Γράψε repo-secret.yaml από secrets.yml ----------------------------- 1.35s
+4b.5a | Εγκατάσταση Knative Serving CRDs -------------------------------- 1.34s
+4b.5i | Εγκατάσταση nginx ingress controller ---------------------------- 1.34s
+4b.5g | Μείωση CoreDNS replicas σε 1 (μονός κόμβος, redundancy άσκοπη) --- 1.34s
+4d.1 | Helm repo — secrets-store-csi-driver ----------------------------- 1.34s
+4d.0 | Εγκατάσταση Helm (αν δεν υπάρχει) -------------------------------- 1.33s
+4d.5b | Εγκατάσταση Azure CLI (αν δεν υπάρχει) -------------------------- 1.33s
+4d.4 | Εγκατάσταση Secrets Store CSI Driver ----------------------------- 1.33s
+6a | Εφαρμογή namespace argocd ------------------------------------------ 1.33s
+[exit 0]

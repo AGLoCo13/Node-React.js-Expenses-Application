@@ -1,0 +1,36 @@
+# S3 OpenTofu health check, 2026-09-17T13:55:04Z, from WSL (Ubuntu 24.04.1 LTS)
+# Read-only: nothing is applied. Subscription and client ids redacted before commit. Account: ais25130@delos.hua.gr
+
+$ tofu version
+OpenTofu v1.12.6
+on linux_amd64
++ provider registry.opentofu.org/hashicorp/azurerm v4.81.0
+[exit 0]
+
+$ tofu fmt -check -diff
+[exit 0]
+
+$ tofu validate -no-color
+Success! The configuration is valid.
+[exit 0]
+
+$ tofu plan -no-color -input=false -lock=false -detailed-exitcode
+data.azurerm_client_config.current: Reading...
+azurerm_resource_group.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg]
+data.azurerm_client_config.current: Read complete after 0s [id=<redacted: client/object/subscription/tenant ids>]
+azurerm_key_vault.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.KeyVault/vaults/urbansync-kv-st01]
+azurerm_public_ip.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/publicIPAddresses/urbansync-rg-public-ip]
+azurerm_virtual_network.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/virtualNetworks/urbansync-rg-vnet]
+azurerm_network_security_group.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/networkSecurityGroups/urbansync-rg-nsg]
+azurerm_subnet.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/virtualNetworks/urbansync-rg-vnet/subnets/urbansync-rg-subnet]
+azurerm_network_interface.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/networkInterfaces/urbansync-rg-nic]
+azurerm_network_interface_security_group_association.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/networkInterfaces/urbansync-rg-nic|/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Network/networkSecurityGroups/urbansync-rg-nsg]
+azurerm_linux_virtual_machine.main: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.Compute/virtualMachines/urbansync-rg-vm]
+azurerm_role_assignment.vm_keyvault_secrets: Refreshing state... [id=/subscriptions/<subscription-id>/resourceGroups/urbansync-rg/providers/Microsoft.KeyVault/vaults/urbansync-kv-st01/providers/Microsoft.Authorization/roleAssignments/0b3bab47-d832-f49e-ec57-86bfa0bd9492]
+
+No changes. Your infrastructure matches the configuration.
+
+OpenTofu has compared your real infrastructure against your configuration and
+found no differences, so no changes are needed.
+[exit 0]
+# plan exit codes: 0 = no changes, 1 = error, 2 = changes pending
