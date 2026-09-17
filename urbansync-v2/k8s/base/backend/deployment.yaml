@@ -32,7 +32,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: localhost:5000/urbansync-backend:fc89aa9e
+          image: localhost:5000/urbansync-backend:fe377867
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
