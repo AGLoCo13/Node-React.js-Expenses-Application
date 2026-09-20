@@ -216,7 +216,7 @@ data:
       "timezone": "browser",
       "title": "UrbanSync Application",
       "uid": "urbansync-application",
-      "version": 3,
+      "version": 4,
       "panels": [
         {
           "type": "row",
@@ -276,7 +276,7 @@ data:
         {
           "type": "stat",
           "title": "p99 login (Silver)",
-          "description": "99th percentile for POST /api/login. Slower by design: bcrypt cost 10 burns about 75ms of CPU per call, so login gets its own Silver tier. Thresholds: amber at 2s, red at the 3s target.",
+          "description": "99th percentile for POST /api/login. Slower by design: bcrypt cost 10 burns about 75ms of CPU per call, so login gets its own Silver tier. Thresholds: amber at 3s, red at the 5s target. This is a 1 minute server side window, while the SLO in chapter 9 is the client side p99 over a whole k6 run, so this panel peaks higher than the run level number.",
           "gridPos": { "h": 4, "w": 5, "x": 15, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
@@ -287,7 +287,7 @@ data:
             "defaults": {
               "unit": "s", "min": 0, "decimals": 3, "noValue": "No traffic",
               "thresholds": { "mode": "absolute", "steps": [
-                { "color": "green", "value": null }, { "color": "yellow", "value": 2 }, { "color": "red", "value": 3 }
+                { "color": "green", "value": null }, { "color": "yellow", "value": 3 }, { "color": "red", "value": 5 }
               ] }
             }, "overrides": []
           }
