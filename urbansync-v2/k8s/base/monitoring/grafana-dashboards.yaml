@@ -61,7 +61,7 @@ data:
       "timezone": "browser",
       "title": "UrbanSync Cluster Overview",
       "uid": "urbansync-overview",
-      "version": 3,
+      "version": 4,
       "panels": [
         {
           "type": "stat",
@@ -72,7 +72,7 @@ data:
             { "refId": "A", "expr": "count(kube_pod_status_phase{namespace=\"urbansync\",phase=\"Running\"} == 1)" }
           ],
           "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
-          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "green" } }, "overrides": [] }
+          "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "text" } }, "overrides": [] }
         },
         {
           "type": "stat",
@@ -143,7 +143,10 @@ data:
           ],
           "fieldConfig": {
             "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "fillOpacity": 10 } },
-            "overrides": []
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "desired" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }, { "id": "custom.fillOpacity", "value": 0 } ] },
+              { "matcher": { "id": "byName", "options": "available" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } } ] }
+            ]
           },
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } }
         },
@@ -156,7 +159,7 @@ data:
             { "refId": "A", "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"urbansync\"}[1h])) by (pod)", "legendFormat": "{{pod}}" }
           ],
           "fieldConfig": {
-            "defaults": { "unit": "short", "min": 0, "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60 } },
+            "defaults": { "unit": "short", "min": 0, "color": { "mode": "fixed", "fixedColor": "orange" }, "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60 } },
             "overrides": []
           },
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
@@ -209,11 +212,11 @@ data:
       "schemaVersion": 39,
       "tags": ["urbansync", "application"],
       "templating": { "list": [] },
-      "time": { "from": "now-1h", "to": "now" },
+      "time": { "from": "now-15m", "to": "now" },
       "timezone": "browser",
       "title": "UrbanSync Application",
       "uid": "urbansync-application",
-      "version": 2,
+      "version": 3,
       "panels": [
         {
           "type": "row",
@@ -226,7 +229,7 @@ data:
           "type": "stat",
           "title": "Request rate",
           "description": "Requests per second served by the backend, all routes. Reads 0 when nothing is calling the API, which is normal on an idle demo cluster.",
-          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+          "gridPos": { "h": 4, "w": 5, "x": 0, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [ { "refId": "A", "expr": "sum(rate(http_requests_total[$__rate_interval])) or vector(0)" } ],
           "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
@@ -236,7 +239,7 @@ data:
           "type": "stat",
           "title": "Error rate (5xx)",
           "description": "Server side failures as a share of all requests. The Gold SLA tier in the roadmap allows 0.1 percent. Reads No traffic when there are no requests to divide by.",
-          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+          "gridPos": { "h": 4, "w": 5, "x": 5, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "refId": "A", "expr": "100 * (sum(rate(http_requests_total{code=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_requests_total[$__rate_interval]))" }
@@ -253,19 +256,38 @@ data:
         },
         {
           "type": "stat",
-          "title": "Latency p99",
-          "description": "99th percentile across every route. Thresholds follow the SLA tiers: green under 300ms is Gold, amber under 800ms is Silver. Reads No traffic when there are no requests to measure.",
-          "gridPos": { "h": 4, "w": 6, "x": 12, "y": 1 },
+          "title": "p99 reads (Gold)",
+          "description": "99th percentile for the interactive reads: buildings, apartments, expenses. One number per SLA tier, because a p99 mixed across tiers cannot be compared with any single SLO. Thresholds are the measured Gold tier: amber at 1s, red at the 1.5s target.",
+          "gridPos": { "h": 4, "w": 5, "x": 10, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
-            { "refId": "A", "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[$__rate_interval])) by (le)) and sum(rate(http_requests_total[$__rate_interval])) > 0" }
+            { "refId": "A", "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route=~\"/api/(buildings|apartments|expenses)\"}[$__rate_interval])) by (le)) and sum(rate(http_requests_total{route=~\"/api/(buildings|apartments|expenses)\"}[$__rate_interval])) > 0" }
           ],
           "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
           "fieldConfig": {
             "defaults": {
               "unit": "s", "min": 0, "decimals": 3, "noValue": "No traffic",
               "thresholds": { "mode": "absolute", "steps": [
-                { "color": "green", "value": null }, { "color": "yellow", "value": 0.3 }, { "color": "red", "value": 0.8 }
+                { "color": "green", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 1.5 }
+              ] }
+            }, "overrides": []
+          }
+        },
+        {
+          "type": "stat",
+          "title": "p99 login (Silver)",
+          "description": "99th percentile for POST /api/login. Slower by design: bcrypt cost 10 burns about 75ms of CPU per call, so login gets its own Silver tier. Thresholds: amber at 2s, red at the 3s target.",
+          "gridPos": { "h": 4, "w": 5, "x": 15, "y": 1 },
+          "datasource": { "type": "prometheus", "uid": "prometheus" },
+          "targets": [
+            { "refId": "A", "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{route=\"/api/login\"}[$__rate_interval])) by (le)) and sum(rate(http_requests_total{route=\"/api/login\"}[$__rate_interval])) > 0" }
+          ],
+          "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s", "min": 0, "decimals": 3, "noValue": "No traffic",
+              "thresholds": { "mode": "absolute", "steps": [
+                { "color": "green", "value": null }, { "color": "yellow", "value": 2 }, { "color": "red", "value": 3 }
               ] }
             }, "overrides": []
           }
@@ -274,7 +296,7 @@ data:
           "type": "stat",
           "title": "Backend replicas",
           "description": "Backend pods that are Ready right now. Under a k6 burst the HPA should push this from 1 towards 4.",
-          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+          "gridPos": { "h": 4, "w": 4, "x": 20, "y": 1 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
             { "refId": "A", "expr": "kube_deployment_status_replicas_available{namespace=\"urbansync\",deployment=\"urbansync-backend\"}" }
@@ -314,14 +336,17 @@ data:
           ],
           "fieldConfig": {
             "defaults": { "unit": "short", "min": 0, "decimals": 0, "custom": { "drawStyle": "line", "lineInterpolation": "stepAfter", "lineWidth": 2, "fillOpacity": 10 } },
-            "overrides": []
+            "overrides": [
+              { "matcher": { "id": "byName", "options": "desired" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "text" } }, { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [10, 10] } }, { "id": "custom.fillOpacity", "value": 0 } ] },
+              { "matcher": { "id": "byName", "options": "available" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "purple" } } ] }
+            ]
           },
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "none" } }
         },
         {
           "type": "timeseries",
           "title": "Latency percentiles",
-          "description": "p50, p95 and p99 from the histogram buckets. The dashed lines at 300ms and 800ms are the Gold and Silver SLA targets.",
+          "description": "p50, p95 and p99 from the histogram buckets, all routes together. The dashed lines at 1s and 1.5s are the measured Gold tier for reads. Login runs above them by design, so read this panel together with the two p99 stats above.",
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 13 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
@@ -337,7 +362,7 @@ data:
                 "thresholdsStyle": { "mode": "dashed" }
               },
               "thresholds": { "mode": "absolute", "steps": [
-                { "color": "transparent", "value": null }, { "color": "yellow", "value": 0.3 }, { "color": "red", "value": 0.8 }
+                { "color": "transparent", "value": null }, { "color": "yellow", "value": 1 }, { "color": "red", "value": 1.5 }
               ] }
             },
             "overrides": []
@@ -356,7 +381,10 @@ data:
           ],
           "fieldConfig": {
             "defaults": { "unit": "reqps", "min": 0, "noValue": "No errors", "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 20 } },
-            "overrides": []
+            "overrides": [
+              { "matcher": { "id": "byRegexp", "options": "^5xx.*" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } } ] },
+              { "matcher": { "id": "byRegexp", "options": "^exception.*" }, "properties": [ { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } } ] }
+            ]
           },
           "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
         },
@@ -498,7 +526,7 @@ data:
           "gridPos": { "h": 8, "w": 16, "x": 0, "y": 38 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
-            { "refId": "A", "expr": "sum(increase(alarms_processed_total[$__rate_interval])) by (outcome)", "legendFormat": "{{outcome}}" }
+            { "refId": "A", "expr": "sum(increase(alarms_processed_total[$__interval])) by (outcome)", "legendFormat": "{{outcome}}" }
           ],
           "fieldConfig": {
             "defaults": { "unit": "short", "min": 0, "decimals": 0, "noValue": "No alarms yet", "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 70, "stacking": { "mode": "normal" } } },
@@ -514,12 +542,12 @@ data:
         },
         {
           "type": "bargauge",
-          "title": "Alarm outcomes in range",
-          "description": "Totals over the selected time range. A single replayed alarm moves the deduplicated bar here even when it is too small to notice on the chart to the left.",
+          "title": "Alarm outcomes since restart",
+          "description": "Counter totals since the backend pod started. Deliberately not increase(): a counter that is born at 1 on the first alarm has no earlier sample to subtract from, so increase() reports zero and the first alarm after every restart would be invisible here.",
           "gridPos": { "h": 8, "w": 8, "x": 16, "y": 38 },
           "datasource": { "type": "prometheus", "uid": "prometheus" },
           "targets": [
-            { "refId": "A", "expr": "sum(increase(alarms_processed_total[$__range])) by (outcome)", "legendFormat": "{{outcome}}", "instant": true }
+            { "refId": "A", "expr": "sum(alarms_processed_total) by (outcome)", "legendFormat": "{{outcome}}", "instant": true }
           ],
           "fieldConfig": {
             "defaults": { "unit": "short", "min": 0, "decimals": 0, "noValue": "No alarms yet", "color": { "mode": "fixed", "fixedColor": "text" } },
