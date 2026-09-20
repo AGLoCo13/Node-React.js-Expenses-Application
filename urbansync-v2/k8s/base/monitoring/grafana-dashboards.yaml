@@ -61,7 +61,7 @@ data:
       "timezone": "browser",
       "title": "UrbanSync Cluster Overview",
       "uid": "urbansync-overview",
-      "version": 4,
+      "version": 5,
       "panels": [
         {
           "type": "stat",
@@ -162,7 +162,7 @@ data:
             "defaults": { "unit": "short", "min": 0, "color": { "mode": "fixed", "fixedColor": "orange" }, "custom": { "drawStyle": "bars", "lineWidth": 1, "fillOpacity": 60 } },
             "overrides": []
           },
-          "options": { "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true }, "tooltip": { "mode": "multi", "sort": "desc" } }
+          "options": { "legend": { "displayMode": "table", "placement": "bottom", "showLegend": true, "calcs": ["max"] }, "tooltip": { "mode": "multi", "sort": "desc" } }
         },
         {
           "type": "timeseries",
