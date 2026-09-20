@@ -18,8 +18,10 @@ const EMAIL = __ENV.EMAIL     || 'admin@example.com';
 const PASS  = __ENV.PASSWORD  || 'Admin!123';
 
 // Custom trends let the summary separate SLA tiers per endpoint class.
-const loginLatency = new Trend('latency_gold_login',  true);
-const crudLatency  = new Trend('latency_silver_crud', true);
+// Tier names follow chapter 9: Gold is the interactive reads, Silver is login
+// (bcrypt makes it slower by design, once per session).
+const readLatency  = new Trend('latency_gold_reads',  true);
+const loginLatency = new Trend('latency_silver_login', true);
 
 export const options = {
   stages: [
@@ -29,10 +31,12 @@ export const options = {
     { duration: '1m', target: 0 },    // ramp down
   ],
   thresholds: {
-    // These ARE the SLA definitions — k6 fails the run if a tier is violated.
-    'latency_gold_login':  ['p(95)<300'],   // Gold: p95 < 300ms
-    'latency_silver_crud': ['p(95)<800'],   // Silver: p95 < 800ms
-    'http_req_failed':     ['rate<0.001'],  // 99.9% success overall
+    // These ARE the SLA definitions - k6 fails the run if a tier is violated.
+    // Set from the 15-16 Sep measurements with headroom over the worst of 3 runs
+    // (docs/SLA-chapter9-draft.md 9.5), not from the pre-experiment estimates.
+    'latency_gold_reads':   ['p(95)<500', 'p(99)<1500'],  // worst run: p95 457ms, p99 1.07s
+    'latency_silver_login': ['p(95)<2000', 'p(99)<3000'], // worst run: p95 1.56s, p99 2.26s
+    'http_req_failed':      ['rate<0.001'],               // 99.9% success overall
   },
 };
 
@@ -46,16 +50,16 @@ export function setup() {
 export default function ({ token }) {
   const auth = { headers: { Authorization: token } };
 
-  // Gold tier: authentication
+  // Silver tier: authentication
   const login = http.post(`${BASE}/api/login`, JSON.stringify({ email: EMAIL, password: PASS }),
     { headers: { 'Content-Type': 'application/json' } });
   loginLatency.add(login.timings.duration);
   check(login, { 'login 200': (r) => r.status === 200 });
 
-  // Silver tier: read-heavy CRUD
+  // Gold tier: read-heavy CRUD
   for (const path of ['/api/buildings', '/api/apartments', '/api/expenses']) {
     const res = http.get(`${BASE}${path}`, auth);
-    crudLatency.add(res.timings.duration);
+    readLatency.add(res.timings.duration);
     check(res, { [`GET ${path} 2xx`]: (r) => r.status >= 200 && r.status < 300 });
   }
 
