@@ -1,7 +1,7 @@
 # Chapter 9: Service levels (SLIs, SLOs and SLA tiers), measured
 
-> **Draft, 16 Sep 2026 (S9).** Numbers come from the k6 runs of 15 and 16 Sep in
-> `docs/evidence/sla/`. Items marked **TODO** still need input.
+> **Draft, updated 20 Sep 2026 (S9).** Numbers come from the k6 runs of 15, 16 and 20 Sep
+> in `docs/evidence/sla/`. Items marked **TODO** still need input.
 > The "Notes for the team" section at the end is a working checklist and is removed
 > before submission.
 
@@ -63,6 +63,8 @@ gateway has no external address.
 
 **Noise control.**
 - 3 repetitions per scenario, reporting the **median of the three per-run percentiles**.
+  A fourth baseline run on 20 Sep verified the finished tier table (9.5.1); it is reported
+  separately and not folded into the medians above.
 - Nothing else running on the cluster.
 - Before each baseline run the script waited until the HPA was back at 1 replica.
 - Before each cold request the pod count was logged. All 15 min-scale 0 "first request
@@ -89,9 +91,10 @@ directly, had none.
 | POST `/api/login` | 325 ms | 1.47 s | 2.26 s |
 
 - Throughput 52.4 requests/s (median), ~17,800 requests per run.
-- Availability: 2 failed requests out of 53,439 (**99.996%**). Both were a single `502` on
-  login about 4.5 minutes into a run (runs 1 and 2). That was during the ramp to 60 users, with
-  the backend already at 4 replicas and CPU-saturated.
+- Availability: 2 failed requests out of 53,439 (**99.996%**), one `502` on login in run 1
+  and one in run 2, both about 4.5 minutes in. That is during the ramp to 60 users, with the
+  backend already at 4 replicas and CPU-saturated, so they belong to the same capacity
+  ceiling as the latency tail rather than to scaling.
 - The three runs are nearly identical (figure 9.2), so the median is representative.
 
 ![Figure 9.1: latency CDF per endpoint](evidence/sla/2026-09-16-cdf-baseline-endpoints.png)
@@ -114,19 +117,25 @@ are fast and consistent. A tail up to about 1 s follows.
 
 ### Scaling
 
-In every baseline run the HPA scaled the backend from 1 to 4 replicas within about 45 s of
-load starting, and kept 4 for the whole run. Node CPU peaked at ~47%. It returned to
-1 replica about 6 minutes after load ended (default 5-minute scale-down stabilization).
+In every baseline run the HPA scaled the backend from 1 to 4 replicas within about a
+minute of load starting, and kept 4 for the whole run. The 20 Sep run, sampled every 15 s,
+reached 3 replicas 39 s after k6 started and 4 replicas at 65 s. Node CPU peaked at ~47%.
+The deployment returned to 1 replica about 6 minutes after load ended (the default 5-minute
+scale-down stabilization window).
 Separate curl tests with 30 and 100 parallel logins
 (`docs/evidence/sla/2026-09-15-hpa-load-tests.md`) show the ceiling: about 21 logins/s at
 4 replicas × 400m CPU, regardless of how many clients wait.
 
-**Figure 9.3** (`docs/evidence/sla/screenshots/2026-09-20-113546-grafana-app-peak.png`):
-the Grafana Application dashboard at peak load during a verification run on 20 Sep, showing
-72.4 requests/s, 4 backend replicas, reads p99 680 ms, login p99 1.96 s and a 0.00% error
-rate side by side. The companion shots in that folder show the scale-out step (1 → 3 → 4
-replicas in 56 s), the tail crossing the warning lines 18 s after the peak, and the full
-run arc returning to zero. The `screenshots/README.md` there explains each frame.
+![Figure 9.3: Grafana at peak load](evidence/sla/screenshots/2026-09-20-113546-grafana-app-peak.png)
+
+*Figure 9.3: the Grafana Application dashboard at peak load during the 20 Sep verification
+run: 72.4 requests/s, 4 backend replicas, reads p99 680 ms, login p99 1.96 s and a 0.00%
+error rate, side by side.*
+
+Four frames of that run are kept in `docs/evidence/sla/screenshots/` with their own README:
+the scale-out step, the peak above, the tail crossing the warning lines 18 s later, and the
+full run arc returning to zero. The dashboard reads the server-side histogram, so it also
+demonstrates that the same SLI is visible live to an operator, not only in a test report.
 
 ### Cold start (Knative, 3 runs each, median of runs)
 
@@ -153,12 +162,13 @@ request), 1 if the function ever needs Gold-like latency.
 
 ## 9.5 SLA tiers, derived from the measurements
 
-Following [2], each target is set from measured data with headroom above the **worst run**,
-not the median, so a normal run does not breach it. The Gold and Bronze targets come from the
-three runs of 15-16 Sep; the Silver target was revised after a fourth run on 20 Sep (9.5.1). It applies to the tested
-load profile: up to 60 concurrent users, about 50 requests/s.
+Following [2], each target is set from measured data with headroom above the **worst
+observed value**, not the median, so a normal run does not breach it. The Gold and Bronze
+targets come from the three runs of 15-16 Sep; the Silver target was revised after a fourth
+run on 20 Sep (9.5.1). Every target below applies to the tested load profile: up to 60
+concurrent users, about 50 requests/s.
 
-| Tier | Scope | Availability SLO | Latency SLO | Measured (worst run) |
+| Tier | Scope | Availability SLO | Latency SLO | Measured (worst observed) |
 |---|---|---|---|---|
 | **Gold** | Interactive reads: `/api/buildings`, `/api/apartments`, `/api/expenses` | ≥ 99.9% | p95 ≤ 500 ms, p99 ≤ 1.5 s | p95 457 ms, p99 1.07 s |
 | **Silver** | Authentication: `/api/login` | ≥ 99.9% | p95 ≤ 2 s, p99 ≤ 5 s | p95 1.56 s, p99 3.15 s |
@@ -171,6 +181,12 @@ Why this grouping:
 - **Bronze** trades a few seconds of cold start for zero idle cost. Receipt processing is
   asynchronous from the user's point of view, and `min-scale 1` is the lever if that trade
   ever stops being acceptable.
+
+The Silver p99 target and the Bronze cold-start target are both 5 s, which invites the
+question of why authentication is allowed to be as slow as a cold start. They describe
+different shapes: login's p50 is 325 ms and only its saturated tail approaches 5 s, whereas
+every first request after idle on Bronze costs about 2.6 s. A tier is a promise about a
+distribution, not about one number.
 
 **Not covered:** the full receipt extraction through Gemini (20–45 s per receipt, measured
 by the team on 3 Sep) depends on an external API, so it is outside our SLOs and handled with
@@ -186,10 +202,10 @@ targets rather than the August planning values:
 | Threshold | Result | |
 |---|---|---|
 | Availability, `http_req_failed` < 0.1% | 0.00%, 0 of 19,257 requests | pass |
-| Gold reads p95 <= 500 ms | 320.7 ms | pass |
-| Gold reads p99 <= 1.5 s | 776.1 ms | pass |
-| Silver login p95 <= 2 s | 1.37 s | pass |
-| Silver login p99 <= 3 s (original) | 3.15 s | fail |
+| Gold reads p95 ≤ 500 ms | 320.7 ms | pass |
+| Gold reads p99 ≤ 1.5 s | 776.1 ms | pass |
+| Silver login p95 ≤ 2 s | 1.37 s | pass |
+| Silver login p99 ≤ 3 s (target at the time) | 3.15 s | fail |
 
 Nothing failed in the system: no request errored, and the reads came in well under their
 targets. The login tail exceeded a target derived from three runs whose worst p99 was
@@ -219,6 +235,14 @@ Policy we would apply (after [2]):
   1. Raise HPA `maxReplicas`. The node had CPU to spare at 4 replicas.
   2. Raise the backend CPU limit.
   3. Scale the VM.
+
+**A breach is not automatically a regression**, and the two cases are handled differently.
+If the service got slower against a target that earlier runs met comfortably, that is a
+regression and the policy above applies. If the target itself was never representative, the
+honest response is to re-derive it from the larger sample, which is what happened to Silver
+on 20 Sep (9.5.1): nothing had changed in the service, and no request failed. Moving a
+target is legitimate once, on evidence, and recorded; doing it repeatedly to stay green is
+how an SLO becomes decoration.
 - The k6 thresholds in `load/k6/*.js` encode the SLOs [3], so a breach turns a test run red.
 
 ## 9.7 Planned values vs measured
@@ -247,6 +271,11 @@ any, as a third column. That document is not in the repository.
   the function's own work.
 - **HPA on CPU only.** Scaling on request rate would need `prometheus-adapter`, which is out
   of scope.
+- **Few repetitions for a tail statistic.** p99 is estimated from the slowest 1% of each
+  run, so a handful of requests decide it. Four runs is enough to show the shape of the
+  distribution but not to pin its tail: the Silver p99 moved from 2.26 s to 3.15 s on the
+  fourth run (9.5.1). The p50 and p95 figures, which rest on far more samples, were stable
+  across all runs.
 
 ## References
 
