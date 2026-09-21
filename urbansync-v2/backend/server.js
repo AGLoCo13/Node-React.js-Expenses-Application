@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const thingsboardService = require('./services/thingsboardService.js');
+const Device = require('./models/device.js');
 // ── Controllers & Middleware now live INSIDE backend/ ──────────────────────
 const {handleNewUser} = require('./controllers/registerController');
 const {handleUserLogin} = require('./controllers/loginController');
@@ -79,6 +81,54 @@ app.use(cors({
 // reachable — even while the DB or message broker is still starting up.
 // ═══════════════════════════════════════════════════════════════════════════
 
+/** GET /api/buildings/:id/telemetry/fuel — μόνο ο admin αυτού του κτιρίου */
+app.get('/api/buildings/:id/telemetry/fuel', authenticateUser, async (req, res) => {
+    try {
+        const building = await Building.findById(req.params.id).populate('profile');
+        if (!building) return res.status(404).json({ error: 'Building not found' });
+
+        const requesterProfile = await Profile.findOne({ user: req.user.userId });
+        if (!requesterProfile || String(building.profile._id) !== String(requesterProfile._id)) {
+            return res.status(403).json({ error: 'Not authorized for this building' });
+        }
+
+        const device = await Device.findOne({ building: building._id, kind: 'fuel-tank' });
+        if (!device) return res.status(200).json({ available: false });
+
+        const reading = await thingsboardService.getLatestTelemetry(device.deviceId, 'fuel');
+        if (reading) { device.lastSeenAt = new Date(); await device.save(); }
+        res.status(200).json(reading ? { available: true, ...reading } : { available: false });
+    } catch (error) {
+        if (error.circuitOpen) return res.status(503).json({ error: 'Telemetry temporarily unavailable' });
+        console.error('[telemetry/fuel] failed:', error.message);
+        res.status(500).json({ error: 'Could not read fuel telemetry' });
+    }
+    });
+/** GET /api/apartments/:id/telemetry/temperature — ο ένοικος ή ο admin του κτιρίου */
+app.get('/api/apartments/:id/telemetry/temperature', authenticateUser, async (req, res) => {
+    try {
+        const apartment = await Apartment.findById(req.params.id).populate('building');
+        if (!apartment) return res.status(404).json({ error: 'Apartment not found' });
+
+        const requesterProfile = await Profile.findOne({ user: req.user.userId });
+        const isTenant = requesterProfile && String(apartment.tenant) === String(requesterProfile._id);
+        const isBuildingAdmin = requesterProfile && apartment.building &&
+            String(apartment.building.profile) === String(requesterProfile._id);
+        if (!isTenant && !isBuildingAdmin) {
+            return res.status(403).json({ error: 'Not authorized for this apartment' });
+        }
+        const device = await Device.findOne({ apartment: apartment._id, kind: 'thermostat' });
+        if (!device) return res.status(200).json({ available: false });
+
+        const reading = await thingsboardService.getLatestTelemetry(device.deviceId, 'temperature');
+        if (reading) { device.lastSeenAt = new Date(); await device.save(); }
+        res.status(200).json(reading ? { available: true, ...reading } : { available: false });
+    } catch (error) {
+        if (error.circuitOpen) return res.status(503).json({ error: 'Telemetry temporarily unavailable' });
+        console.error('[telemetry/temperature] failed:', error.message);
+        res.status(500).json({ error: 'Could not read temperature telemetry' });
+    }
+});
 /**
  * LIVENESS PROBE  →  GET /health
  * Kubernetes uses this to decide whether to RESTART the container.
