@@ -165,10 +165,22 @@ function generateHedged(genAI, parts, model) {
 }
 
 /**
+ * Which failures a DIFFERENT model can actually fix:
+ *   429 - this model's daily free-tier bucket is empty; another model has its own.
+ *   5xx - this model is unhealthy on Google's side (503 UNAVAILABLE shows up regularly on
+ *         the newer flash models); another model is a different backend.
+ * Both are about the model, not about us. Any other 4xx is the request being wrong, and every
+ * other model would reject it identically, so failing over would just burn three more buckets
+ * to be told the same thing.
+ */
+function isWorthAnotherModel(err) {
+    return err?.status === 429 || (Number.isInteger(err?.status) && err.status >= 500);
+}
+
+/**
  * PATTERN: FAILOVER. Hedging cannot rescue a 429, because every duplicate lands in the same
  * exhausted bucket. A *different model* is a different bucket (the free-tier quota is per
  * model per day), so switching model is the one retry that can actually change the answer.
- * Only a 429 moves on; any other error is the request's own fault and fails straight out.
  */
 async function generateWithModelFailover(genAI, parts) {
     let lastErr;
@@ -178,9 +190,10 @@ async function generateWithModelFailover(genAI, parts) {
             return { result: await generateHedged(genAI, parts, model), model };
         } catch (err) {
             lastErr = err;
-            if (err?.status !== 429) throw err;
+            if (!isWorthAnotherModel(err)) throw err;
             const next = GEMINI_MODELS[i + 1];
-            console.warn(`[gemini] ${model} is out of quota (429)` +
+            const why = err.status === 429 ? 'out of quota' : 'unavailable';
+            console.warn(`[gemini] ${model} ${why} (${err.status})` +
                          (next ? ` — failing over to ${next}` : ' — no models left'));
         }
     }
@@ -364,4 +377,7 @@ function start() {
 // binding a port.
 if (require.main === module) start();
 
-module.exports = { app, start, generateHedged, generateWithModelFailover, isTerminalError, GEMINI_MODELS };
+module.exports = {
+    app, start, generateHedged, generateWithModelFailover,
+    isTerminalError, isWorthAnotherModel, GEMINI_MODELS,
+};

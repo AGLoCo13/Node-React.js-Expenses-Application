@@ -18,7 +18,8 @@ process.env.GEMINI_HEDGE_AFTER_MS = '50';
 process.env.GEMINI_MAX_HEDGES     = '2';
 process.env.GEMINI_MODEL          = ' model-a , model-b ,model-c ';
 
-const { generateHedged, generateWithModelFailover, isTerminalError, GEMINI_MODELS } = require('./index');
+const { generateHedged, generateWithModelFailover, isTerminalError, isWorthAnotherModel,
+        GEMINI_MODELS } = require('./index');
 
 /**
  * Minimal stand-in for GoogleGenerativeAI. Records the model of every call so the tests can
@@ -85,7 +86,7 @@ async function main() {
     assert.deepStrictEqual(allOut.calls, ['model-a', 'model-b', 'model-c'],
         'exhausted quota must try each model exactly once');
 
-    // 6. A non-429 must NOT burn the other models' quota.
+    // 6. A 4xx that is not 429 must NOT burn the other models' quota.
     const broken = fakeGenAI(() => Promise.reject(httpError(400)));
     await assert.rejects(
         () => generateWithModelFailover(broken.client, ['prompt']),
@@ -93,6 +94,22 @@ async function main() {
     );
     assert.deepStrictEqual(broken.calls, ['model-a'],
         'a 400 is the request being wrong: another model would reject it too');
+
+    // 7. 503 UNAVAILABLE must also fail over. Observed live on gemini-3.5-flash while the
+    //    lite models answered in ~1s, so throwing here would strand a working model.
+    assert.strictEqual(isWorthAnotherModel(httpError(503)), true,  '503 is worth another model');
+    assert.strictEqual(isWorthAnotherModel(httpError(500)), true,  '500 is worth another model');
+    assert.strictEqual(isWorthAnotherModel(httpError(429)), true,  '429 is worth another model');
+    assert.strictEqual(isWorthAnotherModel(httpError(400)), false, '400 is not');
+    assert.strictEqual(isWorthAnotherModel(httpError(404)), false, '404 is not');
+
+    // model-a 503s on every hedged attempt (3 calls), then model-b answers.
+    const overloaded = fakeGenAI((i, model) =>
+        (model === 'model-a' ? Promise.reject(httpError(503)) : Promise.resolve('b answered')));
+    const okAfter503 = await generateWithModelFailover(overloaded.client, ['prompt']);
+    assert.strictEqual(okAfter503.model, 'model-b', '503 must fail over, not throw');
+    assert.deepStrictEqual(overloaded.calls, ['model-a', 'model-a', 'model-a', 'model-b'],
+        '5xx is hedged first (transient), then the model is abandoned');
 
     console.log('receipt-annotator hedging + failover selfcheck: OK');
 }

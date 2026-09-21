@@ -23,8 +23,13 @@ data:
   # the list: a 429 is the one error worth retrying elsewhere, because a different model is a
   # different bucket. Only a 429 advances; any other error fails straight out. Concrete ids
   # are pinned on purpose so the bucket does not move when Google repoints an alias.
-  # All three verified available on this key, 21/9.
-  GEMINI_MODEL: "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-lite-latest"
+  # Order is by MEASURED latency, 21/9, same prompt and image on all three:
+  #   gemini-3.5-flash-lite      200 in 1.1s
+  #   gemini-flash-lite-latest   200 in 1.0s
+  #   gemini-3.5-flash           503 UNAVAILABLE, and 31s when it does answer
+  # The lite models are first because a live demo cannot wait 30 seconds. Full flash stays
+  # last as a quality fallback once the lite buckets are gone.
+  GEMINI_MODEL: "gemini-3.5-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash"
   GEMINI_THINKING_LEVEL: "minimal"
   GEMINI_MAX_OUTPUT_TOKENS: "1024"
   # Hedged requests (tail-latency): send a 2nd/3rd identical call if no answer after N ms.
