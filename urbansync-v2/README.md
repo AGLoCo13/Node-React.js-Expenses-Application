@@ -235,7 +235,6 @@ urbansync-v2/
 │   ├── opentofu/           IaC — Azure VM provisioning (main.tf, tfvars)
 │   └── ansible/            Configuration management playbooks
 ├── Jenkinsfile             CI pipeline: build → push → update tags
-├── SETUP.md                Detailed step-by-step Docker Desktop bootstrap
 └── README.md               ← YOU ARE HERE
 ```
 
