@@ -32,8 +32,26 @@ function ManageUsers() {
 
   const fetchUsers = async () => {
     try {
-      const response = await axios.get('/api/users');
-      setUsers(response.data);
+      // Fetch users + ALL profiles in parallel (one endpoint covers every role)
+      const [usersRes, profilesRes] = await Promise.all([
+        axios.get('/api/users'),
+        axios.get('/api/profiles'),
+      ]);
+
+      // Build a map: userId → role  (covers Administrator, Tenant, Site-admin)
+      const roleMap = {};
+      (profilesRes.data?.profiles || []).forEach(p => {
+        const uid = p.user?._id || p.user;
+        if (uid) roleMap[uid.toString()] = p.role;
+      });
+
+      // Attach role to each user
+      const enriched = (usersRes.data || []).map(u => ({
+        ...u,
+        role: roleMap[u._id?.toString()] || '—',
+      }));
+
+      setUsers(enriched);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast.error('Error fetching users');
@@ -233,8 +251,8 @@ function ManageUsers() {
             }}
           >
             <option value="All">All Roles</option>
-            <option value="Site Administrator">Site Administrator</option>
-            <option value="Building Administrator">Building Administrator</option>
+            <option value="Site-admin">Site Administrator</option>
+            <option value="Administrator">Building Administrator</option>
             <option value="Tenant">Tenant</option>
           </select>
         </div>
@@ -262,8 +280,30 @@ function ManageUsers() {
                   <tr key={user._id}>
                     <td style={{ fontWeight: '500' }}>{user.name}</td>
                     <td>{user.email}</td>
-                    <td style={{ color: '#1e293b', fontWeight: '500' }}>
-                      {user.role}
+                    <td>
+                      {user.role && user.role !== '—' ? (
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          backgroundColor:
+                            user.role === 'Site-admin'    ? '#ede9fe' :
+                            user.role === 'Administrator' ? '#dbeafe' :
+                            user.role === 'Tenant'        ? '#d1fae5' :
+                            '#f1f5f9',
+                          color:
+                            user.role === 'Site-admin'    ? '#6d28d9' :
+                            user.role === 'Administrator' ? '#1d4ed8' :
+                            user.role === 'Tenant'        ? '#065f46' :
+                            '#475569',
+                        }}>
+                          {user.role === 'Site-admin' ? 'Site Admin' : user.role}
+                        </span>
+                      ) : (
+                        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>—</span>
+                      )}
                     </td>
                     <td>
                       <button className="btn btn-sm btn-primary" style={{ marginRight: '0.5rem' }} onClick={() => selectUser(user)}>

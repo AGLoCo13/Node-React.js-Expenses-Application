@@ -41,19 +41,20 @@ body {
   background-color: var(--bg-light);
 }
 
-/* Sidebar Styles */
 .sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  background: linear-gradient(180deg, var(--primary-blue) 0%, var(--primary-dark) 100%);
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  bottom: 0 !important; /* Κλειδώνει στην κορυφή και στον πάτο της οθόνης */
+  height: 100dvh;
+  width: 260px !important;
+  background: linear-gradient(180deg, var(--primary-blue) 0%, var(--primary-dark) 100%) !important;
   color: white;
-  transition: all 0.3s ease;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow-lg);
+  overflow: hidden !important; /* Αν τα links είναι πολλά, θα σκρολάρει ΜΟΝΟ το εσωτερικό του sidebar */
 }
 
 .sidebar.open {
@@ -65,7 +66,7 @@ body {
 }
 
 .sidebar-header {
-  padding: 1.5rem;
+  padding: 0.75rem 1rem; /* Το μισό από πριν για να εξοικονομήσεις χώρο */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   text-align: center;
 }
@@ -156,12 +157,13 @@ body {
 .sidebar-nav-item {
   display: flex;
   align-items: center;
-  padding: 1rem 1.5rem;
+  padding: 0.6rem 1rem; /* Μειωμένο padding για να χωράνε όλα */
   color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
   transition: all 0.2s;
-  gap: 1rem;
+  gap: 0.75rem;
   border-left: 3px solid transparent;
+  font-size: 0.9rem; /* Προαιρετικά, λίγο πιο μαζεμένη γραμματοσειρά */
 }
 
 .sidebar-nav-item:hover {
@@ -199,8 +201,8 @@ body {
   padding: 1rem;
 }
 
-/* Sidebar Footer */
 .sidebar-footer {
+  margin-top: auto !important; 
   padding: 1rem;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -237,6 +239,8 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  min-width: 0;    
+  overflow-x: hidden;
 }
 
 .main-content.sidebar-open {
@@ -335,6 +339,7 @@ body {
   flex: 1;
   padding: 2rem;
   overflow-y: auto;
+  width: 100%;
 }
 
 /* Mobile Overlay */
@@ -342,7 +347,15 @@ body {
   display: none;
 }
 
-/* Responsive Design */
+/* ── Responsive Design ── */
+
+/* Tablet: stack chart grid to 1 column */
+@media (max-width: 900px) {
+  .chart-grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (max-width: 768px) {
   .sidebar {
     transform: translateX(-100%);
@@ -350,6 +363,7 @@ body {
 
   .sidebar.open {
     transform: translateX(0);
+    width: var(--sidebar-width);
   }
 
   .main-content {
@@ -380,7 +394,18 @@ body {
   }
 
   .dashboard-content {
-    padding: 1rem;
+    padding: 1.25rem;
+  }
+
+  /* Chart grid: stack on mobile */
+  .chart-grid-2col {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  /* Building info sidebar */
+  .sidebar-building-address {
+    font-size: 0.75rem;
   }
 }
 
@@ -395,5 +420,9 @@ body {
 
   .user-role {
     font-size: 0.7rem;
+  }
+
+  .dashboard-content {
+    padding: 1.25rem;
   }
 }

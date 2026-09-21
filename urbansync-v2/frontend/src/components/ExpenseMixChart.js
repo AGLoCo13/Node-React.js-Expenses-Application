@@ -66,6 +66,8 @@ export default function ExpenseMixChart({ heating = 0, elevator = 0, general = 0
       display:         'flex',
       flexDirection:   'column',
       justifyContent:  'space-between',
+      height:          '100%',           
+      boxSizing:       'border-box'      
     }}>
       {/* Title */}
       <p style={{ margin: '0 0 0.75rem', fontSize: '0.85rem', fontWeight: '600',
@@ -74,10 +76,10 @@ export default function ExpenseMixChart({ heating = 0, elevator = 0, general = 0
       </p>
 
       {/* Chart + Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, flexWrap: 'wrap' }}>
 
-        {/* Donut SVG */}
-        <svg width="140" height="140" viewBox="0 0 140 140" style={{ flexShrink: 0 }}>
+        {/* Donut SVG — responsive: scales with container */}
+        <svg viewBox="0 0 140 140" style={{ flexShrink: 0, width: 'clamp(90px, 20vw, 140px)', height: 'auto' }}>
           {total === 0 ? (
             // Empty ring
             <circle cx={cx} cy={cy} r={R} fill="none" stroke="#e2e8f0" strokeWidth={thickness} />

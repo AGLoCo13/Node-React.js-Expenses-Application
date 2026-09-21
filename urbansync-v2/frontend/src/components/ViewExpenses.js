@@ -305,7 +305,7 @@ function ViewExpenses() {
           </div>
 
           {/* Expenses Table */}
-          <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '0.75rem', padding: '1.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)'}}>
             <h3 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#1e293b', marginBottom: '1.5rem' }}>
               Expenses List ({expenses.length})
             </h3>
@@ -328,10 +328,12 @@ function ViewExpenses() {
                     {expenses.map((expense) => (
                       <tr key={expense._id}>
                         <td>
-                          {getExpenseTypeIcon(expense.type_expenses)}
-                          <span className={`badge ${getExpenseTypeBadge(expense.type_expenses)}`}>
-                            {expense.type_expenses}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#1e293b' }}>
+                            {getExpenseTypeIcon(expense.type_expenses)}
+                            <span style={{ fontWeight: '500' }}>
+                             {expense.type_expenses}
+                            </span>
+                          </div>
                         </td>
                         <td style={{ fontWeight: '600', color: '#1e293b' }}>
                           € {expense.total.toFixed(2)}

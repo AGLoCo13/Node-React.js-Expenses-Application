@@ -12,6 +12,7 @@ function TenantView() {
   const [apartmentData, setApartmentData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [buildingInfo, setBuildingInfo] = useState(null);
 
   const navItems = [
     { label: 'Dashboard', path: '/tenant-dashboard', icon: FaHome },
@@ -36,6 +37,34 @@ function TenantView() {
         headers: { Authorization: `${token}` },
       });
       setApartmentData(apartmentResponse.data);
+
+          try {
+        const aptData = Array.isArray(apartmentResponse.data)
+          ? apartmentResponse.data[0]
+          : apartmentResponse.data;
+
+        const buildingId = aptData?.building?._id || aptData?.building;
+
+        if (buildingId) {
+          const [allBuildingsRes, aptsRes] = await Promise.all([
+            axios.get('/api/buildings', { headers: { Authorization: `${token}` } }),
+            axios.get(`/api/apartments/building/${buildingId}`, { headers: { Authorization: `${token}` } }),
+          ]);
+
+          const building = (allBuildingsRes.data || []).find(
+            b => b._id === buildingId || b._id?.toString() === buildingId?.toString()
+          );
+
+          setBuildingInfo({
+            address:    building?.address || 'Unknown address',
+            apartments: Array.isArray(aptsRes.data) ? aptsRes.data.length : (building?.apartments || '-'),
+            floors:     building?.floors || '-',
+          });
+        }
+      } catch (err) {
+        console.error('Could not fetch building info:', err);
+      }
+    
       setLoading(false);
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -85,6 +114,7 @@ function TenantView() {
       userName={userData?.name || "Tenant"}
       userRole="Tenant"
       dashboardTitle="My Profile"
+      buildingInfo={buildingInfo}
     >
       <div style={{ marginBottom: '2rem' }}>
         <h2 style={{ fontSize: '1.875rem', fontWeight: '700', color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
