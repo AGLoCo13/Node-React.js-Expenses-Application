@@ -17,11 +17,14 @@ data:
   # Gemini tuning for receipt extraction (backend direct path + receipt-annotator).
   # 3.x Flash models think by default (medium) — measured 30-40s/receipt with 3.6-flash default,
   # 13-15s with 3.6-flash/low (3/9). Trying flash-lite/minimal next. Change here, not in code.
-  # Pinned to a concrete id on 21/9: the free-tier quota is
-  # GenerateRequestsPerDayPerProjectPerModel, 20 requests per day PER MODEL, and the
-  # gemini-flash-latest alias (then gemini-3.8-flash) was exhausted. A pinned id keeps the
-  # quota bucket predictable instead of moving with the alias. Verified available on this key.
-  GEMINI_MODEL: "gemini-3.5-flash"
+  # Comma-separated FALLBACK LIST, tried left to right. The free-tier quota is
+  # GenerateRequestsPerDayPerProjectPerModel: 20 requests per day PER MODEL. On 21/9 the
+  # gemini-flash-latest alias (then gemini-3.8-flash) was exhausted, which is what motivated
+  # the list: a 429 is the one error worth retrying elsewhere, because a different model is a
+  # different bucket. Only a 429 advances; any other error fails straight out. Concrete ids
+  # are pinned on purpose so the bucket does not move when Google repoints an alias.
+  # All three verified available on this key, 21/9.
+  GEMINI_MODEL: "gemini-3.5-flash,gemini-3.5-flash-lite,gemini-flash-lite-latest"
   GEMINI_THINKING_LEVEL: "minimal"
   GEMINI_MAX_OUTPUT_TOKENS: "1024"
   # Hedged requests (tail-latency): send a 2nd/3rd identical call if no answer after N ms.
