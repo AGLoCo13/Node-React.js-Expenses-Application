@@ -92,10 +92,20 @@ async function generateWithFallback(genAI, parts, signal) {
 }
 
 /**
+ * A 4xx from Google means the call was REJECTED, not that it was slow. Hedging or
+ * retrying it cannot help and costs another quota unit. 429 (rate limit / quota
+ * exhausted) is the one that bites in practice; 400 for a bad model id is the other.
+ */
+function isTerminalError(err) {
+    return Number.isInteger(err?.status) && err.status >= 400 && err.status < 500;
+}
+
+/**
  * PATTERN: HEDGED REQUESTS — see the config comment above.
  * Launches attempt #0; every GEMINI_HEDGE_AFTER_MS without an answer launches one
  * more identical attempt (up to GEMINI_MAX_HEDGES). First success wins and aborts
- * the rest. Rejects only when every launched attempt has failed.
+ * the rest. Rejects only when every launched attempt has failed, or as soon as one
+ * attempt comes back with a terminal 4xx.
  */
 function generateHedged(genAI, parts) {
     const maxInFlight = 1 + GEMINI_MAX_HEDGES;
@@ -134,7 +144,12 @@ function generateHedged(genAI, parts) {
                     if (done || err?.name === 'AbortError') return;
                     failed++; lastErr = err;
                     console.warn(`[gemini] attempt #${idx} failed after ${Date.now() - t0}ms: ${err?.message}`);
-                    if (launched < maxInFlight) { launch(); schedule(); }   // a failure is a good reason to hedge now
+                    // A rejection is not slowness. A 429 comes back in ~200ms, well inside
+                    // GEMINI_HEDGE_AFTER_MS, so the line below would fire the remaining
+                    // hedges immediately and spend 3 quota units on one receipt at exactly
+                    // the moment the quota is already gone. Give up now instead.
+                    if (isTerminalError(err)) return settle(reject, err);
+                    if (launched < maxInFlight) { launch(); schedule(); }   // slow or flaky: hedging is the right answer
                     else if (failed >= launched) settle(reject, lastErr);
                 });
         };
@@ -197,8 +212,16 @@ app.post('/', upload.single('receipt'), async (req, res) => {
         return res.status(200).json(extracted);
 
     } catch (err) {
-        console.error('[receipt-annotator] Error:', err.message);
-        return res.status(500).json({ error: 'AI extraction failed', detail: err.message });
+        // Pass a Gemini rate limit through as 429 instead of flattening it to 500. The
+        // backend maps an upstream 4xx straight to the client and its circuit breaker
+        // ignores anything below 500, so an exhausted quota reads as "rate limited, try
+        // later" rather than tripping the breaker and blaming the function for 30s.
+        const status = err?.status === 429 ? 429 : 500;
+        console.error(`[receipt-annotator] Error (answering ${status}):`, err.message);
+        return res.status(status).json({
+            error: status === 429 ? 'AI extraction rate limited by Gemini' : 'AI extraction failed',
+            detail: err.message,
+        });
     }
 });
 
@@ -285,22 +308,32 @@ Return ONLY a raw JSON object (no markdown, no backticks). Exact keys:
 }
 
 // ── Start ─────────────────────────────────────────────────────────────────────
-const PORT = process.env.PORT || 8080;
-const server = app.listen(PORT, () => {
-    console.log(`✅ receipt-annotator running on :${PORT}`);
-    console.log(`   MINIO_ENDPOINT: ${process.env.MINIO_ENDPOINT}`);
-    console.log(`   GEMINI key set: ${!!process.env.GEMINI_API_KEY}`);
-    console.log(`   GEMINI model: ${GEMINI_MODEL}  thinking: ${GEMINI_THINKING_LEVEL}  hedge: after ${GEMINI_HEDGE_AFTER_MS}ms, max ${GEMINI_MAX_HEDGES}`);
-});
+function start() {
+    const PORT = process.env.PORT || 8080;
+    const server = app.listen(PORT, () => {
+        console.log(`✅ receipt-annotator running on :${PORT}`);
+        console.log(`   MINIO_ENDPOINT: ${process.env.MINIO_ENDPOINT}`);
+        console.log(`   GEMINI key set: ${!!process.env.GEMINI_API_KEY}`);
+        console.log(`   GEMINI model: ${GEMINI_MODEL}  thinking: ${GEMINI_THINKING_LEVEL}  hedge: after ${GEMINI_HEDGE_AFTER_MS}ms, max ${GEMINI_MAX_HEDGES}`);
+    });
 
-// Graceful shutdown: Knative scales to zero by sending SIGTERM. Without a handler
-// Node dies with a non-zero exit code and the pod ends in "Error" instead of
-// "Completed", which looks like a crash in `kubectl get pods`. Stop accepting new
-// connections, let in-flight extractions finish, then exit 0.
-function shutdown(signal) {
-    console.log(`[receipt-annotator] ${signal} received — draining and exiting`);
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(0), 25000).unref(); // hard stop before the 30s grace period
+    // Graceful shutdown: Knative scales to zero by sending SIGTERM. Without a handler
+    // Node dies with a non-zero exit code and the pod ends in "Error" instead of
+    // "Completed", which looks like a crash in `kubectl get pods`. Stop accepting new
+    // connections, let in-flight extractions finish, then exit 0.
+    function shutdown(signal) {
+        console.log(`[receipt-annotator] ${signal} received — draining and exiting`);
+        server.close(() => process.exit(0));
+        setTimeout(() => process.exit(0), 25000).unref(); // hard stop before the 30s grace period
+    }
+    process.on('SIGTERM', () => shutdown('SIGTERM'));
+    process.on('SIGINT',  () => shutdown('SIGINT'));
+    return server;
 }
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT',  () => shutdown('SIGINT'));
+
+// `node index.js` (the Dockerfile CMD) still starts the server exactly as before.
+// The guard only exists so index.selfcheck.js can require the hedging logic without
+// binding a port.
+if (require.main === module) start();
+
+module.exports = { app, start, generateHedged, isTerminalError };
