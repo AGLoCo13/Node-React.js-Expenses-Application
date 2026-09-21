@@ -23,4 +23,7 @@ data:
   # Hedged requests (tail-latency): send a 2nd/3rd identical call if no answer after N ms.
   # Measured 3/9: 43% of calls queue 13-24s at Google with 0 thinking tokens. 0 = off.
   GEMINI_HEDGE_AFTER_MS: "3000"
-  GEMINI_MAX_HEDGES: "2"
+  # Set to 0: hedging sent up to 3 identical calls per receipt, which burned through
+  # the Gemini free-tier quota and made every extraction fail with 429 (surfaced as
+  # 502 by the backend proxy). Costs tail latency, saves 3x the quota per receipt.
+  GEMINI_MAX_HEDGES: "0"
