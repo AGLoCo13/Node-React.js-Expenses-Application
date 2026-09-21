@@ -16,6 +16,15 @@ const newIdempotencyKey = () => {
 };
 
 
+// The backend maps each upstream failure of the Knative extractor to its own status code
+// (429 Gemini quota, 503 circuit breaker open, 504 timed out). Without this the user saw one
+// generic message for all of them and could not tell "wait a minute" from "something broke".
+const EXTRACTION_ERRORS = {
+  429: 'The AI service has hit its usage limit. Please try again later.',
+  503: 'AI extraction is temporarily unavailable. Please try again in a moment.',
+  504: 'AI extraction took too long. Please try again.',
+};
+
 function ExpensesCharge() {
   const { userName, buildingInfo } = useBuildingAdminProfile();
   const [isExtracting , setIsExtracting] = useState(false);
@@ -147,7 +156,7 @@ function ExpensesCharge() {
       toast.success('AI has extracted data from the receipt!');
     } catch (error) {
       console.error('Error extracting data from receipt:', error);
-      toast.error('Failed to extract data from receipt');
+      toast.error(EXTRACTION_ERRORS[error.response?.status] || 'Failed to extract data from receipt');
     } finally {
       setIsExtracting(false);
     }
