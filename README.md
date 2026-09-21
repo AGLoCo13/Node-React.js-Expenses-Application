@@ -1,106 +1,37 @@
 # UrbanSync — Your Building, Simplified
 
-> ⚠️ **This is the v1 legacy README** describing the original local Node.js + MongoDB setup.
->
-> The current production version is a **Cloud-Native microservices stack** running on
-> Kubernetes with Knative, Jenkins CI/CD, RabbitMQ, MinIO, ThingsBoard, and Node-RED.
->
-> **👉 For full architecture, K8s deployment commands, and Knative setup, see:
-> [`urbansync-v2/README.md`](urbansync-v2/README.md)**
+**A cloud-native building management platform** for property managers and tenants — tracking shared expenses, monitoring IoT sensor telemetry, and using AI to auto-annotate uploaded receipts.
+
+> 📘 **Full documentation lives in [`urbansync-v2/README.md`](urbansync-v2/README.md)** — architecture diagrams, Kubernetes bootstrap steps, Knative serverless setup, the CI/CD pipeline (Jenkins + ArgoCD), secrets management, and troubleshooting.
 
 ---
 
-## v1 — Local Development Setup (Legacy)
+## Technology Stack
 
-> The instructions below apply only to the original single-process Node.js application.
-> They are preserved here for historical reference.
+| Component | Technology | Role |
+|---|---|---|
+| **Frontend** | React 18 + Nginx | SPA |
+| **Backend** | Node.js 20 + Express | REST API, file upload proxy, alarm consumer |
+| **Database** | MongoDB 7 | Application data, notifications |
+| **Message Broker** | RabbitMQ 3 | Building alarms, MinIO event fan-out |
+| **Object Storage** | MinIO | Receipt storage (S3-compatible) |
+| **IoT Platform** | ThingsBoard CE | Sensor telemetry, dashboards, rule engine |
+| **Flow Orchestration** | Node-RED | IoT device simulation, alarm rule chains |
+| **Serverless** | Knative Serving | AI receipt annotation via Google Gemini |
+| **CI/CD** | Jenkins + ArgoCD | Build → push → GitOps sync |
+| **Orchestration** | Kubernetes (kubeadm) | Single-node cluster on Azure |
 
 ---
 
-1.Prerequisities:
-You have to install : 
+## Repository Layout
 
--Node.js(preferably the latest LTS version) https://nodejs.org/en/download/current
+- [`urbansync-v2/`](urbansync-v2/) — current production codebase: frontend, backend, the Knative serverless function, Kubernetes manifests, and Ansible/OpenTofu infrastructure-as-code
+- [`docs/legacy/`](docs/legacy/) — earlier design docs and the original v1 local-development setup, kept for historical reference
 
--MongoDB running locally https://www.mongodb.com/try/download/community
+---
 
--MongoDB Database Tools https://www.mongodb.com/try/download/database-tools
+## Getting Started
 
-     1.Unzip MongoDB database tools 
-     2.Copy mongoimport.exe to C:\Program Files\MongoDB\Server\7.0\bin
-     
+For architecture, deployment commands, secrets configuration, and the CI/CD pipeline, go to **[`urbansync-v2/README.md`](urbansync-v2/README.md)**.
 
-2.MongoDB configuration
-
-On Windows Machine:
-
-First of all ensure that C:\Program Files\MongoDB\Server\7.0\bin is added to PATH variable  
-
-Ensure that MongoDB is running locally. By Default the application tries to connect to `mongodb://127.0.0.1:27017/commons-db`
-
-Open a CMD and : 
-Navigate to the directory where the JSON Files are located:
-   cd JSON DBCollections 
-
-   #For each collection , run the following:
-
-   
-   #example for users and their profiles:
-
-   
-   mongoimport --db commons-db --collection users --file users.json
-
-   mongoimport --db commons-db --collection profiles --file profiles.json
-
-  [Site-Admin login credentials:
-      email: admin@example.com
-      password: Admin!123
-   Building-administrator credentials:
-      email: tonyGeo@gmail.com
-      password: 1234567890123
-    A tenant's credentials:
-       email: thkam@example.com
-       password: 1234567
-      ]
-
-  #You can also import the expenses , consumptions , and payments collections that are made to test the app.
-
-  
-3.Setup and installation 
--Clone the repository:
-
-  git clone https://github.com/AGLoCo13/Node-React.js-Expenses-Application.git
-  
-  cd Node-React.js-Expenses-Application
-
-#install backend dependecies
-
-cd backend
-
-npm install
-
-#move to frontend directory and install dependecies 
-(Assuming you are on the frontend directory)
-cd.. 
-
-cd frontend
-
-npm install
-
-
-      
-      
-
-4.Running the application
-
--Navigate to backend directory:
-
-cd backend
-
-npm run dev
-
--Navigate to frontend directory:
-
-cd frontend 
-
-npm start
+Looking for the original single-process v1 setup (local Node.js + MongoDB)? See [`docs/legacy/V1_LOCAL_SETUP.md`](docs/legacy/V1_LOCAL_SETUP.md).

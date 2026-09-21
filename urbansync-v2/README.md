@@ -1,8 +1,8 @@
 # UrbanSync v2 — Cloud-Native Building Management Platform
 
 > **Production-grade reference documentation.** This file is the single source of truth for
-> architecture, deployment, and operations. For the legacy v1 local-only setup see
-> [`../README.md`](../README.md).
+> architecture, deployment, and operations. For the original v1 local-only setup see
+> [`../docs/legacy/V1_LOCAL_SETUP.md`](../docs/legacy/V1_LOCAL_SETUP.md).
 
 ---
 
