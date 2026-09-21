@@ -36,8 +36,12 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 // ── Gemini tuning (all via environment → ConfigMap, no rebuild needed) ───────
-//   GEMINI_MODEL              model id; the previous hardcoded ids (2.0-flash, 1.5-pro)
-//                             were shut down by Google and broke extraction silently.
+//   GEMINI_MODEL              model id, or a COMMA-SEPARATED FALLBACK LIST. The previous
+//                             hardcoded ids (2.0-flash, 1.5-pro) were shut down by Google and
+//                             broke extraction silently. The free-tier quota is
+//                             GenerateRequestsPerDayPerProjectPerModel: 20 requests per day
+//                             PER MODEL, so when the first is exhausted the next one in the
+//                             list still has its own budget. Only a 429 moves to the next.
 //   GEMINI_THINKING_LEVEL     Gemini 3.x Flash "thinks" by default (medium), which cost
 //                             ~30-40s per receipt on 3/9. 'low' or 'minimal' cuts most of
 //                             it; set 'default' to leave the model's own default.
@@ -51,7 +55,8 @@ if (!process.env.GEMINI_API_KEY) {
 //                             aborting the loser. P(all slow) = 0.43^(1+hedges), so two
 //                             hedges take p95 from ~24s to ~4s for ~+50% API calls.
 //                             GEMINI_MAX_HEDGES=0 disables hedging (for A/B measurements).
-const GEMINI_MODEL             = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const GEMINI_MODELS            = (process.env.GEMINI_MODEL || 'gemini-3.6-flash')
+    .split(',').map((m) => m.trim()).filter(Boolean);
 const GEMINI_THINKING_LEVEL    = (process.env.GEMINI_THINKING_LEVEL || 'low').toLowerCase();
 const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 10) || 1024;
 const GEMINI_HEDGE_AFTER_MS    = parseInt(process.env.GEMINI_HEDGE_AFTER_MS, 10) || 3000;
@@ -76,15 +81,15 @@ function buildGenerationConfig(withThinking) {
  * working even when GEMINI_THINKING_LEVEL is not valid for the configured model.
  * `signal` lets the hedging layer abort a call that lost the race.
  */
-async function generateWithFallback(genAI, parts, signal) {
+async function generateWithFallback(genAI, parts, signal, model) {
     const attempt = (withThinking) =>
-        genAI.getGenerativeModel({ model: GEMINI_MODEL, generationConfig: buildGenerationConfig(withThinking) })
+        genAI.getGenerativeModel({ model, generationConfig: buildGenerationConfig(withThinking) })
              .generateContent(parts, { signal });
     try {
         return await attempt(true);
     } catch (err) {
         if (err?.status === 400 && /thinking/i.test(String(err?.message || ''))) {
-            console.warn(`[gemini] ${GEMINI_MODEL} rejected thinkingConfig(${GEMINI_THINKING_LEVEL}) — retrying without it`);
+            console.warn(`[gemini] ${model} rejected thinkingConfig(${GEMINI_THINKING_LEVEL}) — retrying without it`);
             return attempt(false);
         }
         throw err;
@@ -107,7 +112,7 @@ function isTerminalError(err) {
  * the rest. Rejects only when every launched attempt has failed, or as soon as one
  * attempt comes back with a terminal 4xx.
  */
-function generateHedged(genAI, parts) {
+function generateHedged(genAI, parts, model) {
     const maxInFlight = 1 + GEMINI_MAX_HEDGES;
     const tStart = Date.now();
     return new Promise((resolve, reject) => {
@@ -134,7 +139,7 @@ function generateHedged(genAI, parts) {
             ctrls.push(ctrl);
             const t0 = Date.now();
             if (idx > 0) console.log(`[gemini] hedge #${idx} sent at +${t0 - tStart}ms (no answer yet)`);
-            generateWithFallback(genAI, parts, ctrl.signal)
+            generateWithFallback(genAI, parts, ctrl.signal, model)
                 .then((res) => {
                     if (done) return;
                     console.log(`[gemini] attempt #${idx} won in ${Date.now() - t0}ms (${launched} in flight, ${launched - 1} aborted)`);
@@ -157,6 +162,42 @@ function generateHedged(genAI, parts) {
         launch();
         schedule();
     });
+}
+
+/**
+ * Which failures a DIFFERENT model can actually fix:
+ *   429 - this model's daily free-tier bucket is empty; another model has its own.
+ *   5xx - this model is unhealthy on Google's side (503 UNAVAILABLE shows up regularly on
+ *         the newer flash models); another model is a different backend.
+ * Both are about the model, not about us. Any other 4xx is the request being wrong, and every
+ * other model would reject it identically, so failing over would just burn three more buckets
+ * to be told the same thing.
+ */
+function isWorthAnotherModel(err) {
+    return err?.status === 429 || (Number.isInteger(err?.status) && err.status >= 500);
+}
+
+/**
+ * PATTERN: FAILOVER. Hedging cannot rescue a 429, because every duplicate lands in the same
+ * exhausted bucket. A *different model* is a different bucket (the free-tier quota is per
+ * model per day), so switching model is the one retry that can actually change the answer.
+ */
+async function generateWithModelFailover(genAI, parts) {
+    let lastErr;
+    for (let i = 0; i < GEMINI_MODELS.length; i++) {
+        const model = GEMINI_MODELS[i];
+        try {
+            return { result: await generateHedged(genAI, parts, model), model };
+        } catch (err) {
+            lastErr = err;
+            if (!isWorthAnotherModel(err)) throw err;
+            const next = GEMINI_MODELS[i + 1];
+            const why = err.status === 429 ? 'out of quota' : 'unavailable';
+            console.warn(`[gemini] ${model} ${why} (${err.status})` +
+                         (next ? ` — failing over to ${next}` : ' — no models left'));
+        }
+    }
+    throw lastErr;
 }
 
 /** Returns a ready GoogleGenerativeAI client, throwing a clear error if key missing. */
@@ -293,12 +334,12 @@ Return ONLY a raw JSON object (no markdown, no backticks). Exact keys:
 }`;
 
     const tGemini = Date.now();
-    const result = await generateHedged(getGenAI(), [
+    const { result, model } = await generateWithModelFailover(getGenAI(), [
         prompt,
         { inlineData: { data: imageBuffer.toString('base64'), mimeType } }
     ]);
 
-    console.log(`[receipt-annotator] Gemini ${GEMINI_MODEL} (thinking=${GEMINI_THINKING_LEVEL}, hedges<=${GEMINI_MAX_HEDGES}) answered in ${Date.now() - tGemini}ms`);
+    console.log(`[receipt-annotator] Gemini ${model} (thinking=${GEMINI_THINKING_LEVEL}, hedges<=${GEMINI_MAX_HEDGES}) answered in ${Date.now() - tGemini}ms`);
     const cleanJson = result.response.text()
         .replace(/```json/g, '')
         .replace(/```/g, '')
@@ -314,7 +355,7 @@ function start() {
         console.log(`✅ receipt-annotator running on :${PORT}`);
         console.log(`   MINIO_ENDPOINT: ${process.env.MINIO_ENDPOINT}`);
         console.log(`   GEMINI key set: ${!!process.env.GEMINI_API_KEY}`);
-        console.log(`   GEMINI model: ${GEMINI_MODEL}  thinking: ${GEMINI_THINKING_LEVEL}  hedge: after ${GEMINI_HEDGE_AFTER_MS}ms, max ${GEMINI_MAX_HEDGES}`);
+        console.log(`   GEMINI models: ${GEMINI_MODELS.join(' -> ')}  thinking: ${GEMINI_THINKING_LEVEL}  hedge: after ${GEMINI_HEDGE_AFTER_MS}ms, max ${GEMINI_MAX_HEDGES}`);
     });
 
     // Graceful shutdown: Knative scales to zero by sending SIGTERM. Without a handler
@@ -336,4 +377,7 @@ function start() {
 // binding a port.
 if (require.main === module) start();
 
-module.exports = { app, start, generateHedged, isTerminalError };
+module.exports = {
+    app, start, generateHedged, generateWithModelFailover,
+    isTerminalError, isWorthAnotherModel, GEMINI_MODELS,
+};
