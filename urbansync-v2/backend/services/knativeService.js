@@ -25,6 +25,7 @@
  * ============================================================
  */
 const { createBreaker } = require('../resilience/circuitBreaker');
+const { withRetry } = require('../resilience/retryHelper');
 
 const ANNOTATOR_URL =
     process.env.RECEIPT_ANNOTATOR_URL || 'http://receipt-annotator.urbansync.svc.cluster.local';
@@ -36,44 +37,75 @@ const TIMEOUT_MS = parseInt(process.env.RECEIPT_ANNOTATOR_TIMEOUT_MS, 10) || 100
 const COLD_START_HINT_MS = 3000;
 
 /**
+ * Connection-level errors that mean "nothing is listening yet" — the signature of a
+ * Knative scale-to-zero race, where the pod hasn't finished starting. These are the
+ * ONLY errors worth retrying; an HTTP error response or our own AbortController
+ * timeout mean we DID reach something and retrying won't help.
+ */
+function isColdStartConnectError(err) {
+    const code = err?.cause?.code || err?.code;
+    if (code && ['ECONNREFUSED', 'ECONNRESET', 'ENOTFOUND', 'EHOSTUNREACH'].includes(code)) return true;
+    return typeof err?.message === 'string' && /fetch failed|ECONNREFUSED|ECONNRESET/i.test(err.message);
+}
+
+/**
  * Raw call — forwards the file as multipart and returns the parsed answer.
  * Node 18 ships fetch/FormData/Blob globally, so no extra dependency.
+ *
+ * PATTERN: RETRY (withRetry) around the connect phase only. Knative's scale-to-zero
+ * means the very first request after idle can hit the Service before the new pod is
+ * accepting connections (~5-10s per our cold-start measurements) — that's a transient
+ * connection-refused, not a real failure. We retry that specific case with backoff;
+ * everything else (HTTP error responses, our own timeout) bails immediately.
  */
 async function callAnnotator(buffer, mimeType, filename) {
-    const form = new FormData();
-    form.append('receipt', new Blob([buffer], { type: mimeType }), filename || 'receipt');
+    const t0 = Date.now();
 
-    const ctrl  = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    const t0    = Date.now();
+    const body = await withRetry(
+        async (bail) => {
+            const form = new FormData();
+            form.append('receipt', new Blob([buffer], { type: mimeType }), filename || 'receipt');
 
-    try {
-        const res  = await fetch(ANNOTATOR_URL, { method: 'POST', body: form, signal: ctrl.signal });
-        const ms   = Date.now() - t0;
-        const text = await res.text();
-        let body;
-        try { body = JSON.parse(text); } catch { body = { raw: text }; }
+            const ctrl  = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
 
-        if (!res.ok) {
-            const err  = new Error(`receipt-annotator responded ${res.status}`);
-            err.status = res.status;
-            err.detail = body?.detail || body?.error || text.slice(0, 200);
-            throw err;
-        }
+            try {
+                const res  = await fetch(ANNOTATOR_URL, { method: 'POST', body: form, signal: ctrl.signal });
+                const text = await res.text();
+                let parsed;
+                try { parsed = JSON.parse(text); } catch { parsed = { raw: text }; }
 
-        console.log(`⚡ [Knative] receipt-annotator answered in ${ms}ms` +
-                    (ms > COLD_START_HINT_MS ? ' (cold start suspected)' : ''));
-        return { data: body, elapsedMs: ms, coldStartSuspected: ms > COLD_START_HINT_MS };
-    } catch (err) {
-        if (err.name === 'AbortError') {
-            const e = new Error(`receipt-annotator did not answer within ${TIMEOUT_MS}ms`);
-            e.timeout = true;
-            throw e;
-        }
-        throw err;
-    } finally {
-        clearTimeout(timer);
-    }
+                if (!res.ok) {
+                    const err  = new Error(`receipt-annotator responded ${res.status}`);
+                    err.status = res.status;
+                    err.detail = parsed?.detail || parsed?.error || text.slice(0, 200);
+                    return bail(err); // got a real answer from the function — don't retry
+                }
+                return parsed;
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    const e = new Error(`receipt-annotator did not answer within ${TIMEOUT_MS}ms`);
+                    e.timeout = true;
+                    return bail(e); // already waited the full budget — don't retry
+                }
+                if (isColdStartConnectError(err)) {
+                    throw err; // let withRetry retry — likely a scale-to-zero cold-start race
+                }
+                return bail(err);
+            } finally {
+                clearTimeout(timer);
+            }
+        },
+        // 4 retries, ~0.8s-3s backoff with jitter — comfortably covers the ~5-10s
+        // cold-start window measured in docs/evidence/sla, well inside TIMEOUT_MS.
+        { retries: 4, factor: 1.6, minTimeout: 800, maxTimeout: 3000, randomize: true },
+        'Knative-ColdStartConnect'
+    );
+
+    const ms = Date.now() - t0;
+    console.log(`⚡ [Knative] receipt-annotator answered in ${ms}ms` +
+                (ms > COLD_START_HINT_MS ? ' (cold start suspected)' : ''));
+    return { data: body, elapsedMs: ms, coldStartSuspected: ms > COLD_START_HINT_MS };
 }
 
 const knativeBreaker = createBreaker(

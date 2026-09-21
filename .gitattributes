@@ -1,0 +1,32 @@
+# ============================================================
+# Normalize line endings repo-wide.
+# Without this, files keep flipping between CRLF/LF every time they're
+# touched from a different OS/editor (Windows VS Code vs. the Linux/WSL
+# side), making every git status/diff show hundreds of false "modified"
+# files with no real content change.
+#
+# `text=auto eol=lf` tells Git: detect text files automatically, always
+# store them as LF in the repository, and always check them out as LF
+# too — regardless of what core.autocrlf is set to on any given machine.
+# ============================================================
+* text=auto eol=lf
+
+# Known binary types — never touch these, no matter what the text=auto
+# heuristic guesses. Prevents corruption of images, documents, archives.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.docx  binary
+*.pptx  binary
+*.xlsx  binary
+*.zip   binary
+*.jar   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary
+*.gz    binary
+*.tar   binary
