@@ -10,6 +10,7 @@ function TenantDashboard() {
   const [loading, setLoading] = useState(true);
   const [buildingInfo, setBuildingInfo] = useState(null);
   const [apartmentTemp, setApartmentTemp] = useState(null);
+  const [apartmentId, setApartmentId] = useState(null);
 
   const navItems = [
     { label: 'Dashboard', path: '/tenant-dashboard', icon: FaHome },
@@ -32,6 +33,13 @@ function TenantDashboard() {
         const apartmentResponse = await axios.get(`/api/apartment/${profileResponse.data.profileId}`, {
           headers: { Authorization: `${token}` }
         });
+
+        // Keep the apartment id for the live telemetry poll below. The endpoint may
+        // answer with a bare document or a single-element array, so normalise here.
+        const aptDoc = Array.isArray(apartmentResponse.data)
+          ? apartmentResponse.data[0]
+          : apartmentResponse.data;
+        setApartmentId(aptDoc?._id || null);
 
         // Fetch Building Info from apartment data
         try {
@@ -74,6 +82,42 @@ function TenantDashboard() {
     };
     fetchData();
   }, []);
+
+  // Live apartment temperature. The backend proxies ThingsBoard at
+  // GET /api/apartments/:id/telemetry/temperature and answers either
+  // { available: true, value, ts } or { available: false } when the apartment
+  // has no thermostat device or the reading is missing. Polled on the same 7s
+  // cadence the rest of the dashboard uses, so the card tracks the sensor live.
+  useEffect(() => {
+    if (!apartmentId) return undefined;
+    let cancelled = false;
+
+    const fetchTemperature = async () => {
+      try {
+        const token = window.localStorage.getItem('token');
+        const { data } = await axios.get(
+          `/api/apartments/${apartmentId}/telemetry/temperature`,
+          { headers: { Authorization: `${token}` } }
+        );
+        if (cancelled) return;
+        setApartmentTemp(
+          data && data.available && data.value !== undefined && data.value !== null
+            ? Number(data.value).toFixed(1)
+            : null
+        );
+      } catch (err) {
+        // Telemetry is a best-effort extra: never break the dashboard over it.
+        if (!cancelled) setApartmentTemp(null);
+      }
+    };
+
+    fetchTemperature();
+    const timer = setInterval(fetchTemperature, 7000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [apartmentId]);
 
   // Calculate stats
   const calculateStats = () => {
