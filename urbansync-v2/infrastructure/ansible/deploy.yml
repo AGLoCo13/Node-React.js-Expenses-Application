@@ -51,6 +51,7 @@
       community.sops.load_vars:
         file: "{{ playbook_dir }}/vars/secrets.enc.yml"
       no_log: true
+      tags: always
 
     - name: "1 | Δημιουργία φακέλου προορισμού {{ deploy_dest }}"
       ansible.builtin.file:
@@ -465,50 +466,6 @@
       changed_when: false
       when: seed_db | default(false) | bool
 
-    # mongoimport above loads `seed_collections`, and `devices` is deliberately NOT one
-    # of them: that collection is derived, not imported. It maps a Mongo apartment to a
-    # ThingsBoard device NAME and is built by backend/scripts/seedDevices.js (idempotent,
-    # upserts on deviceId). Without it every telemetry lookup returns available:false and
-    # the UI shows "NO SENSOR" while ThingsBoard is sitting there full of live readings —
-    # a failure that looks like broken IoT and is actually a missing join table.
-    # Cost an hour on 22 Sep during the rebuild onto a new subscription.
-    #
-    # It runs inside the backend pod, which does not exist yet on a first bootstrap (empty
-    # registry -> ImagePullBackOff), so this must never fail the play. If the pod is not
-    # ready, 4e.8 prints the one command to run by hand after the first Jenkins build.
-    - name: "4e.6 | Wait for the backend pod (required to seed devices)"
-      ansible.builtin.command:
-        cmd: kubectl wait --for=condition=available deployment/urbansync-backend -n urbansync --timeout=120s
-      become: true
-      become_user: "{{ deploy_user }}"
-      register: backend_ready
-      changed_when: false
-      failed_when: false
-      when: seed_db | default(false) | bool
-
-    - name: "4e.7 | Seed the devices collection (apartment -> ThingsBoard device)"
-      ansible.builtin.command:
-        cmd: kubectl exec -n urbansync deploy/urbansync-backend -- node scripts/seedDevices.js
-      become: true
-      become_user: "{{ deploy_user }}"
-      register: device_seed
-      changed_when: "'Done.' in (device_seed.stdout | default(''))"
-      failed_when: false
-      when:
-        - seed_db | default(false) | bool
-        - backend_ready.rc | default(1) == 0
-
-    - name: "4e.8 | Warn if devices could not be seeded yet"
-      ansible.builtin.debug:
-        msg: >-
-          Devices were NOT seeded because the backend pod is not ready. This is normal on a
-          first bootstrap, when no image has been built yet. After the first Jenkins build
-          (FORCE_BUILD), run:
-          kubectl exec -n urbansync deploy/urbansync-backend -- node scripts/seedDevices.js
-          Until then the dashboard will show "NO SENSOR" even with ThingsBoard working.
-      when:
-        - seed_db | default(false) | bool
-        - backend_ready.rc | default(1) != 0
 
     # ---------------------------------------------------------------------------
     # BLOCK 5 — Εκκίνηση Jenkins
@@ -623,6 +580,149 @@
       register: app_result
       changed_when: "'created' in app_result.stdout or 'configured' in app_result.stdout"
       tags: [argocd]
+
+    # ---------------------------------------------------------------------------
+    # BLOCK 6f — Bootstrap the first build, then seed the derived collections
+    #
+    # Everything above installs infrastructure; none of it produces an application
+    # image. On a brand new environment the registry is empty, so backend, frontend
+    # and receipt-annotator all sit in ImagePullBackOff and the stack never converges
+    # no matter how long you wait.
+    #
+    # Jenkins cannot fix that by itself: every build stage is gated on
+    # `changeset "urbansync-v2/<dir>/**"`, and on the FIRST build of a job there is no
+    # previous build to diff against, so a plain "Build Now" builds nothing at all.
+    # FORCE_BUILD is the only way in, which is why this block triggers it over the API
+    # instead of leaving it as a manual step nobody remembers at 2am.
+    #
+    # This also has to come AFTER block 6: the build bumps the image tags in git, and
+    # ArgoCD has to exist to notice.
+    # ---------------------------------------------------------------------------
+    - name: "6f | Check whether this registry already has a backend image"
+      tags: [bootstrap]
+      ansible.builtin.command:
+        cmd: curl -sf http://localhost:5000/v2/urbansync-backend/tags/list
+      register: registry_backend
+      changed_when: false
+      failed_when: false
+
+    # An empty repository answers {"name":"...","tags":null}, and a missing one 404s.
+    - name: "6f.2 | Decide whether a bootstrap build is needed"
+      tags: [bootstrap]
+      ansible.builtin.set_fact:
+        needs_bootstrap_build: >-
+          {{ registry_backend.rc != 0
+             or '"tags":null' in (registry_backend.stdout | default(''))
+             or '"tags": null' in (registry_backend.stdout | default('')) }}
+
+    - name: "6g | Wait for the Jenkins job that JCasC creates on boot"
+      tags: [bootstrap]
+      ansible.builtin.uri:
+        url: "http://localhost:8080/job/urbansync-v2/api/json"
+        user: admin
+        password: "{{ jenkins_admin_password }}"
+        force_basic_auth: true
+      register: jenkins_job
+      until: jenkins_job.status is defined and jenkins_job.status == 200
+      retries: 30
+      delay: 10
+      ignore_errors: true
+      when: needs_bootstrap_build | bool
+
+    # The password arrives through the environment, not the command line, so it stays out
+    # of the task text. Deliberately NOT no_log: an earlier no_log in block 4e made a real
+    # failure impossible to debug, and nothing secret is printed here.
+    - name: "6h | Trigger FORCE_BUILD and wait for it to finish"
+      tags: [bootstrap]
+      ansible.builtin.shell: |
+        set -o pipefail
+        J=http://localhost:8080
+        JAR=$(mktemp)
+        CRUMB=$(curl -s -u "admin:$JPASS" -c "$JAR" "$J/crumbIssuer/api/json" \
+                | sed -n 's/.*"crumb":"\([^"]*\)".*/\1/p')
+        BEFORE=$(curl -s -u "admin:$JPASS" "$J/job/urbansync-v2/lastBuild/api/json?tree=number" \
+                 | sed -n 's/.*"number":\([0-9]*\).*/\1/p')
+        BEFORE=${BEFORE:-0}
+        curl -sf -u "admin:$JPASS" -b "$JAR" -H "Jenkins-Crumb: $CRUMB" \
+             -X POST "$J/job/urbansync-v2/buildWithParameters?FORCE_BUILD=true" -o /dev/null
+        rm -f "$JAR"
+        echo "triggered, waiting for a build newer than #$BEFORE"
+        for i in $(seq 1 60); do
+          R=$(curl -s -u "admin:$JPASS" "$J/job/urbansync-v2/lastBuild/api/json?tree=number,building,result")
+          N=$(echo "$R" | sed -n 's/.*"number":\([0-9]*\).*/\1/p')
+          B=$(echo "$R" | grep -o '"building":[a-z]*' | cut -d: -f2)
+          if [ "${N:-0}" -gt "$BEFORE" ] && [ "$B" = "false" ]; then
+            echo "build #$N finished: $(echo "$R" | grep -o '\"result\":\"[A-Z]*\"')"
+            exit 0
+          fi
+          sleep 20
+        done
+        echo "build did not finish within 20 minutes"
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        JPASS: "{{ jenkins_admin_password }}"
+      register: bootstrap_build
+      changed_when: "'finished' in (bootstrap_build.stdout | default(''))"
+      failed_when: false
+      when:
+        - needs_bootstrap_build | bool
+        - jenkins_job.status | default(0) == 200
+
+    - name: "6i | Ask ArgoCD to refresh now instead of waiting for its poll interval"
+      tags: [bootstrap]
+      ansible.builtin.command:
+        cmd: kubectl annotate application urbansync-prod -n argocd argocd.argoproj.io/refresh=hard --overwrite
+      become: true
+      become_user: "{{ deploy_user }}"
+      changed_when: false
+      failed_when: false
+      when: needs_bootstrap_build | bool
+
+    # mongoimport in block 4e loads `seed_collections`, and `devices` is deliberately NOT
+    # one of them: that collection is derived, not imported. It maps a Mongo apartment to a
+    # ThingsBoard device NAME and is built by backend/scripts/seedDevices.js (idempotent,
+    # upserts on deviceId). Without it every telemetry lookup returns available:false and
+    # the UI shows "NO SENSOR" while ThingsBoard sits there full of live readings — a
+    # failure that looks like broken IoT and is actually a missing join table.
+    # Cost an hour on 22 Sep during the rebuild onto a new subscription.
+    #
+    # It runs unconditionally, not behind seed_db: the script is an upsert, so re-running it
+    # is free, and the collection has to exist on a fresh environment where nobody passed
+    # any flag at all.
+    - name: "6j | Wait for the backend deployment to become available"
+      tags: [bootstrap]
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=available deployment/urbansync-backend -n urbansync --timeout=600s
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: backend_ready
+      changed_when: false
+      failed_when: false
+
+    - name: "6k | Seed the devices collection (apartment -> ThingsBoard device)"
+      tags: [bootstrap]
+      ansible.builtin.command:
+        cmd: kubectl exec -n urbansync deploy/urbansync-backend -- node scripts/seedDevices.js
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: device_seed
+      changed_when: "'Done.' in (device_seed.stdout | default(''))"
+      failed_when: false
+      when: backend_ready.rc | default(1) == 0
+
+    - name: "6l | Warn if the devices collection could not be seeded"
+      tags: [bootstrap]
+      ansible.builtin.debug:
+        msg: >-
+          Devices were NOT seeded: the backend deployment never became available. Check
+          `kubectl get pods -n urbansync` for ImagePullBackOff, which means this registry
+          lacks the tag the manifests ask for (a teammate's Jenkins bumped it). Recover with
+          FORCE_BUILD on THIS Jenkins, then run:
+          kubectl exec -n urbansync deploy/urbansync-backend -- node scripts/seedDevices.js
+          Until then the dashboard shows "NO SENSOR" even with ThingsBoard working.
+      when: backend_ready.rc | default(1) != 0
 
     # ---------------------------------------------------------------------------
     # BLOCK 7 — Τελικό μήνυμα
