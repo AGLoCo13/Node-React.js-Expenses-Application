@@ -109,7 +109,7 @@ function LoginPage() {
           <div className="login-form-container">
             <div className="login-header">
               <h2 className="login-title">Welcome Back</h2>
-              <h3 className='ci-cd'>CI/CD - Proof that pipeline works
+              <h3 className='ci-cd'>CI/CD - Proof that pipeline works!!!
               </h3>
               <p className="login-description">
                 Please login with your credentials to continue
