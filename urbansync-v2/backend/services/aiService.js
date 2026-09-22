@@ -19,7 +19,12 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 //                             aborting the loser. P(all slow) = 0.43^(1+hedges), so two
 //                             hedges take p95 from ~24s to ~4s for ~+50% API calls.
 //                             GEMINI_MAX_HEDGES=0 disables hedging (for A/B measurements).
-const GEMINI_MODEL             = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+// GEMINI_MODEL may be a comma-separated fallback list (the receipt-annotator walks the
+// whole list on 429, since the free-tier quota is per-model). This legacy path does not
+// do failover, so take the first entry — passing the raw list through would ask Google
+// for a model literally named "a,b,c" and get a 404.
+const GEMINI_MODEL             = (process.env.GEMINI_MODEL || 'gemini-3.6-flash')
+    .split(',')[0].trim();
 const GEMINI_THINKING_LEVEL    = (process.env.GEMINI_THINKING_LEVEL || 'low').toLowerCase();
 const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS, 10) || 1024;
 const GEMINI_HEDGE_AFTER_MS    = parseInt(process.env.GEMINI_HEDGE_AFTER_MS, 10) || 3000;
