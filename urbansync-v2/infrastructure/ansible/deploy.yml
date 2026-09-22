@@ -465,6 +465,51 @@
       changed_when: false
       when: seed_db | default(false) | bool
 
+    # mongoimport above loads `seed_collections`, and `devices` is deliberately NOT one
+    # of them: that collection is derived, not imported. It maps a Mongo apartment to a
+    # ThingsBoard device NAME and is built by backend/scripts/seedDevices.js (idempotent,
+    # upserts on deviceId). Without it every telemetry lookup returns available:false and
+    # the UI shows "NO SENSOR" while ThingsBoard is sitting there full of live readings —
+    # a failure that looks like broken IoT and is actually a missing join table.
+    # Cost an hour on 22 Sep during the rebuild onto a new subscription.
+    #
+    # It runs inside the backend pod, which does not exist yet on a first bootstrap (empty
+    # registry -> ImagePullBackOff), so this must never fail the play. If the pod is not
+    # ready, 4e.8 prints the one command to run by hand after the first Jenkins build.
+    - name: "4e.6 | Wait for the backend pod (required to seed devices)"
+      ansible.builtin.command:
+        cmd: kubectl wait --for=condition=available deployment/urbansync-backend -n urbansync --timeout=120s
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: backend_ready
+      changed_when: false
+      failed_when: false
+      when: seed_db | default(false) | bool
+
+    - name: "4e.7 | Seed the devices collection (apartment -> ThingsBoard device)"
+      ansible.builtin.command:
+        cmd: kubectl exec -n urbansync deploy/urbansync-backend -- node scripts/seedDevices.js
+      become: true
+      become_user: "{{ deploy_user }}"
+      register: device_seed
+      changed_when: "'Done.' in (device_seed.stdout | default(''))"
+      failed_when: false
+      when:
+        - seed_db | default(false) | bool
+        - backend_ready.rc | default(1) == 0
+
+    - name: "4e.8 | Warn if devices could not be seeded yet"
+      ansible.builtin.debug:
+        msg: >-
+          Devices were NOT seeded because the backend pod is not ready. This is normal on a
+          first bootstrap, when no image has been built yet. After the first Jenkins build
+          (FORCE_BUILD), run:
+          kubectl exec -n urbansync deploy/urbansync-backend -- node scripts/seedDevices.js
+          Until then the dashboard will show "NO SENSOR" even with ThingsBoard working.
+      when:
+        - seed_db | default(false) | bool
+        - backend_ready.rc | default(1) != 0
+
     # ---------------------------------------------------------------------------
     # BLOCK 5 — Εκκίνηση Jenkins
     # ---------------------------------------------------------------------------
